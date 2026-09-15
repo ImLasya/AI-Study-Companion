@@ -52,6 +52,16 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
     EMBEDDING_DIMENSION: int = 384
 
+    # 7. Phase 3: AI Tutor & Grounded RAG
+    GEMINI_API_KEY: str | None = None
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+    # Empirical prototype starting point (cosine distance <= 0.65 is accepted as relevant evidence).
+    # Note: 0.65 is an empirical prototype threshold for all-MiniLM-L6-v2, not a guaranteed relevance cutoff.
+    TUTOR_SIMILARITY_THRESHOLD: float = 0.65
+    TUTOR_TOP_K: int = 5
+    TUTOR_MAX_QUESTION_LENGTH: int = 2000
+    TUTOR_HISTORY_LIMIT: int = 6  # Bounded recent message context window
+
     # Future Phases (Optional placeholders)
     OPENAI_API_KEY: str | None = None
     OPENAI_MODEL: str = "gpt-4o"

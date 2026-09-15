@@ -6,7 +6,7 @@ Enforces strict tenant isolation: all user-facing queries must filter by both en
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.chunk import MaterialChunk
@@ -44,6 +44,21 @@ class MaterialRepository:
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def has_ready_materials(self, user_id: uuid.UUID, project_id: uuid.UUID) -> bool:
+        """Check if a project has at least one material with status='ready', scoped to user."""
+        stmt = (
+            select(func.count())
+            .select_from(Material)
+            .where(
+                Material.project_id == project_id,
+                Material.user_id == user_id,
+                Material.status == "ready",
+            )
+        )
+        result = await self.session.execute(stmt)
+        count = result.scalar_one()
+        return count > 0
 
     async def get_by_id_internal(self, material_id: uuid.UUID) -> Material | None:
         """Internal lookup by ID for background worker execution."""
@@ -168,6 +183,36 @@ class MaterialRepository:
         )
         result = await self.session.execute(stmt)
         return [(row[0], float(row[1])) for row in result.all()]
+
+    async def search_chunks_with_material(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        query_embedding: list[float],
+        limit: int = 5,
+    ) -> list[tuple[MaterialChunk, str, float]]:
+        """Perform cosine similarity search on chunks joining Material for filename.
+
+        ISOLATION BOUNDARY: WHERE MaterialChunk.project_id = :project_id AND Material.user_id = :user_id
+        Returns list of tuples: (MaterialChunk, filename, cosine_distance) sorted by distance asc.
+        """
+        stmt = (
+            select(
+                MaterialChunk,
+                Material.filename,
+                MaterialChunk.embedding.cosine_distance(query_embedding).label("distance"),
+            )
+            .join(Material, MaterialChunk.material_id == Material.id)
+            .where(
+                MaterialChunk.project_id == project_id,
+                Material.user_id == user_id,
+                Material.status == "ready",
+            )
+            .order_by("distance")
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return [(row[0], str(row[1]), float(row[2])) for row in result.all()]
 
     async def delete(self, user_id: uuid.UUID, material_id: uuid.UUID) -> bool:
         """Delete a material, enforcing tenant isolation.

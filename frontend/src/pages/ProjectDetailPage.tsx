@@ -24,6 +24,7 @@ import {
   uploadMaterialApi,
 } from "@/lib/api";
 import { Material, Project } from "@/types";
+import { TutorTab } from "@/components/TutorTab";
 
 type TabKey = "materials" | "tutor" | "quiz" | "growth" | "analytics";
 
@@ -435,22 +436,9 @@ export const ProjectDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 2: AI Tutor Placeholder (Phase 3) */}
-      {activeTab === "tutor" && (
-        <div className="rounded-2xl border border-dashed border-gray-800 bg-gray-950/40 p-12 text-center min-h-[300px] flex flex-col items-center justify-center">
-          <div className="max-w-md">
-            <div className="p-3.5 rounded-2xl bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 inline-flex mb-4">
-              <Bot className="w-8 h-8" />
-            </div>
-            <h3 className="text-base font-bold text-white">AI Tutor Workspace</h3>
-            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-              Interactive grounded tutoring strictly referenced from project materials with page citations and unsupported-question handling in Phase 3.
-            </p>
-            <span className="inline-flex items-center gap-1 mt-4 px-2.5 py-1 rounded-full text-[11px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20">
-              <Sparkles className="w-3 h-3" /> Scheduled for Phase 3
-            </span>
-          </div>
-        </div>
+      {/* Tab 2: AI Tutor — Phase 3 Grounded RAG */}
+      {activeTab === "tutor" && projectId && (
+        <TutorTab projectId={projectId} />
       )}
 
       {/* Tab 3: Adaptive Quiz Placeholder (Phase 4) */}

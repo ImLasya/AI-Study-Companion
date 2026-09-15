@@ -81,3 +81,63 @@ export interface ApiResponse<T> {
   error?: string;
   timestamp?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 3: AI Tutor Types
+// ---------------------------------------------------------------------------
+
+export interface TutorCitation {
+  chunk_id: string;
+  material_id: string;
+  filename: string;
+  page_number: number;
+}
+
+export interface TutorAnswer {
+  conversation_id: string;
+  message_id: string;
+  answer: string;
+  grounded: boolean;
+  insufficient_evidence: boolean;
+  citations: TutorCitation[];
+}
+
+export interface TutorMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  grounded: boolean;
+  insufficient_evidence: boolean;
+  citations: TutorCitation[];
+  created_at: string;
+}
+
+export interface TutorConversation {
+  id: string;
+  project_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  messages: TutorMessage[];
+}
+
+export interface TutorConversationSummary {
+  id: string;
+  project_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+}
+
+// Local UI type merging user + assistant turns for the chat view
+export interface ChatTurn {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  grounded: boolean;
+  insufficient_evidence: boolean;
+  citations: TutorCitation[];
+  created_at: string;
+  isPending?: boolean;
+}
