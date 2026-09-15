@@ -124,3 +124,67 @@ This document details the architectural design for the **AI Study Companion** ac
   - Any request attempting to access or mutate a space or project owned by another tenant returns **HTTP 404 Not Found**, never HTTP 403 Forbidden.
   - This completely prevents unauthorized callers from discovering whether a given entity ID exists in the database.
 
+---
+
+## 6. Phase 2 Architecture: Learning Materials & Knowledge Pipeline
+
+### 6.1 Ingestion Flow & Async Processing Pattern
+The document ingestion architecture decouples file upload from heavy vector computation:
+1. **Upload Request (`POST /api/v1/projects/{id}/materials`)**:
+   - Authenticated user submits a `multipart/form-data` payload containing a PDF file.
+   - Validation ensures:
+     - MIME type is `application/pdf` or extension is `.pdf`.
+     - File size does not exceed `MAX_UPLOAD_SIZE_BYTES` (default 20MB).
+     - Target project belongs to the requesting user (returns HTTP 404 on mismatch).
+   - Synchronous Storage: File is streamed to disk via `StorageService` at `{STORAGE_PATH}/materials/{project_id}/{material_id}/original.pdf` with path traversal sanitization.
+   - Initial State: A `Material` record is persisted with status `queued`.
+   - Async Dispatch: A Celery background task `process_material.delay(material_id)` is enqueued on Redis.
+   - Response: Returns **HTTP 202 Accepted** immediately with `MaterialResponse`.
+
+2. **Celery Worker Execution (`process_material`)**:
+   - Status transition: Updates `Material.status` to `processing`.
+   - Extraction: PyMuPDF (`fitz`) opens the PDF from storage, extracts text page by page, and validates content.
+   - Chunking: Deterministic page-preserving chunking generates text chunks with exact `page_number` and sequential `chunk_index`.
+   - Embeddings: Generates 384-dimensional dense vectors using `sentence-transformers/all-MiniLM-L6-v2`.
+   - Storage & Indexing: Inserts `MaterialChunk` records with native `Vector(384)` embeddings.
+   - Completion: Updates `Material.status` to `ready`, sets `page_count`.
+   - Error Handling: On any extraction or processing exception, catches the error, sets status to `failed`, and persists the detailed message in `Material.failure_reason`.
+
+### 6.2 Storage Abstraction & Cloud Portability
+- **Storage Service Interface**: Local filesystem storage is implemented via `StorageService` rooted at `STORAGE_PATH` (default `./storage`).
+- **Path Sanitization**: Filenames are sanitized to prevent directory traversal attacks (`../` stripping).
+- **Structure**: Files are partitioned by hierarchy: `storage/materials/{project_id}/{material_id}/original.pdf`.
+- **Cloud Migration Path**: The `StorageService` interface isolates file persistence; future migration to S3, Google Cloud Storage, or MinIO requires changing only the storage driver without affecting extraction or database logic.
+
+### 6.3 PyMuPDF Extraction & Page-Preserving Chunking
+- **Engine**: PyMuPDF (`fitz`) is selected for high-performance C-based text extraction.
+- **Scanned/Empty PDF Detection**: Pages with zero extractable text are flagged; documents with no extractable text fail with a descriptive `failure_reason` guiding users to upload text-based PDFs.
+- **Deterministic Chunking Policy**:
+  - Target size: ~500–800 tokens (~2400 characters).
+  - Target overlap: ~400 characters between adjacent chunks.
+  - Page Boundary Invariance: Chunks **never cross page boundaries**. Each chunk is strictly bounded to a single page. This guarantees that downstream Phase 3 RAG citations (`Source: File - Page X`) are 100% accurate and verifiable.
+  - Sentence Boundary Respect: Chunk splits prioritize newline and sentence punctuation (`. `, `! `, `? `) over arbitrary character cutoffs.
+
+### 6.4 Native PostgreSQL `Vector(384)` & HNSW Indexing
+- **Native pgvector Requirement**: All vector representations use native PostgreSQL `vector(384)`. Real array (`real[]`), JSON, or SQLite fallbacks are strictly prohibited.
+- **Embedding Model**: `sentence-transformers/all-MiniLM-L6-v2`, producing 384-dimensional normalized dense vectors.
+- **HNSW Cosine Index**: An HNSW index (`m=16`, `ef_construction=64`) is created using the `vector_cosine_ops` operator class:
+  ```sql
+  CREATE INDEX idx_material_chunks_embedding_hnsw 
+  ON material_chunks 
+  USING hnsw (embedding vector_cosine_ops) 
+  WITH (m = 16, ef_construction = 64);
+  ```
+- **Semantic Distance**: Vector similarity searches utilize the cosine distance operator `<=>`, computing cosine distance in sub-millisecond query time.
+
+### 6.5 Idempotency & Retry Guarantee
+- **Reprocessing Safety**: The Celery worker implements idempotent chunk replacement via `MaterialRepository.replace_chunks()`. Any existing chunks for the material are deleted within an atomic database transaction before newly computed chunks are inserted.
+- **Manual Retry Endpoint (`POST /api/v1/materials/{id}/retry`)**: If a document fails due to temporary worker starvation or downstream timeouts, users can trigger a retry, which resets status to `queued`, clears `failure_reason`, and re-dispatches the Celery task.
+
+### 6.6 Strict Multi-Tenant Isolation
+- All material queries and mutations verify ownership at the repository level:
+  ```sql
+  SELECT * FROM materials WHERE id = :material_id AND user_id = :user_id;
+  ```
+- Cross-tenant requests return **HTTP 404 Not Found**, preserving the zero-knowledge anti-enumeration policy established in Phase 1.
+

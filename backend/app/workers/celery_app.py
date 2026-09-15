@@ -6,6 +6,7 @@ celery_app = Celery(
     "ai_study_companion",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
+    include=["app.workers.tasks"],
 )
 
 celery_app.conf.update(

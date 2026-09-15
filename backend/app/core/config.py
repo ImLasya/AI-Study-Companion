@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
 
+    # 6. Phase 2: Learning Materials & Embeddings
+    STORAGE_PATH: str = "./storage"
+    MAX_UPLOAD_SIZE_BYTES: int = 20 * 1024 * 1024  # 20 MB limit
+    EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
+    EMBEDDING_DIMENSION: int = 384
+
+    # Future Phases (Optional placeholders)
     OPENAI_API_KEY: str | None = None
     OPENAI_MODEL: str = "gpt-4o"
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"

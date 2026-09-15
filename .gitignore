@@ -55,6 +55,8 @@ out/
 *.db
 pgdata/
 redisdata/
+storage/
+backend/storage/
 
 # IDE & Editors
 .vscode/

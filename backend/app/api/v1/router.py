@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, health, projects, spaces
+from app.api.v1.endpoints import auth, health, materials, projects, spaces
 
 api_router = APIRouter()
 
@@ -12,8 +12,8 @@ api_router.include_router(auth.router)
 api_router.include_router(spaces.router)
 api_router.include_router(projects.router)
 
-# Future Phase endpoints:
-# api_router.include_router(materials.router, prefix="/materials", tags=["Materials"])
+# 3. Phase 2: Learning Materials & Ingestion Pipeline
+api_router.include_router(materials.router, tags=["Materials"])
 # api_router.include_router(tutor.router, prefix="/tutor", tags=["AI Tutor"])
 # api_router.include_router(quizzes.router, prefix="/quizzes", tags=["Adaptive Quiz"])
 # api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])

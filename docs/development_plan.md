@@ -27,13 +27,19 @@ This roadmap tracks the step-by-step implementation of the **AI Study Companion*
 - [x] React + Vite frontend with AuthContext, ProtectedRoute, Spaces & Projects navigation and management UI.
 - [x] Real PostgreSQL test suite with 16 automated tests covering auth, token refresh, and data isolation.
 
-### Phase 2: PDF Upload & Asynchronous Ingestion Pipeline
-- [ ] Supabase Storage integration for document storage.
-- [ ] Celery tasks for asynchronous PDF parsing, OCR, and text extraction.
-- [ ] Document chunking pipeline with page and section metadata preservation.
-- [ ] OpenAI embeddings generation and pgvector indexing.
-- [ ] Material status tracking (`queued` -> `processing` -> `ready` / `failed`).
-- [ ] Frontend material upload drag-and-drop UI with progress indicator.
+### Phase 2: PDF Upload & Asynchronous Ingestion Pipeline (Completed)
+- [x] Local filesystem storage service with path traversal sanitization.
+- [x] Synchronous 202 Accepted upload endpoint with format and size validation.
+- [x] Celery asynchronous worker pipeline for PyMuPDF text extraction.
+- [x] Page-aware deterministic chunking preserving page boundaries and sequence order.
+- [x] Sentence-transformers all-MiniLM-L6-v2 embeddings (dimension 384) with AI usage/latency logging.
+- [x] Native PostgreSQL Vector(384) storage with HNSW cosine index (vector_cosine_ops).
+- [x] Material status lifecycle (`queued` -> `processing` -> `ready` / `failed`).
+- [x] Failure reason capture and manual retry endpoint (`POST /materials/{id}/retry`).
+- [x] Idempotent chunk replacement ensuring safe re-processing.
+- [x] Strict user/project/space tenant isolation with anti-enumeration 404s.
+- [x] React + Vite Materials UI with drag-and-drop, optimistic queuing, status badges, and polling.
+- [x] Test suite covering upload, pgvector similarity search, idempotency, corrupt PDF failure, and multi-tenant isolation.
 
 ### Phase 3: AI Tutor & Grounded RAG with Citations
 - [ ] Semantic vector search repository with project-level isolation filters.

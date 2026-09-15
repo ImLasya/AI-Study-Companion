@@ -31,6 +31,29 @@ export interface Project {
   updated_at: string;
 }
 
+export type MaterialStatus = "queued" | "processing" | "ready" | "failed";
+
+export interface Material {
+  id: string;
+  project_id: string;
+  filename: string;
+  status: MaterialStatus;
+  failure_reason: string | null;
+  page_count: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MaterialChunk {
+  id: string;
+  material_id: string;
+  project_id: string;
+  page_number: number;
+  chunk_index: number;
+  content: string;
+  created_at: string;
+}
+
 export interface HealthStatus {
   status: "healthy" | "unhealthy";
   version: string;
