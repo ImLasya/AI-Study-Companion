@@ -54,7 +54,7 @@ class Settings(BaseSettings):
 
     # 7. Phase 3: AI Tutor & Grounded RAG
     GEMINI_API_KEY: str | None = None
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MODEL: str = "gemini-3.6-flash"
     # Empirical prototype starting point (cosine distance <= 0.65 is accepted as relevant evidence).
     # Note: 0.65 is an empirical prototype threshold for all-MiniLM-L6-v2, not a guaranteed relevance cutoff.
     TUTOR_SIMILARITY_THRESHOLD: float = 0.65
