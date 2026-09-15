@@ -1,1 +1,8 @@
-"""SQLAlchemy Domain Models (To be defined in Phase 1)."""
+"""SQLAlchemy Domain Models for AI Study Companion."""
+
+from app.models.event import ActivityEvent
+from app.models.project import Project
+from app.models.space import Space
+from app.models.user import User
+
+__all__ = ["User", "Space", "Project", "ActivityEvent"]

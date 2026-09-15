@@ -1,16 +1,18 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import health
+from app.api.v1.endpoints import auth, health, projects, spaces
 
 api_router = APIRouter()
 
-# Register core health endpoints
+# 1. Health Probes
 api_router.include_router(health.router)
 
-# Future Phase endpoints will be included here:
-# api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-# api_router.include_router(spaces.router, prefix="/spaces", tags=["Spaces"])
-# api_router.include_router(projects.router, prefix="/projects", tags=["Projects"])
+# 2. Phase 1: Authentication, Spaces & Projects
+api_router.include_router(auth.router)
+api_router.include_router(spaces.router)
+api_router.include_router(projects.router)
+
+# Future Phase endpoints:
 # api_router.include_router(materials.router, prefix="/materials", tags=["Materials"])
 # api_router.include_router(tutor.router, prefix="/tutor", tags=["AI Tutor"])
 # api_router.include_router(quizzes.router, prefix="/quizzes", tags=["Adaptive Quiz"])

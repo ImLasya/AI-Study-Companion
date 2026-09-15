@@ -84,3 +84,43 @@ This document details the architectural design for the **AI Study Companion** ac
   LIMIT 5;
   ```
 - Untrusted user input and document content are treated strictly as data, never system instructions, mitigating prompt injection risks.
+
+---
+
+## 5. Phase 1 Architecture: Authentication & Tenant Isolation
+
+### 5.1 Cookie-Based JWT Authentication & CORS Strategy
+- **Transport Security**: JWT tokens are issued as `httpOnly`, `SameSite=lax` cookies (`access_token` and `refresh_token`), rather than returned in JSON payloads.
+  - Mitigates Cross-Site Scripting (XSS) credential theft because JavaScript running in the browser cannot read `document.cookie` for httpOnly tokens.
+  - Protects against Cross-Site Request Forgery (CSRF) using `samesite="lax"`, standard path scoping (`/api/v1/auth/refresh` for refresh token), and strict CORS origin validation.
+- **Frontend / Backend Communication**:
+  - Frontend (`http://localhost:3000`) uses `credentials: "include"` on all `fetch` requests via `apiClient`.
+  - Backend FastAPI CORS middleware explicitly configures `allow_credentials=True` with explicit origins (`http://localhost:3000`). Wildcard `*` origins are rejected when credentials are enabled.
+- **Header Fallback**:
+  - `get_current_user` first inspects the `access_token` cookie; if missing, it falls back to standard `Authorization: Bearer <token>` headers to support automated scripts and API clients.
+
+### 5.2 Token Refresh Tradeoff & Expiry Policy
+- **Design Choices**:
+  1. **Short-Lived Access Token (15–30 minutes, default 15m)**:
+     - Minimizes the blast radius of a compromised token without requiring stateful token revocation lists in the database for everyday requests.
+  2. **Long-Lived Refresh Token (7 days)**:
+     - Stored as an `httpOnly` cookie scoped specifically to `path="/api/v1/auth/refresh"`.
+     - Re-authenticates the user transparently via `POST /api/v1/auth/refresh` without prompting for re-login.
+- **Tradeoff Analysis**:
+  - *Option A (Implemented)*: Dual-token system with `POST /auth/refresh`. Provides optimal balance of security (fast invalidation window) and user experience (7-day persistence).
+  - *Option B (Alternative)*: Single long-lived access token (e.g. 24–72 hours) without refresh endpoint. Simpler architecture with fewer moving parts, but revocation requires maintaining a Redis token blacklist or database invalidation timestamp (`token_valid_after`). We implemented Option A to adhere to zero-trust security best practices required by the PRD.
+
+### 5.3 Repository-Level Tenant Isolation
+- **Strict Query Scoping**:
+  - Every persistence operation in `SpaceRepository` and `ProjectRepository` enforces tenant filtering directly within the SQL statement:
+    ```sql
+    -- Space access
+    SELECT * FROM spaces WHERE id = :space_id AND user_id = :user_id;
+
+    -- Project access (via direct user_id or space ownership)
+    SELECT * FROM projects WHERE id = :project_id AND user_id = :user_id;
+    ```
+- **Anti-Enumeration 404 Policy**:
+  - Any request attempting to access or mutate a space or project owned by another tenant returns **HTTP 404 Not Found**, never HTTP 403 Forbidden.
+  - This completely prevents unauthorized callers from discovering whether a given entity ID exists in the database.
+

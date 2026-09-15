@@ -19,12 +19,13 @@ This roadmap tracks the step-by-step implementation of the **AI Study Companion*
 - [x] Automated test suite (Pytest + AsyncClient) and CI workflow.
 - [x] Architecture, data model, and learning loop documentation.
 
-### Phase 1: Authentication & Project Isolation Data Model
-- [ ] User authentication with JWT (Signup, Login, Refresh tokens).
-- [ ] SQLAlchemy models & Alembic migrations: `User`, `Space`, `Project`, `ActivityEvent`.
-- [ ] Repositories for User, Space, Project with strict tenant isolation.
-- [ ] API endpoints for Spaces and Projects.
-- [ ] Frontend Space & Project navigation and management UI.
+### Phase 1: Authentication & Project Isolation Data Model (Completed)
+- [x] User authentication with JWT (Signup, Login, Refresh tokens via httpOnly cookies).
+- [x] SQLAlchemy models & Alembic migrations: `User`, `Space`, `Project`, `ActivityEvent`.
+- [x] Repositories for User, Space, Project with strict tenant isolation (user_id scoped, 404 on cross-tenant access).
+- [x] API endpoints for Auth, Spaces, and Projects with comprehensive error handling.
+- [x] React + Vite frontend with AuthContext, ProtectedRoute, Spaces & Projects navigation and management UI.
+- [x] Real PostgreSQL test suite with 16 automated tests covering auth, token refresh, and data isolation.
 
 ### Phase 2: PDF Upload & Asynchronous Ingestion Pipeline
 - [ ] Supabase Storage integration for document storage.

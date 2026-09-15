@@ -31,16 +31,20 @@ class Settings(BaseSettings):
     # 3. Database (Phase 0 Required)
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_study_companion"
     SYNC_DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/ai_study_companion"
+    TEST_DATABASE_URL: str = (
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_study_companion_test"
+    )
 
     # 4. Redis & Celery (Phase 0 Required)
     REDIS_URL: str = "redis://localhost:6379/0"
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/1"
 
-    # 5. Future Phases (Optional in Phase 0)
+    # 5. Authentication & JWT
     JWT_SECRET: str = "development-insecure-secret-key-32-chars-long"
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
 
     OPENAI_API_KEY: str | None = None
     OPENAI_MODEL: str = "gpt-4o"

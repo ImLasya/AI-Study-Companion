@@ -1,7 +1,35 @@
 /**
- * Phase 0 System Health and Core API Types
- * Full domain models (Space, Project, Material, Quiz) will be defined in Phase 1+.
+ * Core Domain Models and API Types
  */
+
+export interface User {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: "user" | "admin" | string;
+  created_at: string;
+}
+
+export interface Space {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  projects_count: number;
+}
+
+export interface Project {
+  id: string;
+  space_id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  learning_goal: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface HealthStatus {
   status: "healthy" | "unhealthy";
@@ -28,5 +56,5 @@ export interface DatabaseHealthStatus {
 export interface ApiResponse<T> {
   data?: T;
   error?: string;
-  timestamp: string;
+  timestamp?: string;
 }
