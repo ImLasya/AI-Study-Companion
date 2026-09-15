@@ -63,16 +63,18 @@ ai-study-companion/
 │   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   ├── app/
-│   │   │   ├── api/health/route.ts# Next.js route health probe
-│   │   │   ├── layout.tsx         # Root layout with dark theme tokens
-│   │   │   ├── page.tsx           # Phase 0 System Dashboard & Loop Visualizer
-│   │   │   └── globals.css        # Tailwind CSS styling
 │   │   ├── components/            # Header, SystemStatusCard
+│   │   ├── layouts/               # RootLayout shell with Outlet
+│   │   ├── pages/                 # HomePage (Phase 0 System Dashboard & Loop Visualizer)
 │   │   ├── lib/api.ts             # Backend API client
-│   │   └── types/index.ts         # Phase 0 TypeScript contracts
+│   │   ├── types/index.ts         # Phase 0 TypeScript contracts
+│   │   ├── App.tsx                # Client-side router configuration
+│   │   ├── main.tsx               # React application entrypoint
+│   │   └── index.css              # Tailwind CSS styling
+│   ├── index.html                 # Root HTML shell
 │   ├── package.json
 │   ├── tsconfig.json
+│   ├── vite.config.ts
 │   └── tailwind.config.ts
 ├── docs/
 │   ├── architecture.md            # System architecture & service boundaries
@@ -82,7 +84,7 @@ ai-study-companion/
 ├── scripts/
 │   ├── setup.ps1                  # Monorepo setup script (PowerShell)
 │   ├── dev-backend.ps1            # Starts FastAPI backend
-│   ├── dev-frontend.ps1           # Starts Next.js frontend
+│   ├── dev-frontend.ps1           # Starts React + Vite frontend
 │   └── test.ps1                   # Runs all tests, linters, and type checkers
 ├── docker-compose.yml             # PostgreSQL 16 (pgvector/pgvector:pg16) + Redis 7
 ├── .env.example                   # Master environment variables template
@@ -93,11 +95,11 @@ ai-study-companion/
 
 ## 3. Technology Stack
 
-- **Frontend**: Next.js 14 (App Router), TypeScript (Strict Mode), Tailwind CSS, Lucide Icons.
+- **Frontend**: React 18, Vite 5, React Router 6, TypeScript (Strict Mode), Tailwind CSS, Lucide Icons.
 - **Backend**: FastAPI, Python 3.11+, Pydantic v2, SQLAlchemy 2.0 (asyncpg).
 - **Database & Vectors**: PostgreSQL 16, pgvector extension, Alembic.
 - **Worker & Cache**: Redis 7, Celery 5.
-- **Quality Assurance**: Pytest, pytest-asyncio, HTTPX, Ruff, Mypy, ESLint, TypeScript compiler.
+- **Quality Assurance**: Pytest, pytest-asyncio, HTTPX, Ruff, Mypy, TypeScript compiler.
 
 ---
 
@@ -147,7 +149,7 @@ cd frontend
 # Install dependencies
 npm install
 
-# Start Next.js dev server
+# Start React + Vite dev server
 npm run dev
 ```
 - **Frontend App**: `http://localhost:3000`

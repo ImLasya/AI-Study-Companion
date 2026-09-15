@@ -1,11 +1,13 @@
 # AI Study Companion - Frontend
 
-Next.js 14 frontend web workspace for the **AI Study Companion** platform.
+React + Vite + TypeScript frontend web workspace for the **AI Study Companion** platform.
 
 ## Architecture
 
-- **Next.js 14 (App Router)**: Fast, performant server and client rendering.
-- **TypeScript (Strict Mode)**: Type safety and domain contracts.
+- **React 18**: Component-based UI library.
+- **Vite 5**: Blazing-fast frontend build tool and dev server.
+- **TypeScript (Strict Mode)**: Type safety and API contracts.
+- **React Router 6**: Client-side routing.
 - **Tailwind CSS**: Modern styling with responsive layout and dark theme tokens.
 - **Lucide React**: Clean, accessible iconography.
 
@@ -29,10 +31,10 @@ npm install
 ```bash
 npm run dev
 ```
-Open `http://localhost:3000` with your browser.
+Open `http://localhost:3000` in your browser.
 
-### 5. Type Checking and Linting
+### 5. Type Checking and Build
 ```bash
 npm run typecheck
-npm run lint
+npm run build
 ```

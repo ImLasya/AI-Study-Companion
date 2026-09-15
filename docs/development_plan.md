@@ -14,7 +14,7 @@ This roadmap tracks the step-by-step implementation of the **AI Study Companion*
 - [x] Alembic migration framework with pgvector initialization.
 - [x] Redis 7 and Celery background worker scaffolding.
 - [x] Liveness, readiness, and database health endpoints (`/health`, `/health/ready`, `/health/db`).
-- [x] Next.js 14 frontend with TypeScript strict mode and Tailwind CSS.
+- [x] React + Vite frontend with TypeScript strict mode, React Router, and Tailwind CSS.
 - [x] Phase 0 dashboard with real-time health indicator.
 - [x] Automated test suite (Pytest + AsyncClient) and CI workflow.
 - [x] Architecture, data model, and learning loop documentation.

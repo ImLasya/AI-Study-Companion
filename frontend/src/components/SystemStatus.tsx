@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useEffect, useState } from "react";
 import { CheckCircle2, XCircle, RefreshCw, Database, Server, Cpu } from "lucide-react";
 import { getBackendHealth, getBackendReadiness, getDatabaseHealth } from "@/lib/api";

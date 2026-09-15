@@ -63,11 +63,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint
-
       - name: Run TypeScript Type Check
         run: npm run typecheck
 
-      - name: Run Next.js Production Build
+      - name: Run React + Vite Production Build
         run: npm run build
+

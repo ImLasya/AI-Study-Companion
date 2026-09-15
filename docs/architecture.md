@@ -19,7 +19,7 @@ This document details the architectural design for the **AI Study Companion** ac
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Presentation Layer                       │
-│        Next.js 14 • React • TypeScript • Tailwind CSS       │
+│    React 18 • Vite • React Router • TypeScript • Tailwind   │
 └──────────────────────────────┬──────────────────────────────┘
                                │ HTTP / JSON
                                ▼
@@ -53,7 +53,7 @@ This document details the architectural design for the **AI Study Companion** ac
 ## 3. Tier Responsibilities
 
 ### 3.1 Frontend (`frontend/`)
-- Built with **Next.js 14** (App Router), **TypeScript** (Strict Mode), and **Tailwind CSS**.
+- Built with **React 18**, **Vite**, **React Router 6**, **TypeScript** (Strict Mode), and **Tailwind CSS**.
 - Interacts with the backend via versioned REST endpoints (`/api/v1/*`).
 - Handles authentication state, interactive tutoring sessions, quiz taking, and mastery visualization.
 

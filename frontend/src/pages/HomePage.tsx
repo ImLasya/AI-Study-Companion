@@ -1,13 +1,9 @@
 import React from "react";
 import {
   Layers,
-  ArrowRight,
-  Database,
   BrainCircuit,
-  Bot,
   CheckCircle2,
   Workflow,
-  Cpu,
 } from "lucide-react";
 import { SystemStatus } from "@/components/SystemStatus";
 
@@ -34,12 +30,12 @@ const phase0Checklist = [
   { name: "Alembic Migrations Configured with pgvector Extension", done: true },
   { name: "Redis 7 & Celery Asynchronous Worker Scaffold", done: true },
   { name: "FastAPI Health Probes (/health, /health/ready, /health/db)", done: true },
-  { name: "Next.js 14 + TypeScript Strict Mode + Tailwind CSS", done: true },
+  { name: "React + Vite + TypeScript Strict Mode + Tailwind CSS", done: true },
   { name: "Automated Pytest Suite with Async Client", done: true },
   { name: "Architecture & Data Model Documentation under docs/", done: true },
 ];
 
-export default function HomePage() {
+export const HomePage: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Hero / Intro Banner */}
@@ -77,7 +73,7 @@ export default function HomePage() {
             <div className="space-y-3 font-mono text-xs">
               <div className="p-3 rounded-lg border border-gray-800 bg-gray-950/70 flex items-center justify-between">
                 <span className="text-indigo-300 font-semibold">1. Frontend Layer</span>
-                <span className="text-gray-400">Next.js 14 &bull; TypeScript &bull; Tailwind CSS</span>
+                <span className="text-gray-400">React &bull; Vite &bull; Tailwind CSS</span>
               </div>
               <div className="flex justify-center text-gray-600">↓</div>
               <div className="p-3 rounded-lg border border-gray-800 bg-gray-950/70 flex items-center justify-between">
@@ -158,4 +154,4 @@ export default function HomePage() {
       </div>
     </div>
   );
-}
+};
