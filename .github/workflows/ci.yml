@@ -60,7 +60,11 @@ jobs:
 
       - name: Run Pytest Suite
         run: |
-          uv run python -m pytest -v --tb=short
+          uv run python -m pytest -v 2>&1 | tee /tmp/pytest.log || {
+            ERR=$(cat /tmp/pytest.log | head -n 30 | tr '\r\n' ' ')
+            echo "::error title=Pytest Failure::$ERR"
+            exit 1
+          }
 
   frontend-ci:
     name: Frontend Lint, Type Check & Build
