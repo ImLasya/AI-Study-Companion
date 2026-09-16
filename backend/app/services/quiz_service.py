@@ -105,7 +105,7 @@ class QuizService:
                 temperature=0.2,
             )
             latency_ms = usage.latency_ms or ((time.perf_counter() - start_time) * 1000.0)
-            log_ai_usage(
+            await log_ai_usage(
                 user_id=user_id,
                 project_id=project_id,
                 operation="concept_extraction",
@@ -116,10 +116,11 @@ class QuizService:
                 output_tokens=usage.candidate_tokens,
                 total_tokens=usage.total_tokens,
                 success=True,
+                session=self.session,
             )
         except Exception as err:
             latency_ms = (time.perf_counter() - start_time) * 1000.0
-            log_ai_usage(
+            await log_ai_usage(
                 user_id=user_id,
                 project_id=project_id,
                 operation="concept_extraction",
@@ -128,6 +129,7 @@ class QuizService:
                 latency_ms=latency_ms,
                 success=False,
                 error=str(err),
+                session=self.session,
             )
             raise
 
@@ -211,7 +213,7 @@ class QuizService:
                 temperature=0.2,
             )
             latency_ms = usage.latency_ms or ((time.perf_counter() - start_time) * 1000.0)
-            log_ai_usage(
+            await log_ai_usage(
                 user_id=user_id,
                 project_id=project_id,
                 operation="concept_extraction",
@@ -222,10 +224,11 @@ class QuizService:
                 output_tokens=usage.candidate_tokens,
                 total_tokens=usage.total_tokens,
                 success=True,
+                session=self.session,
             )
         except LLMGenerationError as err:
             latency_ms = (time.perf_counter() - start_time) * 1000.0
-            log_ai_usage(
+            await log_ai_usage(
                 user_id=user_id,
                 project_id=project_id,
                 operation="concept_extraction",
@@ -234,6 +237,7 @@ class QuizService:
                 latency_ms=latency_ms,
                 success=False,
                 error=str(err),
+                session=self.session,
             )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
@@ -347,7 +351,9 @@ class QuizService:
         open_ended_count = 1 if count >= 3 else 0
         mcq_count = count - open_ended_count
 
-        concept_payloads = [{"name": s.concept_name, "description": s.rationale} for s in plan.selected_concepts]
+        concept_payloads = [
+            {"name": s.concept_name, "description": s.rationale} for s in plan.selected_concepts
+        ]
         prompt = build_quiz_generation_prompt(
             target_concepts=concept_payloads,
             evidence_chunks=evidence_chunks,
@@ -366,7 +372,7 @@ class QuizService:
                 temperature=0.3,
             )
             latency_ms = usage.latency_ms or ((time.perf_counter() - start_time) * 1000.0)
-            log_ai_usage(
+            await log_ai_usage(
                 user_id=user_id,
                 project_id=project_id,
                 operation="quiz_question_generation",
@@ -377,10 +383,11 @@ class QuizService:
                 output_tokens=usage.candidate_tokens,
                 total_tokens=usage.total_tokens,
                 success=True,
+                session=self.session,
             )
         except LLMGenerationError as err:
             latency_ms = (time.perf_counter() - start_time) * 1000.0
-            log_ai_usage(
+            await log_ai_usage(
                 user_id=user_id,
                 project_id=project_id,
                 operation="quiz_question_generation",
@@ -389,6 +396,7 @@ class QuizService:
                 latency_ms=latency_ms,
                 success=False,
                 error=str(err),
+                session=self.session,
             )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
@@ -409,7 +417,14 @@ class QuizService:
             if len(mcq.options) != 4:
                 continue
             # Validate correct_answer matches one of the options
-            matched_option = next((opt for opt in mcq.options if opt.strip().lower() == mcq.correct_answer.strip().lower()), None)
+            matched_option = next(
+                (
+                    opt
+                    for opt in mcq.options
+                    if opt.strip().lower() == mcq.correct_answer.strip().lower()
+                ),
+                None,
+            )
             if not matched_option:
                 # If model returned "A" or "Option 1", match index or first option
                 matched_option = mcq.options[0]
@@ -528,6 +543,12 @@ class QuizService:
 
     async def list_quizzes(self, user_id: uuid.UUID, project_id: uuid.UUID) -> list[QuizResponse]:
         """List all quizzes for a project."""
+        project = await self.project_repo.get_by_id(user_id=user_id, project_id=project_id)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
         quizzes = await self.quiz_repo.list_quizzes(user_id=user_id, project_id=project_id)
         res = []
         for q in quizzes:
@@ -595,7 +616,9 @@ class QuizService:
         """Retrieve attempt state."""
         attempt = await self.quiz_repo.get_attempt(user_id=user_id, attempt_id=attempt_id)
         if not attempt:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz attempt not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Quiz attempt not found"
+            )
         return attempt
 
     async def submit_answer(
@@ -610,9 +633,13 @@ class QuizService:
         # 1. Authorize attempt & quiz
         attempt = await self.get_attempt(user_id=user_id, attempt_id=attempt_id)
         if attempt.quiz_id != quiz_id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Attempt does not match quiz")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Attempt does not match quiz"
+            )
         if attempt.status != "in_progress":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Attempt is already completed")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Attempt is already completed"
+            )
 
         # 2. Authorize question
         question = await self.quiz_repo.get_question(user_id=user_id, question_id=question_id)
@@ -624,7 +651,10 @@ class QuizService:
             # Deterministic backend MCQ evaluation
             selected = (payload.selected_answer or "").strip()
             if not selected:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selected option is required for MCQ")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Selected option is required for MCQ",
+                )
 
             # Check exact match or option letter/index match
             is_correct = False
@@ -635,7 +665,7 @@ class QuizService:
                 # Handle letter index
                 letter_idx = ord(selected.upper()) - ord("A")
                 if 0 <= letter_idx < len(question.options):
-                    is_correct = (question.options[letter_idx].strip().lower() == correct_norm)
+                    is_correct = question.options[letter_idx].strip().lower() == correct_norm
 
             score = 1.0 if is_correct else 0.0
             feedback = question.explanation
@@ -644,7 +674,10 @@ class QuizService:
             # Semantic evaluation via Google Gemini
             learner_text = (payload.answer_text or "").strip()
             if not learner_text:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Answer text is required for open-ended question")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Answer text is required for open-ended question",
+                )
 
             # Load evidence chunks if available
             evidence_chunks = []
@@ -674,7 +707,7 @@ class QuizService:
                     temperature=0.1,
                 )
                 latency_ms = usage.latency_ms or ((time.perf_counter() - start_time) * 1000.0)
-                log_ai_usage(
+                await log_ai_usage(
                     user_id=user_id,
                     project_id=attempt.project_id,
                     operation="open_ended_evaluation",
@@ -685,21 +718,29 @@ class QuizService:
                     output_tokens=usage.candidate_tokens,
                     total_tokens=usage.total_tokens,
                     success=True,
+                    session=self.session,
                 )
                 score = round(max(0.0, min(1.0, eval_output.score)), 2)
-                is_correct = eval_output.is_correct or (score >= settings.QUIZ_OPEN_ENDED_PASSING_SCORE)
+                is_correct = eval_output.is_correct or (
+                    score >= settings.QUIZ_OPEN_ENDED_PASSING_SCORE
+                )
 
                 # Format detailed feedback
                 feedback_parts = [eval_output.feedback]
                 if eval_output.strengths:
-                    feedback_parts.append("\nStrengths:\n" + "\n".join(f"- {s}" for s in eval_output.strengths))
+                    feedback_parts.append(
+                        "\nStrengths:\n" + "\n".join(f"- {s}" for s in eval_output.strengths)
+                    )
                 if eval_output.missing_points:
-                    feedback_parts.append("\nAreas to improve:\n" + "\n".join(f"- {m}" for m in eval_output.missing_points))
+                    feedback_parts.append(
+                        "\nAreas to improve:\n"
+                        + "\n".join(f"- {m}" for m in eval_output.missing_points)
+                    )
                 feedback = "\n".join(feedback_parts)
 
             except LLMGenerationError as err:
                 latency_ms = (time.perf_counter() - start_time) * 1000.0
-                log_ai_usage(
+                await log_ai_usage(
                     user_id=user_id,
                     project_id=attempt.project_id,
                     operation="open_ended_evaluation",
@@ -708,13 +749,16 @@ class QuizService:
                     latency_ms=latency_ms,
                     success=False,
                     error=str(err),
+                    session=self.session,
                 )
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="AI answer evaluation is temporarily unavailable. Please try again.",
                 ) from err
         else:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported question type")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported question type"
+            )
 
         # 4. Persist QuizAnswer
         answer = await self.quiz_repo.record_answer(
@@ -766,9 +810,13 @@ class QuizService:
         """Complete an attempt and calculate final score and concept-level performance."""
         attempt = await self.get_attempt(user_id=user_id, attempt_id=attempt_id)
         if attempt.quiz_id != quiz_id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Attempt does not match quiz")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Attempt does not match quiz"
+            )
 
-        completed_attempt = await self.quiz_repo.complete_attempt(attempt_id=attempt.id, user_id=user_id)
+        completed_attempt = await self.quiz_repo.complete_attempt(
+            attempt_id=attempt.id, user_id=user_id
+        )
         if not completed_attempt:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attempt not found")
 
@@ -839,6 +887,7 @@ class QuizService:
         # Trigger event-driven mastery recomputation and recommendations (Celery / inline fallback)
         try:
             from app.workers.tasks import process_quiz_completed
+
             process_quiz_completed.delay(
                 str(user_id),
                 str(completed_attempt.project_id),
@@ -848,6 +897,7 @@ class QuizService:
             # Fallback to direct synchronous execution when worker broker is unavailable (e.g. testing)
             try:
                 from app.services.mastery_service import MasteryService
+
                 mastery_service = MasteryService(self.session)
                 await mastery_service.process_quiz_completion(
                     user_id=user_id,
