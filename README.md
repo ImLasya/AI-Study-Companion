@@ -208,3 +208,26 @@ npm run build
 - [Data Model & Embeddings](docs/data_model.md)
 - [12-Step Learning Loop](docs/learning_loop.md)
 - [Phase-by-Phase Roadmap](docs/development_plan.md)
+- [AI Quality Evaluation](docs/evaluation.md)
+- [Pre-Deployment Audit](docs/pre_deployment_audit.md)
+
+---
+
+## 8. Production Deployment & Security Requirements
+
+Before deploying to staging or production environments, observe the following mandatory operational requirements:
+
+### 1. Mandatory JWT Secret Regeneration (`JWT_SECRET`)
+- **Do NOT reuse the development secret key**.
+- The `JWT_SECRET` environment variable must be regenerated to a cryptographically secure random string with high entropy (e.g. 32–64 random bytes) using:
+  ```bash
+  openssl rand -hex 32
+  ```
+- All `.env.example` templates contain only non-production placeholder strings (`development-insecure-secret-key-32-chars-long`).
+
+### 2. Persistent Storage Volume Requirement (`STORAGE_PATH`)
+- The document ingestion pipeline currently stores uploaded original PDFs and extracted page artifacts on the local filesystem rooted at `STORAGE_PATH` (default: `./storage`).
+- On containerized or ephemeral cloud hosting (e.g., Render, Railway, Fly.io, AWS ECS), container file systems are non-persistent and will be cleared upon restarts or deployments.
+- **You MUST attach a persistent disk volume** mounted to `/app/storage` (or the configured `STORAGE_PATH`) to ensure uploaded PDFs and chunked files survive container lifecycle events.
+- In future production scaling, the `StorageService` interface can be migrated to cloud object storage (AWS S3, Google Cloud Storage, or Cloudflare R2) without impacting database models or the ingestion task runner.
+
