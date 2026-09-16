@@ -145,12 +145,97 @@ class MockLLMProvider(LLMProvider):
                 return response_schema.model_validate(self.canned_response), usage
 
         # Default intelligent heuristic for tests: check if user_prompt has chunk IDs
-        # Look for chunk id in user_prompt
         import re
 
         chunk_ids = re.findall(r'chunk id="([a-f0-9\-]+)"', user_prompt)
+        schema_name = getattr(response_schema, "__name__", "")
+        data: dict[str, Any] = {}
 
-        # Check if question seems to ask for attention or transformers
+        if schema_name == "ConceptExtractionOutput":
+            data = {
+                "concepts": [
+                    {
+                        "name": "Neural Network Architectures",
+                        "description": "Hierarchical representation learning using multilayer neural networks.",
+                        "source_chunk_ids": chunk_ids[:1] if chunk_ids else [],
+                    },
+                    {
+                        "name": "Activation Functions",
+                        "description": "Non-linear transformations such as ReLU, GELU, and Swish enabling deep learning.",
+                        "source_chunk_ids": chunk_ids[:1] if chunk_ids else [],
+                    },
+                ]
+            }
+            return response_schema.model_validate(data), usage
+
+        elif schema_name == "QuizQuestionGenerationOutput":
+            data = {
+                "mcq_questions": [
+                    {
+                        "question": "Which of the following is a non-linear activation function mentioned in the material?",
+                        "options": [
+                            "ReLU (Rectified Linear Unit)",
+                            "Static Linear Transform",
+                            "Constant Bias Array",
+                            "Scalar Uniform Scalar",
+                        ],
+                        "correct_answer": "ReLU (Rectified Linear Unit)",
+                        "explanation": "ReLU is a primary activation function providing non-linearity.",
+                        "concept_name": "Activation Functions",
+                        "difficulty": "medium",
+                        "evidence_chunk_ids": chunk_ids[:1] if chunk_ids else [],
+                    },
+                    {
+                        "question": "What is the primary role of hidden layers in deep neural networks?",
+                        "options": [
+                            "Learn hierarchical feature representations",
+                            "Compress file storage on disk",
+                            "Execute database SQL queries",
+                            "Encrypt user credentials",
+                        ],
+                        "correct_answer": "Learn hierarchical feature representations",
+                        "explanation": "Hidden layers learn progressively abstract representations of input data.",
+                        "concept_name": "Neural Network Architectures",
+                        "difficulty": "easy",
+                        "evidence_chunk_ids": chunk_ids[:1] if chunk_ids else [],
+                    },
+                ],
+                "open_ended_questions": [
+                    {
+                        "question": "Explain how activation functions allow deep networks to model complex non-linear relationships.",
+                        "expected_answer": "Without non-linear activation functions, stacked linear layers collapse mathematically into a single linear transformation.",
+                        "rubric": "Mentions non-linearity and collapsing of linear transformations.",
+                        "explanation": "Non-linearity is essential for Universal Approximation in deep learning.",
+                        "concept_name": "Activation Functions",
+                        "difficulty": "hard",
+                        "evidence_chunk_ids": chunk_ids[:1] if chunk_ids else [],
+                    }
+                ],
+            }
+            return response_schema.model_validate(data), usage
+
+        elif schema_name == "OpenEndedEvaluationOutput":
+            # Check if answer seems low effort
+            lower_prompt = user_prompt.lower()
+            if "i don't know" in lower_prompt or "gibberish" in lower_prompt or "asdf" in lower_prompt:
+                data = {
+                    "score": 0.1,
+                    "is_correct": False,
+                    "strengths": [],
+                    "missing_points": ["Complete lack of substantive technical criteria."],
+                    "feedback": "Your response did not address the required conceptual points. Review the source material.",
+                }
+            else:
+                data = {
+                    "score": 0.85,
+                    "is_correct": True,
+                    "strengths": ["Correctly identified the role of non-linear transformations.", "Clear explanation."],
+                    "missing_points": ["Could mention mathematical proof of collapsing linear layers."],
+                    "feedback": "Strong conceptual understanding demonstrated. Well done!",
+                }
+            return response_schema.model_validate(data), usage
+
+        # Default fallback for TutorStructuredOutput
         lower_prompt = user_prompt.lower()
         if "ignore all previous instructions" in lower_prompt:
             # Adversarial test case: verify prompt injection is resisted

@@ -141,3 +141,90 @@ export interface ChatTurn {
   created_at: string;
   isPending?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 4: Adaptive Quiz & Assessment Types
+// ---------------------------------------------------------------------------
+
+export interface Concept {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string;
+  source_chunk_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QuizQuestionPublic {
+  id: string;
+  quiz_id: string;
+  concept_id: string | null;
+  question_type: "mcq" | "open_ended";
+  question_text: string;
+  options: string[];
+  difficulty: "easy" | "medium" | "hard";
+  question_order: number;
+  concept_name?: string | null;
+}
+
+export interface Quiz {
+  id: string;
+  project_id: string;
+  title: string;
+  status: string;
+  created_at: string;
+  completed_at: string | null;
+  question_count: number;
+  questions: QuizQuestionPublic[];
+}
+
+export interface QuizAttempt {
+  id: string;
+  quiz_id: string;
+  project_id: string;
+  started_at: string;
+  completed_at: string | null;
+  score: number | null;
+  total_questions: number;
+  correct_answers: number;
+  status: "in_progress" | "completed";
+}
+
+export interface QuizAnswer {
+  id: string;
+  attempt_id: string;
+  question_id: string;
+  concept_id: string | null;
+  difficulty: string;
+  selected_answer: string | null;
+  answer_text: string | null;
+  is_correct: boolean | null;
+  score: number | null;
+  evaluation_feedback: string | null;
+  evaluated_at: string;
+  correct_answer: string;
+  explanation: string;
+}
+
+export interface ConceptPerformance {
+  concept_id: string | null;
+  concept_name: string;
+  total_questions: number;
+  correct_questions: number;
+  accuracy_percentage: number;
+}
+
+export interface QuizResult {
+  attempt_id: string;
+  quiz_id: string;
+  project_id: string;
+  status: string;
+  started_at: string;
+  completed_at: string | null;
+  score_percentage: number;
+  total_questions: number;
+  correct_answers: number;
+  answers: QuizAnswer[];
+  concept_performance: ConceptPerformance[];
+}

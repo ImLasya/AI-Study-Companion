@@ -62,6 +62,13 @@ class Settings(BaseSettings):
     TUTOR_MAX_QUESTION_LENGTH: int = 2000
     TUTOR_HISTORY_LIMIT: int = 6  # Bounded recent message context window
 
+    # 8. Phase 4: Adaptive Quiz & Assessment
+    QUIZ_QUESTION_COUNT: int = 5
+    QUIZ_MAX_OPTIONS: int = 4
+    QUIZ_DIFFICULTY_LEVELS: list[str] = ["easy", "medium", "hard"]
+    QUIZ_MAX_GENERATION_RETRIES: int = 2
+    QUIZ_OPEN_ENDED_PASSING_SCORE: float = 0.7
+
     # Future Phases (Optional placeholders)
     OPENAI_API_KEY: str | None = None
     OPENAI_MODEL: str = "gpt-4o"

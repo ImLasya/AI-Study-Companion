@@ -25,6 +25,7 @@ import {
 } from "@/lib/api";
 import { Material, Project } from "@/types";
 import { TutorTab } from "@/components/TutorTab";
+import { QuizTab } from "@/components/QuizTab";
 
 type TabKey = "materials" | "tutor" | "quiz" | "growth" | "analytics";
 
@@ -442,22 +443,8 @@ export const ProjectDetailPage: React.FC = () => {
       )}
 
       {/* Tab 3: Adaptive Quiz Placeholder (Phase 4) */}
-      {activeTab === "quiz" && (
-        <div className="rounded-2xl border border-dashed border-gray-800 bg-gray-950/40 p-12 text-center min-h-[300px] flex flex-col items-center justify-center">
-          <div className="max-w-md">
-            <div className="p-3.5 rounded-2xl bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 inline-flex mb-4">
-              <HelpCircle className="w-8 h-8" />
-            </div>
-            <h3 className="text-base font-bold text-white">Adaptive Quizzes & Assessment</h3>
-            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-              Targeted multiple-choice and open-ended questions designed to test knowledge gaps, scored by the AI assessment engine in Phase 4.
-            </p>
-            <span className="inline-flex items-center gap-1 mt-4 px-2.5 py-1 rounded-full text-[11px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20">
-              <Sparkles className="w-3 h-3" /> Scheduled for Phase 4
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Tab 3: Adaptive Quiz (Phase 4) */}
+      {activeTab === "quiz" && projectId && <QuizTab projectId={projectId} />}
 
       {/* Tab 4: Growth Placeholder (Phase 5) */}
       {activeTab === "growth" && (

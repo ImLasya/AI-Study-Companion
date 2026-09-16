@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, health, materials, projects, spaces, tutor
+from app.api.v1.endpoints import auth, health, materials, projects, quizzes, spaces, tutor
 
 api_router = APIRouter()
 
@@ -17,6 +17,8 @@ api_router.include_router(materials.router, tags=["Materials"])
 
 # 4. Phase 3: AI Tutor & Grounded RAG
 api_router.include_router(tutor.router, tags=["AI Tutor"])
-# api_router.include_router(quizzes.router, prefix="/quizzes", tags=["Adaptive Quiz"])
+
+# 5. Phase 4: Adaptive Quiz & Assessment
+api_router.include_router(quizzes.router, tags=["Adaptive Quiz & Assessment"])
 # api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 # api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
