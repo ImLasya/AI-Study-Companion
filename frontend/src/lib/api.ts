@@ -1,11 +1,20 @@
 import {
+  AdminActivityFeedResponse,
+  AdminAIUsageResponse,
+  AdminJobHealthResponse,
+  AdminOverviewResponse,
+  AdminUserDetailResponse,
+  AdminUserListResponse,
+  AIEvaluationSummaryResponse,
   Concept,
   DatabaseHealthStatus,
+  GlobalAnalyticsResponse,
   GrowthSummary,
   HealthStatus,
   MasteryListResponse,
   Material,
   Project,
+  ProjectAnalyticsResponse,
   Quiz,
   QuizAnswer,
   QuizAttempt,
@@ -546,4 +555,143 @@ export async function dismissRecommendationApi(
     throw new Error(err.detail || "Failed to dismiss recommendation.");
   }
 }
+
+// ----------------------------------------------------------------------------
+// Phase 6: Analytics & Admin Observability APIs
+// ----------------------------------------------------------------------------
+
+export async function getProjectAnalyticsApi(
+  projectId: string
+): Promise<ProjectAnalyticsResponse> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/projects/${projectId}/analytics`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch project analytics.");
+  }
+  return await res.json();
+}
+
+export async function getGlobalAnalyticsApi(): Promise<GlobalAnalyticsResponse> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/analytics/global`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch global analytics.");
+  }
+  return await res.json();
+}
+
+export async function getAdminOverviewApi(): Promise<AdminOverviewResponse> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/overview`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch admin overview.");
+  }
+  return await res.json();
+}
+
+export async function getAdminUsersApi(
+  page: number = 1,
+  pageSize: number = 20,
+  search?: string
+): Promise<AdminUserListResponse> {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+  if (search) params.append("search", search);
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/users?${params.toString()}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch users.");
+  }
+  return await res.json();
+}
+
+export async function getAdminUserDetailApi(userId: string): Promise<AdminUserDetailResponse> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/users/${userId}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch user learning journey.");
+  }
+  return await res.json();
+}
+
+export async function getAdminActivityFeedApi(filters?: {
+  userId?: string;
+  projectId?: string;
+  eventType?: string;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<AdminActivityFeedResponse> {
+  const params = new URLSearchParams();
+  if (filters?.page) params.append("page", String(filters.page));
+  if (filters?.pageSize) params.append("page_size", String(filters.pageSize));
+  if (filters?.userId) params.append("user_id", filters.userId);
+  if (filters?.projectId) params.append("project_id", filters.projectId);
+  if (filters?.eventType) params.append("event_type", filters.eventType);
+  if (filters?.fromDate) params.append("from_date", filters.fromDate);
+  if (filters?.toDate) params.append("to_date", filters.toDate);
+
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/activity?${params.toString()}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch activity feed.");
+  }
+  return await res.json();
+}
+
+export async function getAdminAIUsageApi(filters?: {
+  operation?: string;
+  model?: string;
+  success?: boolean;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<AdminAIUsageResponse> {
+  const params = new URLSearchParams();
+  if (filters?.page) params.append("page", String(filters.page));
+  if (filters?.pageSize) params.append("page_size", String(filters.pageSize));
+  if (filters?.operation) params.append("operation", filters.operation);
+  if (filters?.model) params.append("model", filters.model);
+  if (filters?.success !== undefined) params.append("success", String(filters.success));
+  if (filters?.fromDate) params.append("from_date", filters.fromDate);
+  if (filters?.toDate) params.append("to_date", filters.toDate);
+
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/ai-usage?${params.toString()}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch AI usage telemetry.");
+  }
+  return await res.json();
+}
+
+export async function getAdminJobsApi(): Promise<AdminJobHealthResponse> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/jobs`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch background jobs health.");
+  }
+  return await res.json();
+}
+
+export async function getAdminEvaluationsApi(): Promise<AIEvaluationSummaryResponse> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/evaluations`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch AI evaluations.");
+  }
+  return await res.json();
+}
+
+export async function runAdminEvaluationsApi(): Promise<AIEvaluationSummaryResponse> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/evaluations/run`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to run AI evaluations.");
+  }
+  return await res.json();
+}
+
 

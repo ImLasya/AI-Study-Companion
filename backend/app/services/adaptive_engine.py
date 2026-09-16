@@ -90,7 +90,9 @@ class AdaptiveEngine:
                 # Mistake signal
                 if error_rate > 0:
                     error_bonus = error_rate * 40.0
-                    rationale_parts.append(f"Mistake rate {error_rate:.0%}: +{error_bonus:.1f} error signal")
+                    rationale_parts.append(
+                        f"Mistake rate {error_rate:.0%}: +{error_bonus:.1f} error signal"
+                    )
 
                 # Repeated recent errors check (last 3 answers on this concept)
                 recent_c_answers = ans_list[:3]
@@ -102,10 +104,14 @@ class AdaptiveEngine:
                 # Recency saturation penalty: if learner answered correctly in last 2 without errors
                 if len(ans_list) >= 2 and all(a.is_correct is True for a in ans_list[:2]):
                     recency_penalty = 25.0
-                    rationale_parts.append("Recently answered correctly: -25 recency saturation penalty")
+                    rationale_parts.append(
+                        "Recently answered correctly: -25 recency saturation penalty"
+                    )
 
             final_weight = round(base + error_bonus + unseen_bonus - recency_penalty, 2)
-            rationale_text = "; ".join(rationale_parts) if rationale_parts else "Standard baseline priority"
+            rationale_text = (
+                "; ".join(rationale_parts) if rationale_parts else "Standard baseline priority"
+            )
 
             scored_concepts.append(
                 ConceptAdaptiveScore(

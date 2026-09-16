@@ -86,10 +86,12 @@ class RecommendationService:
                     "name": c.name,
                     "mastery_score": m.mastery_score if m else None,
                     "confidence": m.confidence if m else 0.0,
-                    "status": "unassessed" if (not m or m.mastery_score is None) else (
-                        "needs_attention" if m.mastery_score < 50.0 else (
-                            "improving" if m.mastery_score >= 70.0 else "stable"
-                        )
+                    "status": "unassessed"
+                    if (not m or m.mastery_score is None)
+                    else (
+                        "needs_attention"
+                        if m.mastery_score < 50.0
+                        else ("improving" if m.mastery_score >= 70.0 else "stable")
                     ),
                 }
             )
@@ -110,7 +112,9 @@ class RecommendationService:
         err_res = await self.session.execute(err_stmt)
         recent_errors = []
         for ans, q_text, q_expl in err_res.all():
-            c_name = concept_map[ans.concept_id].name if ans.concept_id in concept_map else "General"
+            c_name = (
+                concept_map[ans.concept_id].name if ans.concept_id in concept_map else "General"
+            )
             recent_errors.append(
                 {
                     "concept_name": c_name,
@@ -142,7 +146,7 @@ class RecommendationService:
                 temperature=0.2,
             )
             latency_ms = usage.latency_ms or ((time.perf_counter() - start_time) * 1000.0)
-            log_ai_usage(
+            await log_ai_usage(
                 user_id=user_id,
                 project_id=project_id,
                 operation="recommendation_generation",
@@ -153,10 +157,11 @@ class RecommendationService:
                 output_tokens=usage.candidate_tokens,
                 total_tokens=usage.total_tokens,
                 success=True,
+                session=self.session,
             )
         except (LLMGenerationError, Exception) as err:
             latency_ms = (time.perf_counter() - start_time) * 1000.0
-            log_ai_usage(
+            await log_ai_usage(
                 user_id=user_id,
                 project_id=project_id,
                 operation="recommendation_generation",
@@ -168,6 +173,7 @@ class RecommendationService:
                 total_tokens=0,
                 success=False,
                 error=str(err),
+                session=self.session,
             )
             logger.warning(
                 f"Gemini recommendation generation failed for project {project_id}: {err}. "
@@ -192,8 +198,13 @@ class RecommendationService:
 
         # 7. Deduplication against existing active recommendations
         for active in active_recs:
-            if active.target_concept_id == target_concept_id and active.recommendation_type == rec_type:
-                logger.info(f"Reusing active recommendation {active.id} (matches concept and type).")
+            if (
+                active.target_concept_id == target_concept_id
+                and active.recommendation_type == rec_type
+            ):
+                logger.info(
+                    f"Reusing active recommendation {active.id} (matches concept and type)."
+                )
                 return active
 
         # 8. Persist new recommendation

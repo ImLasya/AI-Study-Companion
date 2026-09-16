@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { BookOpen, LogOut, Sparkles, User as UserIcon } from "lucide-react";
+import { BookOpen, LogOut, Shield, Sparkles, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 
 export const Header: React.FC = () => {
@@ -24,7 +24,7 @@ export const Header: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="font-bold text-lg text-white tracking-tight">AI Study Companion</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">
-                Phase 1
+                Phase 6
               </span>
             </div>
             <p className="text-xs text-gray-400">Persistent, contextual, measurable learning</p>
@@ -48,6 +48,16 @@ export const Header: React.FC = () => {
               >
                 Spaces
               </Link>
+
+              {user.role === "admin" && (
+                <Link
+                  to="/admin"
+                  className="text-xs text-amber-300 hover:text-amber-200 font-medium px-3 py-1.5 rounded-lg bg-amber-950/40 border border-amber-800/40 hover:border-amber-700/60 transition-colors flex items-center gap-1.5"
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  Admin
+                </Link>
+              )}
 
               <div className="h-4 w-px bg-gray-800 mx-1 hidden sm:block" />
 

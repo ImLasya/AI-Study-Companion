@@ -136,9 +136,7 @@ class MasteryRepository:
     # ------------------------------------------------------------------------
     # 3. Processed Events (Database-Enforced Idempotency)
     # ------------------------------------------------------------------------
-    async def try_record_processed_event(
-        self, event_type: str, aggregate_id: uuid.UUID
-    ) -> bool:
+    async def try_record_processed_event(self, event_type: str, aggregate_id: uuid.UUID) -> bool:
         """Attempt to insert a processed event row.
 
         Returns True if newly inserted, False if already exists.

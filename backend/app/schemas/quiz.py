@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 # Concept Schemas
 # ---------------------------------------------------------------------------
 
+
 class ConceptResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -35,9 +36,14 @@ class ConceptListResponse(BaseModel):
 # LLM Structured Output Contracts (Pydantic-validated for Gemini)
 # ---------------------------------------------------------------------------
 
+
 class ConceptExtractionItem(BaseModel):
-    name: str = Field(description="Clear, concise concept title or topic name (e.g. 'Backpropagation')")
-    description: str = Field(description="Accurate 1-3 sentence summary grounded directly in the text")
+    name: str = Field(
+        description="Clear, concise concept title or topic name (e.g. 'Backpropagation')"
+    )
+    description: str = Field(
+        description="Accurate 1-3 sentence summary grounded directly in the text"
+    )
     source_chunk_ids: list[str] = Field(
         default_factory=list,
         description="Chunk IDs from the material context that provide evidence for this concept",
@@ -51,12 +57,16 @@ class ConceptExtractionOutput(BaseModel):
 
 
 class GeneratedMCQ(BaseModel):
-    question: str = Field(description="Clear, unambiguous multiple choice question testing the concept")
-    options: list[str] = Field(
-        description="Exactly 4 distinct options labeled or phrased cleanly"
+    question: str = Field(
+        description="Clear, unambiguous multiple choice question testing the concept"
     )
-    correct_answer: str = Field(description="The exact text of the correct option matching one of the options")
-    explanation: str = Field(description="Pedagogical explanation of why the correct option is right and others are wrong")
+    options: list[str] = Field(description="Exactly 4 distinct options labeled or phrased cleanly")
+    correct_answer: str = Field(
+        description="The exact text of the correct option matching one of the options"
+    )
+    explanation: str = Field(
+        description="Pedagogical explanation of why the correct option is right and others are wrong"
+    )
     concept_name: str = Field(description="Name of the concept this question tests")
     difficulty: Literal["easy", "medium", "hard"] = Field(description="Target difficulty level")
     evidence_chunk_ids: list[str] = Field(
@@ -73,9 +83,13 @@ class GeneratedMCQ(BaseModel):
 
 
 class GeneratedOpenEnded(BaseModel):
-    question: str = Field(description="Open-ended conceptual or analytical question testing deep understanding")
+    question: str = Field(
+        description="Open-ended conceptual or analytical question testing deep understanding"
+    )
     expected_answer: str = Field(description="Model answer covering key criteria and concepts")
-    rubric: str = Field(description="Clear criteria for evaluation: essential points required for full credit")
+    rubric: str = Field(
+        description="Clear criteria for evaluation: essential points required for full credit"
+    )
     explanation: str = Field(description="In-depth conceptual explanation")
     concept_name: str = Field(description="Name of the concept this question tests")
     difficulty: Literal["easy", "medium", "hard"] = Field(description="Target difficulty level")
@@ -91,32 +105,48 @@ class QuizQuestionGenerationOutput(BaseModel):
 
 
 class OpenEndedEvaluationOutput(BaseModel):
-    score: float = Field(description="Normalized assessment score between 0.0 (unacceptable) and 1.0 (perfect)")
-    is_correct: bool = Field(description="True if the response demonstrates satisfactory mastery (>= 0.70 score)")
-    strengths: list[str] = Field(default_factory=list, description="Key correct points or strong reasoning shown by learner")
-    missing_points: list[str] = Field(default_factory=list, description="Omitted criteria or misconceptions identified")
-    feedback: str = Field(description="Actionable, encouraging pedagogical feedback tailored to the learner's answer")
+    score: float = Field(
+        description="Normalized assessment score between 0.0 (unacceptable) and 1.0 (perfect)"
+    )
+    is_correct: bool = Field(
+        description="True if the response demonstrates satisfactory mastery (>= 0.70 score)"
+    )
+    strengths: list[str] = Field(
+        default_factory=list, description="Key correct points or strong reasoning shown by learner"
+    )
+    missing_points: list[str] = Field(
+        default_factory=list, description="Omitted criteria or misconceptions identified"
+    )
+    feedback: str = Field(
+        description="Actionable, encouraging pedagogical feedback tailored to the learner's answer"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Inbound API Request Schemas
 # ---------------------------------------------------------------------------
 
+
 class QuizCreateRequest(BaseModel):
     title: str = Field(default="Adaptive Quiz", max_length=255)
     question_count: int = Field(default=5, ge=1, le=15)
-    preferred_difficulty: Literal["easy", "medium", "hard", "adaptive"] | None = Field(default="adaptive")
+    preferred_difficulty: Literal["easy", "medium", "hard", "adaptive"] | None = Field(
+        default="adaptive"
+    )
 
 
 class QuizAnswerSubmitRequest(BaseModel):
     question_id: uuid.UUID | None = Field(default=None, description="Question ID being answered")
     selected_answer: str | None = Field(default=None, description="Chosen option for MCQ questions")
-    answer_text: str | None = Field(default=None, description="Written response text for open-ended questions")
+    answer_text: str | None = Field(
+        default=None, description="Written response text for open-ended questions"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Outbound API Response Schemas
 # ---------------------------------------------------------------------------
+
 
 class QuizQuestionPublicResponse(BaseModel):
     """Public question view for learner during active attempt (answers and rubrics hidden)."""

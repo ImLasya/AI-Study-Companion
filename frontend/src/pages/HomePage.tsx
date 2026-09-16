@@ -93,7 +93,7 @@ export const HomePage: React.FC = () => {
               <div className="flex justify-center text-gray-600">↓</div>
               <div className="p-3 rounded-lg border border-gray-800 bg-gray-950/70 flex items-center justify-between">
                 <span className="text-purple-300 font-semibold">5. AI & Evaluation Layer</span>
-                <span className="text-gray-400">OpenAI &bull; LangGraph &bull; LangSmith</span>
+                <span className="text-gray-400">Google Gemini &bull; Pydantic &bull; AI Telemetry</span>
               </div>
             </div>
           </div>

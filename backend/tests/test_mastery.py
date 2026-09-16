@@ -51,13 +51,30 @@ def test_answer_eligibility():
     assert is_answer_mastery_eligible(valid) is True
 
     # None score or is_correct
-    assert is_answer_mastery_eligible(AnswerEvidence(score=None, difficulty="medium", is_correct=None)) is False
-    assert is_answer_mastery_eligible(AnswerEvidence(score=1.0, difficulty="medium", is_correct=None)) is False
-    assert is_answer_mastery_eligible(AnswerEvidence(score=None, difficulty="medium", is_correct=True)) is False
+    assert (
+        is_answer_mastery_eligible(AnswerEvidence(score=None, difficulty="medium", is_correct=None))
+        is False
+    )
+    assert (
+        is_answer_mastery_eligible(AnswerEvidence(score=1.0, difficulty="medium", is_correct=None))
+        is False
+    )
+    assert (
+        is_answer_mastery_eligible(AnswerEvidence(score=None, difficulty="medium", is_correct=True))
+        is False
+    )
 
     # Out of bounds score
-    assert is_answer_mastery_eligible(AnswerEvidence(score=1.5, difficulty="medium", is_correct=True)) is False
-    assert is_answer_mastery_eligible(AnswerEvidence(score=-0.2, difficulty="medium", is_correct=False)) is False
+    assert (
+        is_answer_mastery_eligible(AnswerEvidence(score=1.5, difficulty="medium", is_correct=True))
+        is False
+    )
+    assert (
+        is_answer_mastery_eligible(
+            AnswerEvidence(score=-0.2, difficulty="medium", is_correct=False)
+        )
+        is False
+    )
 
 
 def test_unassessed_concept_zero_answers():
@@ -76,7 +93,9 @@ def test_mastery_recency_and_difficulty_weighting():
 
     # Learner started poorly (easy question wrong: score 0.0), but recently succeeded (hard question right: score 1.0)
     answers = [
-        AnswerEvidence(score=0.0, difficulty="easy", is_correct=False, evaluated_at=now - timedelta(days=3)),
+        AnswerEvidence(
+            score=0.0, difficulty="easy", is_correct=False, evaluated_at=now - timedelta(days=3)
+        ),
         AnswerEvidence(score=1.0, difficulty="hard", is_correct=True, evaluated_at=now),
     ]
     estimate = calculate_concept_mastery(answers)
@@ -87,7 +106,9 @@ def test_mastery_recency_and_difficulty_weighting():
     assert estimate.mastery_score > 60.0
 
     # Partial credit test: score 0.70 on single medium question
-    single_partial = [AnswerEvidence(score=0.70, difficulty="medium", is_correct=True, evaluated_at=now)]
+    single_partial = [
+        AnswerEvidence(score=0.70, difficulty="medium", is_correct=True, evaluated_at=now)
+    ]
     p_est = calculate_concept_mastery(single_partial)
     assert p_est.mastery_score == 70.0
 
@@ -103,7 +124,9 @@ def test_confidence_curve_thin_vs_deep_evidence():
 
     # 5 answers -> medium confidence
     five_ans = [
-        AnswerEvidence(score=0.8, difficulty="medium", is_correct=True, evaluated_at=now - timedelta(minutes=i))
+        AnswerEvidence(
+            score=0.8, difficulty="medium", is_correct=True, evaluated_at=now - timedelta(minutes=i)
+        )
         for i in range(5)
     ]
     est_5 = calculate_concept_mastery(five_ans)
@@ -112,7 +135,9 @@ def test_confidence_curve_thin_vs_deep_evidence():
 
     # 15 answers -> high confidence
     fifteen_ans = [
-        AnswerEvidence(score=0.9, difficulty="medium", is_correct=True, evaluated_at=now - timedelta(minutes=i))
+        AnswerEvidence(
+            score=0.9, difficulty="medium", is_correct=True, evaluated_at=now - timedelta(minutes=i)
+        )
         for i in range(15)
     ]
     est_15 = calculate_concept_mastery(fifteen_ans)
@@ -163,7 +188,9 @@ def test_growth_classification():
 # 3. Concept Name Normalization & Deduplication Test
 # ----------------------------------------------------------------------------
 def test_normalize_concept_name():
-    assert normalize_concept_name("  Backpropagation   Algorithms  ") == "backpropagation algorithms"
+    assert (
+        normalize_concept_name("  Backpropagation   Algorithms  ") == "backpropagation algorithms"
+    )
     assert normalize_concept_name("backpropagation algorithms") == "backpropagation algorithms"
     assert normalize_concept_name("Backpropagation \n Algorithms\t") == "backpropagation algorithms"
 
@@ -319,6 +346,7 @@ async def test_recommendation_server_side_validation_invalid_concept_id(db_sessi
         async def generate_structured(self, **kwargs):
             from app.ai.llm import LLMUsage
             from app.schemas.mastery import RecommendationGenerationOutput
+
             return (
                 RecommendationGenerationOutput(
                     recommendation_type="review_concept",
@@ -378,6 +406,7 @@ async def test_mastery_endpoints_tenant_isolation(client: AsyncClient, db_sessio
 
     # Register and login User B
     from tests.test_tutor import signup_and_login
+
     user_b_email = f"user_b_{uuid.uuid4().hex[:6]}@example.com"
     cookies_b = await signup_and_login(client, user_b_email)
 
@@ -388,12 +417,16 @@ async def test_mastery_endpoints_tenant_isolation(client: AsyncClient, db_sessio
     g_res = await client.get(f"/api/v1/projects/{ctx['project'].id}/growth", cookies=cookies_b)
     assert g_res.status_code == 404
 
-    r_res = await client.get(f"/api/v1/projects/{ctx['project'].id}/recommendations", cookies=cookies_b)
+    r_res = await client.get(
+        f"/api/v1/projects/{ctx['project'].id}/recommendations", cookies=cookies_b
+    )
     assert r_res.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_incremental_concept_extraction_failure_does_not_fail_material(db_session: AsyncSession):
+async def test_incremental_concept_extraction_failure_does_not_fail_material(
+    db_session: AsyncSession,
+):
     """Verify that if Gemini fails during incremental extraction, the material remains 'ready'."""
     ctx = await setup_test_context(db_session)
 
@@ -413,6 +446,7 @@ async def test_incremental_concept_extraction_failure_does_not_fail_material(db_
         status="processing",
     )
     from app.models.chunk import MaterialChunk
+
     chunk = MaterialChunk(
         id=uuid.uuid4(),
         material_id=material.id,
@@ -470,7 +504,9 @@ async def test_quiz_completion_moves_mastery_and_produces_recommendation(db_sess
 
     # 1. Verify Concept is initially unassessed
     mastery_service = MasteryService(db_session)
-    initial_masteries = await mastery_service.get_project_masteries(user_id=user.id, project_id=project.id)
+    initial_masteries = await mastery_service.get_project_masteries(
+        user_id=user.id, project_id=project.id
+    )
     assert initial_masteries.assessed_count == 0
     assert initial_masteries.masteries[0].is_assessed is False
     assert initial_masteries.masteries[0].mastery_score is None
@@ -497,6 +533,7 @@ async def test_quiz_completion_moves_mastery_and_produces_recommendation(db_sess
     attempt = await quiz_service.start_attempt(user_id=user.id, quiz_id=quiz.id)
 
     from app.schemas.quiz import QuizAnswerSubmitRequest
+
     await quiz_service.submit_answer(
         user_id=user.id,
         quiz_id=quiz.id,
@@ -541,5 +578,3 @@ async def test_quiz_completion_moves_mastery_and_produces_recommendation(db_sess
     matched = next(g for g in all_growth if g.concept_id == concept.id)
     assert matched.current_score == 100.0
     assert len(matched.history) >= 1
-
-

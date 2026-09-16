@@ -101,12 +101,9 @@ class ConceptRepository:
         project_id: uuid.UUID,
     ) -> int:
         """Remove all concepts for a project."""
-        stmt = (
-            delete(Concept)
-            .where(
-                Concept.project_id == project_id,
-                Concept.user_id == user_id,
-            )
+        stmt = delete(Concept).where(
+            Concept.project_id == project_id,
+            Concept.user_id == user_id,
         )
         res = await self.session.execute(stmt)
         await self.session.commit()

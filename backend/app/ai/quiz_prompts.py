@@ -62,9 +62,7 @@ def build_concept_extraction_prompt(evidence_chunks: list[dict]) -> str:
         filename = chunk.get("filename", "document.pdf")
         content = chunk.get("content", "").strip()
         sections.append(
-            f'<chunk id="{chunk_id}" filename="{filename}" page="{page_num}">\n'
-            f"{content}\n"
-            f"</chunk>"
+            f'<chunk id="{chunk_id}" filename="{filename}" page="{page_num}">\n{content}\n</chunk>'
         )
     sections.append("</retrieved_evidence>\n")
     sections.append(
@@ -92,9 +90,7 @@ def build_quiz_generation_prompt(
         filename = chunk.get("filename", "document.pdf")
         content = chunk.get("content", "").strip()
         sections.append(
-            f'<chunk id="{chunk_id}" filename="{filename}" page="{page_num}">\n'
-            f"{content}\n"
-            f"</chunk>"
+            f'<chunk id="{chunk_id}" filename="{filename}" page="{page_num}">\n{content}\n</chunk>'
         )
     sections.append("</retrieved_evidence>\n")
 

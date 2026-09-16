@@ -30,6 +30,7 @@ import { TutorTab } from "@/components/TutorTab";
 import { QuizTab } from "@/components/QuizTab";
 import { GrowthTab } from "@/components/GrowthTab";
 import { RecommendationCard } from "@/components/RecommendationCard";
+import { AnalyticsTab } from "./ProjectDetailPage/AnalyticsTab";
 
 type TabKey = "materials" | "tutor" | "quiz" | "growth" | "analytics";
 
@@ -502,22 +503,9 @@ export const ProjectDetailPage: React.FC = () => {
       {/* Tab 4: Growth Analysis — Phase 5 */}
       {activeTab === "growth" && projectId && <GrowthTab projectId={projectId} />}
 
-      {/* Tab 5: Analytics Placeholder (Phase 5) */}
-      {activeTab === "analytics" && (
-        <div className="rounded-2xl border border-dashed border-gray-800 bg-gray-950/40 p-12 text-center min-h-[300px] flex flex-col items-center justify-center">
-          <div className="max-w-md">
-            <div className="p-3.5 rounded-2xl bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 inline-flex mb-4">
-              <BarChart3 className="w-8 h-8" />
-            </div>
-            <h3 className="text-base font-bold text-white">Learning Analytics</h3>
-            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-              Aggregate activity logs, session study times, and retention statistics visualized in Phase 5.
-            </p>
-            <span className="inline-flex items-center gap-1 mt-4 px-2.5 py-1 rounded-full text-[11px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20">
-              <Sparkles className="w-3 h-3" /> Scheduled for Phase 5
-            </span>
-          </div>
-        </div>
+      {/* Tab 5: Analytics — Phase 6 SQL Aggregations */}
+      {activeTab === "analytics" && projectId && (
+        <AnalyticsTab projectId={projectId} />
       )}
     </div>
   );

@@ -1,22 +1,27 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  Activity,
   ArrowRight,
+  Award,
+  CheckCircle2,
   Folder,
   FolderPlus,
   Layers,
   Loader2,
   Plus,
+  Sparkles,
 } from "lucide-react";
-import { createSpaceApi, listSpacesApi } from "@/lib/api";
+import { createSpaceApi, getGlobalAnalyticsApi, listSpacesApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { Space } from "@/types";
+import { GlobalAnalyticsResponse, Space } from "@/types";
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [analytics, setAnalytics] = useState<GlobalAnalyticsResponse | null>(null);
 
   // New Space Form Modal State
   const [showModal, setShowModal] = useState(false);
@@ -28,8 +33,12 @@ export const DashboardPage: React.FC = () => {
   const fetchSpaces = async () => {
     try {
       setLoading(true);
-      const data = await listSpacesApi();
-      setSpaces(data);
+      const [spacesData, analyticsData] = await Promise.all([
+        listSpacesApi(),
+        getGlobalAnalyticsApi().catch(() => null),
+      ]);
+      setSpaces(spacesData);
+      setAnalytics(analyticsData);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load spaces";
       setError(msg);
@@ -86,6 +95,66 @@ export const DashboardPage: React.FC = () => {
       {error && (
         <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800/40 text-rose-300 text-xs">
           {error}
+        </div>
+      )}
+
+      {/* Global Learning Pulse (Phase 6 Analytics) */}
+      {analytics && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-3.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-gray-400">
+              <span className="text-[11px] font-medium uppercase tracking-wider">Active Projects</span>
+              <Folder className="w-3.5 h-3.5 text-indigo-400" />
+            </div>
+            <div className="mt-2 text-xl font-bold text-white font-mono">
+              {analytics.projects_by_progress.length}
+            </div>
+          </div>
+          <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-3.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-gray-400">
+              <span className="text-[11px] font-medium uppercase tracking-wider">Quizzes</span>
+              <Award className="w-3.5 h-3.5 text-emerald-400" />
+            </div>
+            <div className="mt-2 text-xl font-bold text-emerald-400 font-mono">
+              {analytics.total_study_activity.total_quizzes_completed}
+            </div>
+          </div>
+          <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-3.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-gray-400">
+              <span className="text-[11px] font-medium uppercase tracking-wider">Tutor Chats</span>
+              <Layers className="w-3.5 h-3.5 text-indigo-400" />
+            </div>
+            <div className="mt-2 text-xl font-bold text-white font-mono">
+              {analytics.total_study_activity.total_tutor_conversations}
+            </div>
+          </div>
+          <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-3.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-gray-400">
+              <span className="text-[11px] font-medium uppercase tracking-wider">Study Days</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" />
+            </div>
+            <div className="mt-2 text-xl font-bold text-purple-300 font-mono">
+              {analytics.total_study_activity.active_study_days}
+            </div>
+          </div>
+          <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-3.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-gray-400">
+              <span className="text-[11px] font-medium uppercase tracking-wider">Study Events</span>
+              <Activity className="w-3.5 h-3.5 text-cyan-400" />
+            </div>
+            <div className="mt-2 text-xl font-bold text-cyan-300 font-mono">
+              {analytics.total_study_activity.total_events}
+            </div>
+          </div>
+          <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-3.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-gray-400">
+              <span className="text-[11px] font-medium uppercase tracking-wider">AI Calls</span>
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            </div>
+            <div className="mt-2 text-xl font-bold text-amber-300 font-mono">
+              {analytics.ai_usage_summary.total_calls}
+            </div>
+          </div>
         </div>
       )}
 

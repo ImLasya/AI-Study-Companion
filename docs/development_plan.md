@@ -66,7 +66,14 @@ This roadmap tracks the step-by-step implementation of the **AI Study Companion*
 - [x] React frontend `GrowthTab` with mastery progress bars, confidence indicators, growth trajectory badges, historical trend visualization, and interactive dismissible recommendation cards.
 - [x] Comprehensive test suite with 69 passing backend tests and 100% type-checked code.
 
-### Phase 6: Admin Dashboard & Production Deployment (Next Phase)
-- [ ] Administrative dashboard with visibility into users, AI usage, and system health.
-- [ ] Global analytics aggregates.
-- [ ] Production deployment to Vercel (Frontend) and Render/Railway (Backend).
+### Phase 6: Analytics, Admin Dashboard & AI Quality Observability (Completed)
+- [x] Database migration 0007 creating `ai_usage_logs` and `ai_evaluation_runs` with composite indexes and historical backfill.
+- [x] Inline, non-blocking AI telemetry persistence (`log_ai_usage`) wrapped in safe exception handling.
+- [x] SQL-level aggregations for project analytics: daily study events, quiz score trends, mastery distributions, tutor counts, and AI spend.
+- [x] Tenant-isolated Global Analytics (`/analytics/global`) aggregating cross-space progress and weakest concepts.
+- [x] Segregated `AdminRepository` and `AdminService` strictly guarded by backend `get_current_admin` dependency (403 for non-admins).
+- [x] Admin endpoints: Overview KPIs, Paginated Users list with drill-in learning journey, Cross-tenant activity audit feed, AI telemetry percentiles (P50/P95 latency, cost, tokens, failure rate), and Background job pipeline health.
+- [x] Deterministic AI quality evaluation harness (`runner.py`) with curated test fixtures and deliberate rule-based/regex judging.
+- [x] React frontend UI: Real `AnalyticsTab` on Project Detail, Global Learning Pulse on Dashboard, and comprehensive Admin Operations Dashboard at `/admin` guarded by `AdminRoute`.
+- [x] Comprehensive documentation in `docs/architecture.md` and `docs/evaluation.md`.
+- [x] Full quality gate: 77 pytest passing, 0 ruff errors, 0 mypy errors across 90 source files, and 0 Vite build errors.

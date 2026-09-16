@@ -135,7 +135,7 @@ class TutorService:
                 insufficient_evidence=True,
                 citations=[],
             )
-            log_ai_usage(
+            await log_ai_usage(
                 user_id=user_id,
                 project_id=project_id,
                 operation="tutor_insufficient_evidence",
@@ -143,6 +143,7 @@ class TutorService:
                 model=settings.GEMINI_MODEL,
                 latency_ms=0.0,
                 success=True,
+                session=self.session,
             )
             return TutorAnswer(
                 conversation_id=conversation.id,
@@ -192,7 +193,7 @@ class TutorService:
                 temperature=0.2,
             )
         except LLMGenerationError as err:
-            log_ai_usage(
+            await log_ai_usage(
                 user_id=user_id,
                 project_id=project_id,
                 operation="tutor_generation",
@@ -201,6 +202,7 @@ class TutorService:
                 latency_ms=0.0,
                 success=False,
                 error=str(err),
+                session=self.session,
             )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
@@ -245,7 +247,7 @@ class TutorService:
         )
 
         # 11. AI Usage & Observability Logging
-        log_ai_usage(
+        await log_ai_usage(
             user_id=user_id,
             project_id=project_id,
             operation="tutor",
@@ -256,6 +258,7 @@ class TutorService:
             output_tokens=usage.candidate_tokens,
             total_tokens=usage.total_tokens,
             success=True,
+            session=self.session,
         )
 
         return TutorAnswer(

@@ -23,13 +23,17 @@ def get_embedding_model() -> Any:
         try:
             # Prefer fastembed ONNX runtime for robust execution under Windows AppControl/Linux
             from fastembed import TextEmbedding
+
             _fastembed_model = TextEmbedding(model_name=settings.EMBEDDING_MODEL_NAME)
         except Exception as e:
             logger.warning(f"FastEmbed load error: {e}. Attempting SentenceTransformer fallback...")
             from sentence_transformers import SentenceTransformer
+
             _fastembed_model = SentenceTransformer(settings.EMBEDDING_MODEL_NAME)
 
-        logger.info(f"Embedding model loaded successfully (dimension={settings.EMBEDDING_DIMENSION}).")
+        logger.info(
+            f"Embedding model loaded successfully (dimension={settings.EMBEDDING_DIMENSION})."
+        )
     return _fastembed_model
 
 

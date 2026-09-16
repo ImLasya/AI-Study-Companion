@@ -30,6 +30,7 @@ router = APIRouter()
 # Concept Inventory
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/projects/{project_id}/concepts",
     response_model=list[ConceptResponse],
@@ -98,6 +99,7 @@ async def extract_concepts(
 # Quiz Management & Question Generation
 # ---------------------------------------------------------------------------
 
+
 @router.post(
     "/projects/{project_id}/quizzes",
     response_model=QuizResponse,
@@ -161,6 +163,7 @@ async def get_quiz(
 # ---------------------------------------------------------------------------
 # Quiz Attempts & Answer Submission
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/projects/{project_id}/quizzes/{quiz_id}/attempts",

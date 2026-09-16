@@ -106,6 +106,7 @@ async def test_upload_material_success(
 
     # Authenticate as User A
     from app.core.security import create_access_token
+
     token = create_access_token(str(user_a.id))
     client.cookies.set("access_token", token)
 
@@ -168,7 +169,11 @@ async def test_process_material_success(
     assert material.page_count == 2
     assert material.failure_reason is None
 
-    chunks_stmt = select(MaterialChunk).where(MaterialChunk.material_id == material_id).order_by(MaterialChunk.chunk_index)
+    chunks_stmt = (
+        select(MaterialChunk)
+        .where(MaterialChunk.material_id == material_id)
+        .order_by(MaterialChunk.chunk_index)
+    )
     chunks = list((await db_session.execute(chunks_stmt)).scalars().all())
 
     assert len(chunks) == result["chunk_count"]
@@ -207,7 +212,9 @@ async def test_material_chunk_vector_search(
 
     # Create two chunks with distinct semantic topics
     chunk_1_text = "Photosynthesis is the biological process by which plants use sunlight to synthesize nutrients."
-    chunk_2_text = "Sir Isaac Newton formulated the three classical laws of motion and universal gravitation."
+    chunk_2_text = (
+        "Sir Isaac Newton formulated the three classical laws of motion and universal gravitation."
+    )
 
     emb_1 = embed_text(chunk_1_text)
     emb_2 = embed_text(chunk_2_text)
@@ -347,6 +354,7 @@ async def test_material_tenant_isolation(
 
     # Authenticate as User B
     from app.core.security import create_access_token
+
     token_b = create_access_token(str(user_b.id))
     client.cookies.set("access_token", token_b)
 
@@ -384,6 +392,7 @@ async def test_upload_validation_non_pdf(
     proj_a = setup_tenant_projects["proj_a"]
 
     from app.core.security import create_access_token
+
     token = create_access_token(str(user_a.id))
     client.cookies.set("access_token", token)
 
@@ -406,6 +415,7 @@ async def test_upload_validation_oversized(
     proj_a = setup_tenant_projects["proj_a"]
 
     from app.core.security import create_access_token
+
     token = create_access_token(str(user_a.id))
     client.cookies.set("access_token", token)
 

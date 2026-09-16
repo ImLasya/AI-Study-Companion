@@ -1,8 +1,10 @@
 """SQLAlchemy Domain Models for AI Study Companion."""
 
+from app.models.ai_usage import AIUsageLog
 from app.models.chunk import MaterialChunk
 from app.models.concept import Concept
 from app.models.conversation import TutorConversation, TutorMessage
+from app.models.evaluation import AIEvaluationRun
 from app.models.event import ActivityEvent
 from app.models.mastery import (
     ConceptMastery,
@@ -34,5 +36,6 @@ __all__ = [
     "MasterySnapshot",
     "Recommendation",
     "ProcessedEvent",
+    "AIUsageLog",
+    "AIEvaluationRun",
 ]
-

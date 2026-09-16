@@ -3,12 +3,14 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth-context";
 import { RootLayout } from "@/layouts/RootLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminRoute } from "@/components/AdminRoute";
 import { HomePage } from "@/pages/HomePage";
 import { LoginPage } from "@/pages/LoginPage";
 import { SignupPage } from "@/pages/SignupPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { SpaceDetailPage } from "@/pages/SpaceDetailPage";
 import { ProjectDetailPage } from "@/pages/ProjectDetailPage";
+import { AdminPage } from "@/pages/AdminPage";
 
 export const App: React.FC = () => {
   return (
@@ -46,6 +48,14 @@ export const App: React.FC = () => {
                 <ProtectedRoute>
                   <ProjectDetailPage />
                 </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin"
+              element={
+                <AdminRoute>
+                  <AdminPage />
+                </AdminRoute>
               }
             />
           </Route>

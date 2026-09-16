@@ -31,7 +31,9 @@ class Quiz(Base):
         ForeignKey("projects.id", ondelete="CASCADE"), index=True, nullable=False
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="Adaptive Quiz")
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")  # active, completed
+    status: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="active"
+    )  # active, completed
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -75,10 +77,16 @@ class QuizQuestion(Base):
     question_type: Mapped[str] = mapped_column(String(50), nullable=False)  # mcq, open_ended
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
     options: Mapped[list] = mapped_column(JSON, default=list, nullable=False)  # 4 choices for MCQ
-    correct_answer: Mapped[str] = mapped_column(Text, nullable=False)  # Server-side authoritative answer
+    correct_answer: Mapped[str] = mapped_column(
+        Text, nullable=False
+    )  # Server-side authoritative answer
     explanation: Mapped[str] = mapped_column(Text, nullable=False)
-    rubric: Mapped[str | None] = mapped_column(Text, nullable=True)  # Evaluation rubric for open_ended
-    difficulty: Mapped[str] = mapped_column(String(20), nullable=False, default="medium")  # easy, medium, hard
+    rubric: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # Evaluation rubric for open_ended
+    difficulty: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="medium"
+    )  # easy, medium, hard
     source_chunk_ids: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     question_order: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(
@@ -117,7 +125,9 @@ class QuizAttempt(Base):
     score: Mapped[float | None] = mapped_column(Float, nullable=True)  # Percentage (0 - 100)
     total_questions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     correct_answers: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default="in_progress")  # in_progress, completed
+    status: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="in_progress"
+    )  # in_progress, completed
 
     # Relationships
     quiz: Mapped["Quiz"] = relationship("Quiz", back_populates="attempts")

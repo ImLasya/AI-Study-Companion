@@ -57,21 +57,22 @@ class MasteryService:
             event_type="quiz_completed", aggregate_id=attempt_id
         )
         if not is_new:
-            logger.info(f"Quiz attempt {attempt_id} already processed for mastery. Skipping idempotently.")
+            logger.info(
+                f"Quiz attempt {attempt_id} already processed for mastery. Skipping idempotently."
+            )
             return {"status": "already_processed", "idempotent": True}
 
         # Query attempt answers to find affected concepts
-        ans_stmt = (
-            select(QuizAnswer)
-            .where(
-                QuizAnswer.attempt_id == attempt_id,
-                QuizAnswer.concept_id.is_not(None),
-            )
+        ans_stmt = select(QuizAnswer).where(
+            QuizAnswer.attempt_id == attempt_id,
+            QuizAnswer.concept_id.is_not(None),
         )
         ans_res = await self.session.execute(ans_stmt)
         attempt_answers = ans_res.scalars().all()
 
-        affected_concept_ids = list({a.concept_id for a in attempt_answers if a.concept_id is not None})
+        affected_concept_ids = list(
+            {a.concept_id for a in attempt_answers if a.concept_id is not None}
+        )
         logger.info(
             f"Processing quiz completion {attempt_id}: recomputing mastery for {len(affected_concept_ids)} concepts."
         )
@@ -192,9 +193,7 @@ class MasteryService:
             )
 
         avg_mastery = (
-            round(sum(assessed_scores) / len(assessed_scores), 1)
-            if assessed_scores
-            else None
+            round(sum(assessed_scores) / len(assessed_scores), 1) if assessed_scores else None
         )
 
         return MasteryListResponse(
@@ -279,9 +278,7 @@ class MasteryService:
                 unassessed.append(item)
 
         avg_mastery = (
-            round(sum(assessed_scores) / len(assessed_scores), 1)
-            if assessed_scores
-            else None
+            round(sum(assessed_scores) / len(assessed_scores), 1) if assessed_scores else None
         )
 
         return GrowthSummaryResponse(
@@ -325,7 +322,9 @@ class MasteryService:
                 title=r.title,
                 body=r.body,
                 target_concept_id=r.target_concept_id,
-                target_concept_name=concept_names.get(r.target_concept_id) if r.target_concept_id else None,
+                target_concept_name=concept_names.get(r.target_concept_id)
+                if r.target_concept_id
+                else None,
                 reasoning=r.reasoning,
                 status=r.status,
                 created_at=r.created_at,

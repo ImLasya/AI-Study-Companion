@@ -48,9 +48,7 @@ class ConceptMastery(Base):
         nullable=False,
     )
 
-    __table_args__ = (
-        UniqueConstraint("user_id", "concept_id", name="uq_user_concept_mastery"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "concept_id", name="uq_user_concept_mastery"),)
 
     # Relationships
     concept: Mapped["Concept"] = relationship("Concept")  # type: ignore[name-defined] # noqa: F821
@@ -73,7 +71,9 @@ class MasterySnapshot(Base):
     concept_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("concepts.id", ondelete="CASCADE"), index=True, nullable=False
     )
-    mastery_score: Mapped[float] = mapped_column(Float, nullable=False)  # Recorded score at this time
+    mastery_score: Mapped[float] = mapped_column(
+        Float, nullable=False
+    )  # Recorded score at this time
     recorded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -133,6 +133,4 @@ class ProcessedEvent(Base):
         nullable=False,
     )
 
-    __table_args__ = (
-        UniqueConstraint("event_type", "aggregate_id", name="uq_processed_event"),
-    )
+    __table_args__ = (UniqueConstraint("event_type", "aggregate_id", name="uq_processed_event"),)

@@ -123,6 +123,7 @@ async def _execute_ingestion(material_id: uuid.UUID, session: AsyncSession) -> d
         new_concepts_count = 0
         try:
             from app.services.quiz_service import QuizService
+
             quiz_service = QuizService(session)
             added_concepts = await quiz_service.extract_material_concepts_incremental(
                 material_id=material_id,
@@ -166,6 +167,7 @@ T = TypeVar("T")
 def _run_async_in_worker(coro_factory: Callable[[], Coroutine[Any, Any, T]]) -> T:
     """Run an async coroutine factory in a sync task safely even if an event loop is running."""
     import concurrent.futures
+
     try:
         asyncio.get_running_loop()
     except RuntimeError:
@@ -191,7 +193,9 @@ def process_material(self, material_id_str: str) -> dict:
     except Exception as exc:
         # Transient errors (e.g. DB connection issues) may be retried with backoff
         if self.request.retries < self.max_retries:
-            logger.info(f"Retrying material {material_id} processing (attempt {self.request.retries + 1})...")
+            logger.info(
+                f"Retrying material {material_id} processing (attempt {self.request.retries + 1})..."
+            )
             raise self.retry(exc=exc, countdown=5)
         return {"status": "failed", "error": str(exc)}
 
@@ -204,12 +208,14 @@ async def _process_quiz_completed_async(
 ) -> dict:
     if session is not None:
         from app.services.mastery_service import MasteryService
+
         service = MasteryService(session)
         return await service.process_quiz_completion(user_id, project_id, attempt_id)
 
     session_factory = get_worker_sessionmaker()
     async with session_factory() as worker_session:
         from app.services.mastery_service import MasteryService
+
         service = MasteryService(worker_session)
         return await service.process_quiz_completion(user_id, project_id, attempt_id)
 

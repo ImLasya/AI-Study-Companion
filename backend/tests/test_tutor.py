@@ -102,9 +102,8 @@ async def create_ready_material(
 
     # Refresh from DB
     from sqlalchemy import select
-    result = await db_session.execute(
-        select(Material).where(Material.id == material.id)
-    )
+
+    result = await db_session.execute(select(Material).where(Material.id == material.id))
     return result.scalar_one()
 
 
@@ -131,11 +130,17 @@ async def two_user_setup(db_session: AsyncSession):
     space_a = Space(id=uuid.uuid4(), user_id=user_a.id, name="Space A")
     space_b = Space(id=uuid.uuid4(), user_id=user_b.id, name="Space B")
     proj_a = Project(
-        id=uuid.uuid4(), space_id=space_a.id, user_id=user_a.id, name="Proj A",
+        id=uuid.uuid4(),
+        space_id=space_a.id,
+        user_id=user_a.id,
+        name="Proj A",
         learning_goal="Learn about Transformers",
     )
     proj_b = Project(
-        id=uuid.uuid4(), space_id=space_b.id, user_id=user_b.id, name="Proj B",
+        id=uuid.uuid4(),
+        space_id=space_b.id,
+        user_id=user_b.id,
+        name="Proj B",
         learning_goal="Learn about Neural Networks",
     )
     db_session.add_all([user_a, user_b, space_a, space_b, proj_a, proj_b])
@@ -155,7 +160,10 @@ async def single_user_setup(db_session: AsyncSession):
     )
     space = Space(id=uuid.uuid4(), user_id=user.id, name="My Space")
     project = Project(
-        id=uuid.uuid4(), space_id=space.id, user_id=user.id, name="My Project",
+        id=uuid.uuid4(),
+        space_id=space.id,
+        user_id=user.id,
+        name="My Project",
         learning_goal="Learn about Transformers",
     )
     db_session.add_all([user, space, project])
@@ -190,6 +198,7 @@ async def signup_and_login(client: AsyncClient, email: str) -> dict:
 # Section A: Retrieval Tests
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_retrieval_relevant_chunk_with_correct_page(
     db_session: AsyncSession, single_user_setup: dict
@@ -202,6 +211,7 @@ async def test_retrieval_relevant_chunk_with_correct_page(
     assert material.status == "ready", f"Material status: {material.status}"
 
     from app.services.retrieval_service import RetrievalService
+
     svc = RetrievalService(db_session)
     result = await svc.retrieve_relevant_chunks(
         user_id=user.id,
@@ -217,9 +227,7 @@ async def test_retrieval_relevant_chunk_with_correct_page(
 
 
 @pytest.mark.asyncio
-async def test_retrieval_tenant_isolation_user(
-    db_session: AsyncSession, two_user_setup: dict
-):
+async def test_retrieval_tenant_isolation_user(db_session: AsyncSession, two_user_setup: dict):
     """Chunks belonging to User A are never returned for User B."""
     user_a = two_user_setup["user_a"]
     proj_a = two_user_setup["proj_a"]
@@ -230,6 +238,7 @@ async def test_retrieval_tenant_isolation_user(
     await create_ready_material(db_session, user_a.id, proj_a.id)
 
     from app.services.retrieval_service import RetrievalService
+
     svc = RetrievalService(db_session)
     result = await svc.retrieve_relevant_chunks(
         user_id=user_b.id,
@@ -243,9 +252,7 @@ async def test_retrieval_tenant_isolation_user(
 
 
 @pytest.mark.asyncio
-async def test_retrieval_project_isolation(
-    db_session: AsyncSession, two_user_setup: dict
-):
+async def test_retrieval_project_isolation(db_session: AsyncSession, two_user_setup: dict):
     """Chunks from Project A are not returned when querying Project B."""
     user_a = two_user_setup["user_a"]
     proj_a = two_user_setup["proj_a"]
@@ -254,6 +261,7 @@ async def test_retrieval_project_isolation(
     await create_ready_material(db_session, user_a.id, proj_a.id)
 
     from app.services.retrieval_service import RetrievalService
+
     svc = RetrievalService(db_session)
     # Query as user_a but against a different project
     result = await svc.retrieve_relevant_chunks(
@@ -276,6 +284,7 @@ async def test_retrieval_low_relevance_returns_insufficient_evidence(
     await create_ready_material(db_session, user.id, project.id)
 
     from app.services.retrieval_service import RetrievalService
+
     svc = RetrievalService(db_session)
     result = await svc.retrieve_relevant_chunks(
         user_id=user.id,
@@ -293,6 +302,7 @@ async def test_retrieval_low_relevance_returns_insufficient_evidence(
 # Section B: Tutor Tests (with MockLLMProvider)
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_tutor_grounded_answer_with_valid_citations(
     client: AsyncClient, db_session: AsyncSession
@@ -306,14 +316,19 @@ async def test_tutor_grounded_answer_with_valid_citations(
         creds = await signup_and_login(client, f"tutor_grounded_{uuid.uuid4().hex[:6]}@example.com")
 
         # Create space and project via API
-        login_resp = await client.post("/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]})
+        login_resp = await client.post(
+            "/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]}
+        )
         assert login_resp.status_code == 200
 
         space_resp = await client.post("/api/v1/spaces", json={"name": "Test Space"})
         assert space_resp.status_code == 201
         space_id = space_resp.json()["id"]
 
-        proj_resp = await client.post(f"/api/v1/spaces/{space_id}/projects", json={"name": "Test Project", "learning_goal": "Learn Transformers"})
+        proj_resp = await client.post(
+            f"/api/v1/spaces/{space_id}/projects",
+            json={"name": "Test Project", "learning_goal": "Learn Transformers"},
+        )
         assert proj_resp.status_code == 201
         project_id = proj_resp.json()["id"]
 
@@ -361,11 +376,16 @@ async def test_tutor_citation_validation_rejects_fabricated_ids(
 
     try:
         creds = await signup_and_login(client, f"cite_fab_{uuid.uuid4().hex[:6]}@example.com")
-        await client.post("/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]})
+        await client.post(
+            "/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]}
+        )
 
         space_resp = await client.post("/api/v1/spaces", json={"name": "Space"})
         space_id = space_resp.json()["id"]
-        proj_resp = await client.post(f"/api/v1/spaces/{space_id}/projects", json={"name": "Project", "learning_goal": "Learn Transformers"})
+        proj_resp = await client.post(
+            f"/api/v1/spaces/{space_id}/projects",
+            json={"name": "Project", "learning_goal": "Learn Transformers"},
+        )
         project_id = proj_resp.json()["id"]
 
         me_resp = await client.get("/api/v1/auth/me")
@@ -397,11 +417,16 @@ async def test_tutor_no_ready_materials_preflight(client: AsyncClient):
 
     try:
         creds = await signup_and_login(client, f"no_mat_{uuid.uuid4().hex[:6]}@example.com")
-        await client.post("/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]})
+        await client.post(
+            "/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]}
+        )
 
         space_resp = await client.post("/api/v1/spaces", json={"name": "Space"})
         space_id = space_resp.json()["id"]
-        proj_resp = await client.post(f"/api/v1/spaces/{space_id}/projects", json={"name": "Project", "learning_goal": "Learn Transformers"})
+        proj_resp = await client.post(
+            f"/api/v1/spaces/{space_id}/projects",
+            json={"name": "Project", "learning_goal": "Learn Transformers"},
+        )
         project_id = proj_resp.json()["id"]
 
         # No materials uploaded — ask tutor
@@ -423,20 +448,23 @@ async def test_tutor_no_ready_materials_preflight(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_tutor_insufficient_evidence_response(
-    client: AsyncClient, db_session: AsyncSession
-):
+async def test_tutor_insufficient_evidence_response(client: AsyncClient, db_session: AsyncSession):
     """Unrelated question produces insufficient evidence response."""
     mock_provider = MockLLMProvider()
     set_llm_provider(mock_provider)
 
     try:
         creds = await signup_and_login(client, f"insuf_{uuid.uuid4().hex[:6]}@example.com")
-        await client.post("/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]})
+        await client.post(
+            "/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]}
+        )
 
         space_resp = await client.post("/api/v1/spaces", json={"name": "Space"})
         space_id = space_resp.json()["id"]
-        proj_resp = await client.post(f"/api/v1/spaces/{space_id}/projects", json={"name": "Project", "learning_goal": "Learn Transformers"})
+        proj_resp = await client.post(
+            f"/api/v1/spaces/{space_id}/projects",
+            json={"name": "Project", "learning_goal": "Learn Transformers"},
+        )
         project_id = proj_resp.json()["id"]
 
         me_resp = await client.get("/api/v1/auth/me")
@@ -472,11 +500,16 @@ async def test_tutor_gemini_failure_does_not_persist_assistant_message(
 
     try:
         creds = await signup_and_login(client, f"gemfail_{uuid.uuid4().hex[:6]}@example.com")
-        await client.post("/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]})
+        await client.post(
+            "/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]}
+        )
 
         space_resp = await client.post("/api/v1/spaces", json={"name": "Space"})
         space_id = space_resp.json()["id"]
-        proj_resp = await client.post(f"/api/v1/spaces/{space_id}/projects", json={"name": "Project", "learning_goal": "Learn Transformers"})
+        proj_resp = await client.post(
+            f"/api/v1/spaces/{space_id}/projects",
+            json={"name": "Project", "learning_goal": "Learn Transformers"},
+        )
         project_id = proj_resp.json()["id"]
 
         me_resp = await client.get("/api/v1/auth/me")
@@ -494,6 +527,7 @@ async def test_tutor_gemini_failure_does_not_persist_assistant_message(
 
         # Verify NO successful assistant message was persisted
         from sqlalchemy import select
+
         result = await db_session.execute(
             select(TutorMessage).where(
                 TutorMessage.project_id == project_uuid,
@@ -512,21 +546,25 @@ async def test_tutor_gemini_failure_does_not_persist_assistant_message(
 # Section C: Conversation Tests
 # ===========================================================================
 
+
 @pytest.mark.asyncio
-async def test_conversation_lifecycle_and_followup(
-    client: AsyncClient, db_session: AsyncSession
-):
+async def test_conversation_lifecycle_and_followup(client: AsyncClient, db_session: AsyncSession):
     """New conversation is created; follow-up reuses it."""
     mock_provider = MockLLMProvider()
     set_llm_provider(mock_provider)
 
     try:
         creds = await signup_and_login(client, f"convlife_{uuid.uuid4().hex[:6]}@example.com")
-        await client.post("/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]})
+        await client.post(
+            "/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]}
+        )
 
         space_resp = await client.post("/api/v1/spaces", json={"name": "Space"})
         space_id = space_resp.json()["id"]
-        proj_resp = await client.post(f"/api/v1/spaces/{space_id}/projects", json={"name": "Project", "learning_goal": "Learn Transformers"})
+        proj_resp = await client.post(
+            f"/api/v1/spaces/{space_id}/projects",
+            json={"name": "Project", "learning_goal": "Learn Transformers"},
+        )
         project_id = proj_resp.json()["id"]
 
         me_resp = await client.get("/api/v1/auth/me")
@@ -563,9 +601,7 @@ async def test_conversation_lifecycle_and_followup(
 
 
 @pytest.mark.asyncio
-async def test_conversation_cross_user_isolation(
-    client: AsyncClient, db_session: AsyncSession
-):
+async def test_conversation_cross_user_isolation(client: AsyncClient, db_session: AsyncSession):
     """User B cannot access User A's conversation — returns 404."""
     mock_provider = MockLLMProvider()
     set_llm_provider(mock_provider)
@@ -573,11 +609,16 @@ async def test_conversation_cross_user_isolation(
     try:
         # User A creates a conversation
         creds_a = await signup_and_login(client, f"ciso_a_{uuid.uuid4().hex[:6]}@example.com")
-        await client.post("/api/v1/auth/login", json={"email": creds_a["email"], "password": creds_a["password"]})
+        await client.post(
+            "/api/v1/auth/login", json={"email": creds_a["email"], "password": creds_a["password"]}
+        )
 
         space_resp = await client.post("/api/v1/spaces", json={"name": "Space A"})
         space_id = space_resp.json()["id"]
-        proj_resp = await client.post(f"/api/v1/spaces/{space_id}/projects", json={"name": "Project A", "learning_goal": "Learn Transformers"})
+        proj_resp = await client.post(
+            f"/api/v1/spaces/{space_id}/projects",
+            json={"name": "Project A", "learning_goal": "Learn Transformers"},
+        )
         project_id = proj_resp.json()["id"]
 
         me_resp = await client.get("/api/v1/auth/me")
@@ -595,7 +636,9 @@ async def test_conversation_cross_user_isolation(
 
         # User B tries to access User A's conversation
         creds_b = await signup_and_login(client, f"ciso_b_{uuid.uuid4().hex[:6]}@example.com")
-        await client.post("/api/v1/auth/login", json={"email": creds_b["email"], "password": creds_b["password"]})
+        await client.post(
+            "/api/v1/auth/login", json={"email": creds_b["email"], "password": creds_b["password"]}
+        )
 
         resp_b = await client.get(f"/api/v1/tutor/conversations/{conv_id}")
         assert resp_b.status_code == 404
@@ -606,6 +649,7 @@ async def test_conversation_cross_user_isolation(
 # ===========================================================================
 # Section D: API Validation Tests
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_api_unauthenticated_request_fails(client: AsyncClient):
@@ -625,7 +669,9 @@ async def test_api_nonexistent_project_returns_404(client: AsyncClient):
 
     try:
         creds = await signup_and_login(client, f"proj404_{uuid.uuid4().hex[:6]}@example.com")
-        await client.post("/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]})
+        await client.post(
+            "/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]}
+        )
 
         resp = await client.post(
             f"/api/v1/projects/{uuid.uuid4()}/tutor",
@@ -640,11 +686,16 @@ async def test_api_nonexistent_project_returns_404(client: AsyncClient):
 async def test_api_empty_question_rejected(client: AsyncClient):
     """Empty question is rejected with 422."""
     creds = await signup_and_login(client, f"empty_q_{uuid.uuid4().hex[:6]}@example.com")
-    await client.post("/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]})
+    await client.post(
+        "/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]}
+    )
 
     space_resp = await client.post("/api/v1/spaces", json={"name": "Space"})
     space_id = space_resp.json()["id"]
-    proj_resp = await client.post(f"/api/v1/spaces/{space_id}/projects", json={"name": "Project", "learning_goal": "Learn Transformers"})
+    proj_resp = await client.post(
+        f"/api/v1/spaces/{space_id}/projects",
+        json={"name": "Project", "learning_goal": "Learn Transformers"},
+    )
     project_id = proj_resp.json()["id"]
 
     resp = await client.post(
@@ -658,11 +709,16 @@ async def test_api_empty_question_rejected(client: AsyncClient):
 async def test_api_question_too_long_rejected(client: AsyncClient):
     """Question exceeding TUTOR_MAX_QUESTION_LENGTH is rejected with 422."""
     creds = await signup_and_login(client, f"long_q_{uuid.uuid4().hex[:6]}@example.com")
-    await client.post("/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]})
+    await client.post(
+        "/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]}
+    )
 
     space_resp = await client.post("/api/v1/spaces", json={"name": "Space"})
     space_id = space_resp.json()["id"]
-    proj_resp = await client.post(f"/api/v1/spaces/{space_id}/projects", json={"name": "Project", "learning_goal": "Learn Transformers"})
+    proj_resp = await client.post(
+        f"/api/v1/spaces/{space_id}/projects",
+        json={"name": "Project", "learning_goal": "Learn Transformers"},
+    )
     project_id = proj_resp.json()["id"]
 
     long_question = "a" * (settings.TUTOR_MAX_QUESTION_LENGTH + 1)
@@ -681,11 +737,16 @@ async def test_api_invalid_conversation_returns_404(client: AsyncClient):
 
     try:
         creds = await signup_and_login(client, f"inv_conv_{uuid.uuid4().hex[:6]}@example.com")
-        await client.post("/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]})
+        await client.post(
+            "/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]}
+        )
 
         space_resp = await client.post("/api/v1/spaces", json={"name": "Space"})
         space_id = space_resp.json()["id"]
-        proj_resp = await client.post(f"/api/v1/spaces/{space_id}/projects", json={"name": "Project", "learning_goal": "Learn Transformers"})
+        proj_resp = await client.post(
+            f"/api/v1/spaces/{space_id}/projects",
+            json={"name": "Project", "learning_goal": "Learn Transformers"},
+        )
         project_id = proj_resp.json()["id"]
 
         resp = await client.post(
@@ -701,6 +762,7 @@ async def test_api_invalid_conversation_returns_404(client: AsyncClient):
 # Section E: Security Tests
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_security_gemini_api_key_never_in_response(client: AsyncClient):
     """API responses never contain GEMINI_API_KEY or provider internals."""
@@ -709,11 +771,16 @@ async def test_security_gemini_api_key_never_in_response(client: AsyncClient):
 
     try:
         creds = await signup_and_login(client, f"sec_{uuid.uuid4().hex[:6]}@example.com")
-        await client.post("/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]})
+        await client.post(
+            "/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]}
+        )
 
         space_resp = await client.post("/api/v1/spaces", json={"name": "Space"})
         space_id = space_resp.json()["id"]
-        proj_resp = await client.post(f"/api/v1/spaces/{space_id}/projects", json={"name": "Project", "learning_goal": "Learn Transformers"})
+        proj_resp = await client.post(
+            f"/api/v1/spaces/{space_id}/projects",
+            json={"name": "Project", "learning_goal": "Learn Transformers"},
+        )
         project_id = proj_resp.json()["id"]
 
         resp = await client.post(
@@ -726,7 +793,7 @@ async def test_security_gemini_api_key_never_in_response(client: AsyncClient):
         if settings.GEMINI_API_KEY:
             assert settings.GEMINI_API_KEY not in response_text
         assert "GEMINI_API_KEY" not in response_text
-        assert "api_key" not in response_text.lower().replace("\"api_key\"", "")
+        assert "api_key" not in response_text.lower().replace('"api_key"', "")
     finally:
         set_llm_provider(None)
 
@@ -744,6 +811,7 @@ async def test_security_cross_tenant_retrieval_impossible(
     await create_ready_material(db_session, user_a.id, proj_a.id)
 
     from app.services.retrieval_service import RetrievalService
+
     svc = RetrievalService(db_session)
 
     # User B queries against their own (empty) project

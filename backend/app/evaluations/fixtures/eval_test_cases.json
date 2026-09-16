@@ -1,0 +1,90 @@
+[
+  {
+    "suite": "tutor_grounding",
+    "case_id": "grounding_basic_facts",
+    "description": "Tests that tutor grounds answer in provided text without hallucinating facts outside the context",
+    "question": "What is the primary function of Long-Term Potentiation (LTP)?",
+    "evidence_chunks": [
+      {
+        "chunk_id": "c1111111-1111-1111-1111-111111111111",
+        "material_id": "m1111111-1111-1111-1111-111111111111",
+        "filename": "neuroscience_ch1.pdf",
+        "page_number": 4,
+        "content": "Long-Term Potentiation (LTP) is a persistent strengthening of synapses based on recent patterns of activity. These are patterns of synaptic activity that produce a long-lasting increase in signal transmission between two neurons, widely considered a cellular basis for learning and memory."
+      }
+    ],
+    "expected_keywords": ["strengthening", "synapses", "memory", "neurons"],
+    "forbidden_keywords": ["hallucination", "unsupported claim"]
+  },
+  {
+    "suite": "tutor_grounding",
+    "case_id": "grounding_receptor_mechanism",
+    "description": "Tests that tutor describes NMDA receptor mechanism strictly based on evidence",
+    "question": "How does the NMDA receptor channel open during synaptic transmission?",
+    "evidence_chunks": [
+      {
+        "chunk_id": "c2222222-2222-2222-2222-222222222222",
+        "material_id": "m2222222-2222-2222-2222-222222222222",
+        "filename": "neuroscience_ch1.pdf",
+        "page_number": 8,
+        "content": "The NMDA receptor is blocked by magnesium ions (Mg2+) at resting membrane potentials. Depolarization of the postsynaptic membrane expels the Mg2+ block, allowing calcium ions (Ca2+) and sodium ions to flow into the neuron."
+      }
+    ],
+    "expected_keywords": ["magnesium", "depolarization", "calcium"],
+    "forbidden_keywords": []
+  },
+  {
+    "suite": "citation_correctness",
+    "case_id": "citation_single_source",
+    "description": "Tests that citations properly reference valid source chunks and page numbers",
+    "question": "What ions flow into the cell when the NMDA channel opens?",
+    "evidence_chunks": [
+      {
+        "chunk_id": "c2222222-2222-2222-2222-222222222222",
+        "material_id": "m2222222-2222-2222-2222-222222222222",
+        "filename": "neuroscience_ch1.pdf",
+        "page_number": 8,
+        "content": "Depolarization of the postsynaptic membrane expels the Mg2+ block, allowing calcium ions (Ca2+) and sodium ions to flow into the neuron."
+      }
+    ],
+    "required_chunk_ids": ["c2222222-2222-2222-2222-222222222222"]
+  },
+  {
+    "suite": "unsupported_handling",
+    "case_id": "unsupported_out_of_domain",
+    "description": "Tests that questions lacking evidence in materials trigger insufficient_evidence without hallucinating",
+    "question": "What is the capital city of Australia and what is its total population?",
+    "evidence_chunks": [
+      {
+        "chunk_id": "c1111111-1111-1111-1111-111111111111",
+        "material_id": "m1111111-1111-1111-1111-111111111111",
+        "filename": "neuroscience_ch1.pdf",
+        "page_number": 4,
+        "content": "Long-Term Potentiation (LTP) is a persistent strengthening of synapses based on recent patterns of activity."
+      }
+    ],
+    "expected_insufficient_evidence": true,
+    "uncertainty_phrases": ["not covered", "does not contain", "cannot be determined", "insufficient", "no information"]
+  },
+  {
+    "suite": "retrieval_relevance",
+    "case_id": "retrieval_ranking_ltp",
+    "description": "Tests semantic similarity ranking finds the relevant chunk for LTP queries",
+    "query": "How do synapses strengthen during learning?",
+    "corpus": [
+      {
+        "id": "chunk_target",
+        "text": "Long-Term Potentiation represents the strengthening of synapses based on repeated stimulation and learning."
+      },
+      {
+        "id": "chunk_distractor_1",
+        "text": "The gastrointestinal tract absorbs nutrients from digested food into the bloodstream."
+      },
+      {
+        "id": "chunk_distractor_2",
+        "text": "Plate tectonics describes the large scale motions of Earth's lithosphere over geological time."
+      }
+    ],
+    "expected_top_id": "chunk_target"
+  }
+]

@@ -16,8 +16,10 @@ Guidelines:
 
 def build_recommendation_prompt(
     learning_goal: str,
-    candidate_concepts: list[dict],  # list of {"id": str, "name": str, "mastery": float | None, "status": str}
-    recent_errors: list[dict],       # list of {"concept_name": str, "question": str, "explanation": str}
+    candidate_concepts: list[
+        dict
+    ],  # list of {"id": str, "name": str, "mastery": float | None, "status": str}
+    recent_errors: list[dict],  # list of {"concept_name": str, "question": str, "explanation": str}
     available_materials: list[str],
 ) -> str:
     """Construct structured diagnostic prompt for recommendation generation."""

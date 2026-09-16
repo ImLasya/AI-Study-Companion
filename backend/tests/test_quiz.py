@@ -147,6 +147,7 @@ async def quiz_two_user_setup(db_session: AsyncSession):
 # 1. Concept Inventory Tests
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_concept_extraction_and_persistence(
     db_session: AsyncSession,
@@ -165,7 +166,9 @@ async def test_concept_extraction_and_persistence(
     concepts = await service.ensure_project_concepts(user_a.id, proj_a.id)
     assert len(concepts) >= 2
     concept_names = [c.name for c in concepts]
-    assert "Neural Network Architectures" in concept_names or "Activation Functions" in concept_names
+    assert (
+        "Neural Network Architectures" in concept_names or "Activation Functions" in concept_names
+    )
 
     # Check persistence in database
     res = await db_session.execute(select(Concept).where(Concept.project_id == proj_a.id))
@@ -197,6 +200,7 @@ async def test_concept_extraction_no_materials_fails(
 # ===========================================================================
 # 2. Quiz Generation & Evidence Grounding Tests
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_quiz_generation_with_ready_materials(
@@ -241,19 +245,76 @@ async def test_quiz_generation_with_ready_materials(
 # 3. Deterministic Adaptive Engine Evaluation Suite
 # ===========================================================================
 
+
 def test_adaptive_selection_mistake_boosting():
     """Learner repeatedly misses Concept A -> Concept A receives increased priority."""
-    c_a = Concept(id=uuid.uuid4(), project_id=uuid.uuid4(), user_id=uuid.uuid4(), name="Concept A", description="A", source_chunk_ids=[])
-    c_b = Concept(id=uuid.uuid4(), project_id=uuid.uuid4(), user_id=uuid.uuid4(), name="Concept B", description="B", source_chunk_ids=[])
+    c_a = Concept(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        name="Concept A",
+        description="A",
+        source_chunk_ids=[],
+    )
+    c_b = Concept(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        name="Concept B",
+        description="B",
+        source_chunk_ids=[],
+    )
 
     # History: Learner missed Concept A 3 times out of 3, answered Concept B correctly 3 times
     history = [
-        QuizAnswer(id=uuid.uuid4(), attempt_id=uuid.uuid4(), question_id=uuid.uuid4(), user_id=uuid.uuid4(), concept_id=c_a.id, is_correct=False),
-        QuizAnswer(id=uuid.uuid4(), attempt_id=uuid.uuid4(), question_id=uuid.uuid4(), user_id=uuid.uuid4(), concept_id=c_a.id, is_correct=False),
-        QuizAnswer(id=uuid.uuid4(), attempt_id=uuid.uuid4(), question_id=uuid.uuid4(), user_id=uuid.uuid4(), concept_id=c_a.id, is_correct=False),
-        QuizAnswer(id=uuid.uuid4(), attempt_id=uuid.uuid4(), question_id=uuid.uuid4(), user_id=uuid.uuid4(), concept_id=c_b.id, is_correct=True),
-        QuizAnswer(id=uuid.uuid4(), attempt_id=uuid.uuid4(), question_id=uuid.uuid4(), user_id=uuid.uuid4(), concept_id=c_b.id, is_correct=True),
-        QuizAnswer(id=uuid.uuid4(), attempt_id=uuid.uuid4(), question_id=uuid.uuid4(), user_id=uuid.uuid4(), concept_id=c_b.id, is_correct=True),
+        QuizAnswer(
+            id=uuid.uuid4(),
+            attempt_id=uuid.uuid4(),
+            question_id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            concept_id=c_a.id,
+            is_correct=False,
+        ),
+        QuizAnswer(
+            id=uuid.uuid4(),
+            attempt_id=uuid.uuid4(),
+            question_id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            concept_id=c_a.id,
+            is_correct=False,
+        ),
+        QuizAnswer(
+            id=uuid.uuid4(),
+            attempt_id=uuid.uuid4(),
+            question_id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            concept_id=c_a.id,
+            is_correct=False,
+        ),
+        QuizAnswer(
+            id=uuid.uuid4(),
+            attempt_id=uuid.uuid4(),
+            question_id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            concept_id=c_b.id,
+            is_correct=True,
+        ),
+        QuizAnswer(
+            id=uuid.uuid4(),
+            attempt_id=uuid.uuid4(),
+            question_id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            concept_id=c_b.id,
+            is_correct=True,
+        ),
+        QuizAnswer(
+            id=uuid.uuid4(),
+            attempt_id=uuid.uuid4(),
+            question_id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            concept_id=c_b.id,
+            is_correct=True,
+        ),
     ]
 
     plan = AdaptiveEngine.compute_plan(concepts=[c_a, c_b], history=history, question_count=3)
@@ -267,15 +328,38 @@ def test_adaptive_selection_mistake_boosting():
 
 def test_adaptive_selection_unseen_concept_bonus():
     """Learner has never answered Concept B -> Concept B receives exploration priority (+30)."""
-    c_seen = Concept(id=uuid.uuid4(), project_id=uuid.uuid4(), user_id=uuid.uuid4(), name="Seen Concept", description="Seen", source_chunk_ids=[])
-    c_unseen = Concept(id=uuid.uuid4(), project_id=uuid.uuid4(), user_id=uuid.uuid4(), name="Unseen Concept", description="Unseen", source_chunk_ids=[])
+    c_seen = Concept(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        name="Seen Concept",
+        description="Seen",
+        source_chunk_ids=[],
+    )
+    c_unseen = Concept(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        name="Unseen Concept",
+        description="Unseen",
+        source_chunk_ids=[],
+    )
 
     # History only has seen concept
     history = [
-        QuizAnswer(id=uuid.uuid4(), attempt_id=uuid.uuid4(), question_id=uuid.uuid4(), user_id=uuid.uuid4(), concept_id=c_seen.id, is_correct=True),
+        QuizAnswer(
+            id=uuid.uuid4(),
+            attempt_id=uuid.uuid4(),
+            question_id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            concept_id=c_seen.id,
+            is_correct=True,
+        ),
     ]
 
-    plan = AdaptiveEngine.compute_plan(concepts=[c_seen, c_unseen], history=history, question_count=2)
+    plan = AdaptiveEngine.compute_plan(
+        concepts=[c_seen, c_unseen], history=history, question_count=2
+    )
     score_unseen = next(s for s in plan.selected_concepts if s.concept_id == c_unseen.id)
 
     assert score_unseen.unseen_signal == 30.0
@@ -284,10 +368,31 @@ def test_adaptive_selection_unseen_concept_bonus():
 
 def test_adaptive_selection_recency_penalty():
     """Learner recently answered Concept C correctly -> Concept C receives recency penalty."""
-    c_c = Concept(id=uuid.uuid4(), project_id=uuid.uuid4(), user_id=uuid.uuid4(), name="Concept C", description="C", source_chunk_ids=[])
+    c_c = Concept(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        name="Concept C",
+        description="C",
+        source_chunk_ids=[],
+    )
     history = [
-        QuizAnswer(id=uuid.uuid4(), attempt_id=uuid.uuid4(), question_id=uuid.uuid4(), user_id=uuid.uuid4(), concept_id=c_c.id, is_correct=True),
-        QuizAnswer(id=uuid.uuid4(), attempt_id=uuid.uuid4(), question_id=uuid.uuid4(), user_id=uuid.uuid4(), concept_id=c_c.id, is_correct=True),
+        QuizAnswer(
+            id=uuid.uuid4(),
+            attempt_id=uuid.uuid4(),
+            question_id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            concept_id=c_c.id,
+            is_correct=True,
+        ),
+        QuizAnswer(
+            id=uuid.uuid4(),
+            attempt_id=uuid.uuid4(),
+            question_id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            concept_id=c_c.id,
+            is_correct=True,
+        ),
     ]
 
     plan = AdaptiveEngine.compute_plan(concepts=[c_c], history=history, question_count=1)
@@ -298,28 +403,54 @@ def test_adaptive_selection_recency_penalty():
 
 def test_adaptive_selection_difficulty_calibration():
     """Struggling learner gets easy questions, proficient learner gets hard questions."""
-    concept = Concept(id=uuid.uuid4(), project_id=uuid.uuid4(), user_id=uuid.uuid4(), name="Test Concept", description="Desc", source_chunk_ids=[])
+    concept = Concept(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        name="Test Concept",
+        description="Desc",
+        source_chunk_ids=[],
+    )
 
     # 1. Low accuracy learner (0 / 4 correct)
     low_history = [
-        QuizAnswer(id=uuid.uuid4(), attempt_id=uuid.uuid4(), question_id=uuid.uuid4(), user_id=uuid.uuid4(), concept_id=concept.id, is_correct=False)
+        QuizAnswer(
+            id=uuid.uuid4(),
+            attempt_id=uuid.uuid4(),
+            question_id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            concept_id=concept.id,
+            is_correct=False,
+        )
         for _ in range(4)
     ]
-    low_plan = AdaptiveEngine.compute_plan(concepts=[concept], history=low_history, question_count=5)
+    low_plan = AdaptiveEngine.compute_plan(
+        concepts=[concept], history=low_history, question_count=5
+    )
     assert low_plan.recommended_difficulties.count("easy") >= 3
 
     # 2. High accuracy learner (5 / 5 correct)
     high_history = [
-        QuizAnswer(id=uuid.uuid4(), attempt_id=uuid.uuid4(), question_id=uuid.uuid4(), user_id=uuid.uuid4(), concept_id=concept.id, is_correct=True)
+        QuizAnswer(
+            id=uuid.uuid4(),
+            attempt_id=uuid.uuid4(),
+            question_id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            concept_id=concept.id,
+            is_correct=True,
+        )
         for _ in range(5)
     ]
-    high_plan = AdaptiveEngine.compute_plan(concepts=[concept], history=high_history, question_count=5)
+    high_plan = AdaptiveEngine.compute_plan(
+        concepts=[concept], history=high_history, question_count=5
+    )
     assert high_plan.recommended_difficulties.count("hard") >= 3
 
 
 # ===========================================================================
 # 4. MCQ Deterministic Evaluation & Submission Tests
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_mcq_deterministic_evaluation(
@@ -355,7 +486,9 @@ async def test_mcq_deterministic_evaluation(
 
     # Find the MCQ question from DB to know the correct answer
     q_res = await db_session.execute(
-        select(QuizQuestion).where(QuizQuestion.quiz_id == uuid.UUID(quiz_id), QuizQuestion.question_type == "mcq")
+        select(QuizQuestion).where(
+            QuizQuestion.quiz_id == uuid.UUID(quiz_id), QuizQuestion.question_type == "mcq"
+        )
     )
     mcq = q_res.scalars().first()
     assert mcq is not None
@@ -388,6 +521,7 @@ async def test_mcq_deterministic_evaluation(
 # 5. Open-Ended Semantic Assessment & Error Boundary Tests
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_open_ended_gemini_evaluation(
     client: AsyncClient,
@@ -418,7 +552,9 @@ async def test_open_ended_gemini_evaluation(
 
     # Find the open-ended question
     q_res = await db_session.execute(
-        select(QuizQuestion).where(QuizQuestion.quiz_id == uuid.UUID(quiz_id), QuizQuestion.question_type == "open_ended")
+        select(QuizQuestion).where(
+            QuizQuestion.quiz_id == uuid.UUID(quiz_id), QuizQuestion.question_type == "open_ended"
+        )
     )
     open_q = q_res.scalars().first()
     assert open_q is not None
@@ -466,7 +602,9 @@ async def test_open_ended_gemini_failure_handled(
     attempt_id = att_res.json()["id"]
 
     q_res = await db_session.execute(
-        select(QuizQuestion).where(QuizQuestion.quiz_id == uuid.UUID(quiz_id), QuizQuestion.question_type == "open_ended")
+        select(QuizQuestion).where(
+            QuizQuestion.quiz_id == uuid.UUID(quiz_id), QuizQuestion.question_type == "open_ended"
+        )
     )
     open_q = q_res.scalars().first()
     assert open_q is not None
@@ -488,6 +626,7 @@ async def test_open_ended_gemini_failure_handled(
 # ===========================================================================
 # 6. Tenant Isolation & Security Tests
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_quiz_cross_user_isolation(
@@ -531,6 +670,7 @@ async def test_quiz_cross_user_isolation(
 # 7. Attempt Completion & Results Tests
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_quiz_completion_and_concept_performance(
     client: AsyncClient,
@@ -559,7 +699,9 @@ async def test_quiz_completion_and_concept_performance(
     attempt_id = att_res.json()["id"]
 
     # Fetch questions
-    q_res = await db_session.execute(select(QuizQuestion).where(QuizQuestion.quiz_id == uuid.UUID(quiz_id)))
+    q_res = await db_session.execute(
+        select(QuizQuestion).where(QuizQuestion.quiz_id == uuid.UUID(quiz_id))
+    )
     questions = q_res.scalars().all()
 
     # Answer both questions
@@ -572,11 +714,16 @@ async def test_quiz_completion_and_concept_performance(
         else:
             await client.post(
                 f"/api/v1/projects/{proj_a.id}/quizzes/{quiz_id}/attempts/{attempt_id}/answers",
-                json={"question_id": str(q.id), "answer_text": "Detailed accurate response on activation functions"},
+                json={
+                    "question_id": str(q.id),
+                    "answer_text": "Detailed accurate response on activation functions",
+                },
             )
 
     # Complete attempt
-    comp_res = await client.post(f"/api/v1/projects/{proj_a.id}/quizzes/{quiz_id}/attempts/{attempt_id}/complete")
+    comp_res = await client.post(
+        f"/api/v1/projects/{proj_a.id}/quizzes/{quiz_id}/attempts/{attempt_id}/complete"
+    )
     assert comp_res.status_code == 200
     res_data = comp_res.json()
     assert res_data["status"] == "completed"

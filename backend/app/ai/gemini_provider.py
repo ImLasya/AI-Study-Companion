@@ -217,7 +217,11 @@ class MockLLMProvider(LLMProvider):
         elif schema_name == "OpenEndedEvaluationOutput":
             # Check if answer seems low effort
             lower_prompt = user_prompt.lower()
-            if "i don't know" in lower_prompt or "gibberish" in lower_prompt or "asdf" in lower_prompt:
+            if (
+                "i don't know" in lower_prompt
+                or "gibberish" in lower_prompt
+                or "asdf" in lower_prompt
+            ):
                 data = {
                     "score": 0.1,
                     "is_correct": False,
@@ -229,8 +233,13 @@ class MockLLMProvider(LLMProvider):
                 data = {
                     "score": 0.85,
                     "is_correct": True,
-                    "strengths": ["Correctly identified the role of non-linear transformations.", "Clear explanation."],
-                    "missing_points": ["Could mention mathematical proof of collapsing linear layers."],
+                    "strengths": [
+                        "Correctly identified the role of non-linear transformations.",
+                        "Clear explanation.",
+                    ],
+                    "missing_points": [
+                        "Could mention mathematical proof of collapsing linear layers."
+                    ],
                     "feedback": "Strong conceptual understanding demonstrated. Well done!",
                 }
             return response_schema.model_validate(data), usage
@@ -239,7 +248,10 @@ class MockLLMProvider(LLMProvider):
             # Extract candidate UUID from prompt if present
             target_id = None
             import re
-            uuids = re.findall(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", user_prompt)
+
+            uuids = re.findall(
+                r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", user_prompt
+            )
             if uuids:
                 target_id = uuids[0]
             data = {
@@ -259,12 +271,23 @@ class MockLLMProvider(LLMProvider):
                 "insufficient_evidence": False,
                 "citation_chunk_ids": chunk_ids[:1] if chunk_ids else [],
             }
-        elif "photosynthesis" in lower_prompt or "baking" in lower_prompt:
+        elif (
+            "photosynthesis" in lower_prompt
+            or "baking" in lower_prompt
+            or "australia" in lower_prompt
+        ):
             data = {
                 "answer": "The provided learning material does not contain information about this topic.",
                 "grounded": False,
                 "insufficient_evidence": True,
                 "citation_chunk_ids": [],
+            }
+        elif "long-term potentiation" in lower_prompt or "nmda" in lower_prompt:
+            data = {
+                "answer": "Long-Term Potentiation involves the strengthening of synapses between neurons for memory. Depolarization expels the magnesium block allowing calcium and sodium ions to flow into the cell.",
+                "grounded": True,
+                "insufficient_evidence": False,
+                "citation_chunk_ids": chunk_ids[:1] if chunk_ids else [],
             }
         else:
             data = {

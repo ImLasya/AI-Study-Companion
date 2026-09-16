@@ -50,7 +50,9 @@ async def test_quiz_e2e_integration(db_session: AsyncSession):
     await db_session.commit()
 
     # 2. Add Ready Material with Chunks
-    await create_ready_test_material(db_session, user_id, project.id, filename="neural_networks.pdf")
+    await create_ready_test_material(
+        db_session, user_id, project.id, filename="neural_networks.pdf"
+    )
 
     # 3. Test Concept Extraction
     quiz_service = QuizService(db_session)
@@ -65,7 +67,9 @@ async def test_quiz_e2e_integration(db_session: AsyncSession):
     assert len(c_list) == 2
 
     # One-Time Persistence Check
-    concepts_cached = await quiz_service.ensure_project_concepts(user_id=user.id, project_id=project.id)
+    concepts_cached = await quiz_service.ensure_project_concepts(
+        user_id=user.id, project_id=project.id
+    )
     assert len(concepts_cached) == 2
 
     # 4. Generate Adaptive Quiz

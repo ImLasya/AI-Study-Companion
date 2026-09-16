@@ -45,9 +45,7 @@ def build_tutor_user_prompt(
         content = chunk.get("content", "").strip()
 
         sections.append(
-            f'<chunk id="{chunk_id}" filename="{filename}" page="{page_num}">\n'
-            f"{content}\n"
-            f"</chunk>"
+            f'<chunk id="{chunk_id}" filename="{filename}" page="{page_num}">\n{content}\n</chunk>'
         )
     sections.append("</retrieved_evidence>")
 

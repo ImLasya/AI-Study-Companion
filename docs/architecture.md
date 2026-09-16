@@ -243,5 +243,36 @@ Categorizes learner trajectory based on historical mastery snapshots:
 3. Candidate restriction: Gemini may only select from backend-provided candidate concept IDs. Invalid IDs are filtered out server-side.
 4. Allowed types: Restricted to `review_concept`, `take_quiz`, `read_material`, `practice_open_ended`.
 5. Recommendation deduplication: Active, undismissed recommendations for the same concept and type are reused rather than duplicated.
-6. Decoupled resilience: If Gemini recommendation generation fails, mastery updates and snapshots remain committed and valid.
+---
+
+## 10. Analytics SQL Aggregation & Indexing Strategy (Phase 6)
+
+### 10.1 SQL-Level Aggregations (Read-Side Optimization)
+Analytics queries are purely read-side operations that avoid in-memory Python looping over high-volume tables. They leverage database-native functions and CTEs:
+- **Project Activity Timeline**: `date_trunc('day', created_at)` with `COUNT(*)` grouped by calendar day over `activity_events`.
+- **Quiz Performance Trend**: Chronological queries selecting `attempt_id`, `score`, `passed`, and `completed_at` filtered by `status = 'completed'`.
+- **Mastery Distribution**: Categorization of `ConceptMastery` into buckets (`unassessed`, `needs_attention`, `stable`, `mastered`) via SQL `CASE` statements and `COUNT(CASE ...)`.
+- **Global User Analytics**: Multi-tenant aggregation calculating total study events, quizzes completed, active study days, and top weak areas across all spaces and projects belonging to the authenticated user.
+
+### 10.2 Indexing Strategy (Migration 0007)
+To ensure sub-10ms query latency as event logs scale, composite and partial indexes were established without redundant overlaps:
+- `ix_activity_events_project_created`: `(project_id, created_at DESC)` for project timeline buckets.
+- `ix_activity_events_user_created`: `(user_id, created_at DESC)` for user-scoped global feeds.
+- `ix_ai_usage_logs_project_created`: `(project_id, created_at DESC)` for project AI telemetry.
+- `ix_ai_usage_logs_operation_created`: `(operation, created_at DESC)` for operation breakdown and latency percentiles.
+- `ix_ai_usage_logs_user_created`: `(user_id, created_at DESC)` for tenant-isolated user auditing.
+
+---
+
+## 11. Admin Authorization Boundary & Observability (Phase 6)
+
+### 11.1 Strict Authorization Boundary
+- **No Repository Bypass Flags**: Cross-tenant queries are strictly segregated into a dedicated `AdminRepository` and `AdminService`. Normal tenant repositories (`ProjectRepository`, `SpaceRepository`, etc.) enforce strict user-isolation and contain no `is_admin` bypass parameters.
+- **Backend Dependency Enforcement**: The sole entrypoint to cross-tenant data is the FastAPI dependency `get_current_admin`. Frontend guards (`AdminRoute`) exist solely for UX routing and never substitute for server-side verification. Non-admin requests immediately receive `403 Forbidden`.
+- **Sensitive Data Redaction**: Admin DTOs strictly redact passwords, bcrypt hashes, session tokens, raw user prompts, and full LLM response completions.
+
+### 11.2 Inline AI Telemetry Persistence
+- **Awaited Inline Writes**: AI telemetry writes (`log_ai_usage`) are awaited inline within the active request context, wrapped in a fail-safe `try/except` block.
+- **Non-Blocking Reliability**: Telemetry failures never interrupt or fail the primary user operation. Inline execution prevents dropped writes caused by event-loop shutdowns.
+- **Telemetry Sanitization**: Model names, latency, token counts, cost estimates, and error messages are recorded while stripping sensitive secrets or proprietary prompt text.
 

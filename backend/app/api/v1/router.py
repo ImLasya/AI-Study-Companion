@@ -1,6 +1,8 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    admin,
+    analytics,
     auth,
     health,
     mastery,
@@ -33,3 +35,6 @@ api_router.include_router(quizzes.router, tags=["Adaptive Quiz & Assessment"])
 # 6. Phase 5: Concept Mastery, Growth & Recommendations
 api_router.include_router(mastery.router, tags=["Mastery & Growth"])
 
+# 7. Phase 6: Analytics & Admin Observability
+api_router.include_router(analytics.router)
+api_router.include_router(admin.router)

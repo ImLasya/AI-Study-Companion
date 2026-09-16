@@ -16,8 +16,13 @@ class RecommendationGenerationOutput(BaseModel):
         ...,
         description="Type of recommendation: 'review_concept', 'practice_quiz', 'study_material', or 'explore_topic'",
     )
-    title: str = Field(..., description="Concise, action-oriented headline (e.g., 'Review Backpropagation Fundamentals')")
-    body: str = Field(..., description="Actionable 2-3 sentence guidance explaining what step to take next.")
+    title: str = Field(
+        ...,
+        description="Concise, action-oriented headline (e.g., 'Review Backpropagation Fundamentals')",
+    )
+    body: str = Field(
+        ..., description="Actionable 2-3 sentence guidance explaining what step to take next."
+    )
     target_concept_id: str | None = Field(
         None,
         description="The exact concept UUID from the provided candidates list that this recommendation targets, or null if general.",
