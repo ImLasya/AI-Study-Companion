@@ -15,14 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.gemini_provider import MockLLMProvider, set_llm_provider
 from app.core.config import settings
-from app.models.chunk import MaterialChunk
-from app.models.conversation import TutorConversation, TutorMessage
+from app.models.conversation import TutorMessage
 from app.models.material import Material
 from app.models.project import Project
 from app.models.space import Space
 from app.models.user import User
-from app.repositories.material_repository import MaterialRepository
-from app.schemas.tutor import TutorStructuredOutput
 from app.workers.tasks import _process_material_async
 
 
@@ -170,8 +167,6 @@ async def single_user_setup(db_session: AsyncSession):
 # Helper: Create an authenticated API client for a user
 # ---------------------------------------------------------------------------
 async def get_auth_token(client: AsyncClient, email: str, password: str = "TestPass123!") -> str:
-    from app.core.security import hash_password
-    from app.db.session import get_db
     # Users are already in DB; create a login pair
 
     # Direct login via API
@@ -255,7 +250,6 @@ async def test_retrieval_project_isolation(
     user_a = two_user_setup["user_a"]
     proj_a = two_user_setup["proj_a"]
     proj_b = two_user_setup["proj_b"]
-    user_b = two_user_setup["user_b"]
 
     await create_ready_material(db_session, user_a.id, proj_a.id)
 

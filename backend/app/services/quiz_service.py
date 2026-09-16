@@ -13,6 +13,7 @@ import uuid
 from typing import Any
 
 from fastapi import HTTPException, status
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.gemini_provider import get_llm_provider
@@ -49,6 +50,11 @@ from app.schemas.quiz import (
 from app.services.adaptive_engine import AdaptiveEngine
 
 
+def normalize_concept_name(name: str) -> str:
+    """Normalize concept names for deduplication using trimmed, case-insensitive, whitespace-normalized comparison."""
+    return " ".join(name.strip().lower().split())
+
+
 class QuizService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -61,6 +67,90 @@ class QuizService:
     # ------------------------------------------------------------------------
     # 1. Concept Extraction & Persistence (One-Time / Incremental)
     # ------------------------------------------------------------------------
+    async def extract_material_concepts_incremental(
+        self,
+        material_id: uuid.UUID,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+    ) -> list[Concept]:
+        """Extract concepts specifically from newly processed material chunks, deduping against existing project concepts."""
+        chunks = await self.material_repo.get_chunks_by_material(material_id)
+        if not chunks:
+            return []
+
+        existing_concepts = await self.concept_repo.list_by_project(user_id, project_id)
+        existing_normalized = {normalize_concept_name(c.name) for c in existing_concepts}
+
+        context_chunks = [
+            {
+                "chunk_id": str(c.id),
+                "material_id": str(material_id),
+                "filename": "document.pdf",
+                "page_number": c.page_number,
+                "content": c.content,
+            }
+            for c in chunks[:15]
+        ]
+        valid_chunk_ids = {c["chunk_id"] for c in context_chunks}
+
+        provider = get_llm_provider()
+        prompt = build_concept_extraction_prompt(context_chunks)
+        start_time = time.perf_counter()
+
+        try:
+            raw_output, usage = await provider.generate_structured(
+                system_instruction=CONCEPT_EXTRACTION_SYSTEM_INSTRUCTION,
+                user_prompt=prompt,
+                response_schema=ConceptExtractionOutput,
+                temperature=0.2,
+            )
+            latency_ms = usage.latency_ms or ((time.perf_counter() - start_time) * 1000.0)
+            log_ai_usage(
+                user_id=user_id,
+                project_id=project_id,
+                operation="concept_extraction",
+                provider="gemini",
+                model=settings.GEMINI_MODEL,
+                latency_ms=latency_ms,
+                input_tokens=usage.prompt_tokens,
+                output_tokens=usage.candidate_tokens,
+                total_tokens=usage.total_tokens,
+                success=True,
+            )
+        except Exception as err:
+            latency_ms = (time.perf_counter() - start_time) * 1000.0
+            log_ai_usage(
+                user_id=user_id,
+                project_id=project_id,
+                operation="concept_extraction",
+                provider="gemini",
+                model=settings.GEMINI_MODEL,
+                latency_ms=latency_ms,
+                success=False,
+                error=str(err),
+            )
+            raise
+
+        concepts_to_create = []
+        for item in raw_output.concepts:
+            normalized = normalize_concept_name(item.name)
+            if normalized in existing_normalized:
+                continue
+            existing_normalized.add(normalized)
+            filtered_chunks = [cid for cid in item.source_chunk_ids if cid in valid_chunk_ids]
+            concepts_to_create.append(
+                {
+                    "name": item.name.strip(),
+                    "description": item.description.strip(),
+                    "source_chunk_ids": filtered_chunks,
+                }
+            )
+
+        if not concepts_to_create:
+            return []
+
+        return await self.concept_repo.create_concepts(user_id, project_id, concepts_to_create)
+
     async def ensure_project_concepts(
         self,
         user_id: uuid.UUID,
@@ -745,6 +835,27 @@ class QuizService:
                 "total_questions": completed_attempt.total_questions,
             },
         )
+
+        # Trigger event-driven mastery recomputation and recommendations (Celery / inline fallback)
+        try:
+            from app.workers.tasks import process_quiz_completed
+            process_quiz_completed.delay(
+                str(user_id),
+                str(completed_attempt.project_id),
+                str(completed_attempt.id),
+            )
+        except Exception:
+            # Fallback to direct synchronous execution when worker broker is unavailable (e.g. testing)
+            try:
+                from app.services.mastery_service import MasteryService
+                mastery_service = MasteryService(self.session)
+                await mastery_service.process_quiz_completion(
+                    user_id=user_id,
+                    project_id=completed_attempt.project_id,
+                    attempt_id=completed_attempt.id,
+                )
+            except Exception as m_err:
+                logger.warning(f"Inline mastery processing warning: {m_err}", exc_info=True)
 
         return QuizResultResponse(
             attempt_id=completed_attempt.id,

@@ -235,7 +235,21 @@ class MockLLMProvider(LLMProvider):
                 }
             return response_schema.model_validate(data), usage
 
-        # Default fallback for TutorStructuredOutput
+        elif schema_name == "RecommendationGenerationOutput":
+            # Extract candidate UUID from prompt if present
+            target_id = None
+            import re
+            uuids = re.findall(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", user_prompt)
+            if uuids:
+                target_id = uuids[0]
+            data = {
+                "recommendation_type": "review_concept",
+                "title": "Review Weak Concepts with AI Tutor",
+                "body": "Your recent performance suggests focusing on key foundational concepts. Ask the AI Tutor for targeted examples.",
+                "target_concept_id": target_id,
+                "reasoning": "Identified low confidence and recent mistakes on key concepts.",
+            }
+            return response_schema.model_validate(data), usage
         lower_prompt = user_prompt.lower()
         if "ignore all previous instructions" in lower_prompt:
             # Adversarial test case: verify prompt injection is resisted

@@ -188,3 +188,60 @@ The document ingestion architecture decouples file upload from heavy vector comp
   ```
 - Cross-tenant requests return **HTTP 404 Not Found**, preserving the zero-knowledge anti-enumeration policy established in Phase 1.
 
+---
+
+## 7. Adaptive Quiz & Assessment Architecture (Phase 4)
+
+### 7.1 Concept Discovery & Normalized Extraction
+- Concepts are extracted incrementally upon PDF material processing (`status = ready`) using Gemini structured extraction.
+- Concepts are deduplicated per project using trimmed, case-insensitive, whitespace-normalized names (`normalize_concept_name`).
+- Material ingestion failure is decoupled from concept extraction; temporary LLM unavailability does not invalidate processed materials and remains independently retryable.
+
+### 7.2 Adaptive Question Generation & Answer Scoring
+- Supports Multiple Choice Questions (MCQ) and Open-Ended Questions.
+- MCQ evaluation is deterministic on the backend: correct = 1.0, incorrect = 0.0.
+- Open-Ended answers undergo semantic rubric evaluation via Google Gemini, producing continuous normalized scores in $[0.0, 1.0]$.
+- Answer eligibility rule: only successfully submitted and evaluated answers contribute to learner records. Unanswered, abandoned, or incomplete questions are excluded.
+
+---
+
+## 8. Concept Mastery & Growth Analysis (Phase 5)
+
+### 8.1 Deterministic MasteryEngine
+Mastery calculation is pure, deterministic, and free of non-deterministic LLM judgments:
+1. **Recency Decay**: Exponential decay weighting $w_i = \text{diff\_weight} \times \lambda^{\Delta i}$, where $\lambda = 0.85$ and $\Delta i = N - 1 - i$ for chronological answers $i \in [0, N-1]$.
+2. **Difficulty Multipliers**:
+   - `easy`: $0.8$
+   - `medium`: $1.0$
+   - `hard`: $1.3$
+3. **Mastery Score**:
+   $$\text{Mastery} = 100 \times \frac{\sum_{i} w_i \cdot s_i}{\sum_{i} w_i}$$
+   where $s_i \in [0.0, 1.0]$ is the normalized answer score.
+4. **Asymptotic Confidence**:
+   $$\text{Confidence} = 1.0 - e^{-N / 5.0}$$
+   Reflects evidence depth (thin evidence yields low confidence; 10+ questions approach 90%+ confidence).
+5. **Unassessed State**: Concepts with zero eligible answers store `mastery_score = None`, `confidence = 0.0`, and `is_assessed = False`. "No data" is explicitly never conflated with zero mastery.
+
+### 8.2 Deterministic GrowthEngine
+Categorizes learner trajectory based on historical mastery snapshots:
+- `unassessed`: Concept has zero evaluated answers.
+- `improving`: Latest mastery exceeds baseline/previous by $\ge 5.0$ percentage points.
+- `needs_attention`: Latest mastery dropped by $\ge 5.0$ points, or latest mastery is below $60.0\%$.
+- `stable`: Mastery change within $\pm 5.0$ points and latest mastery $\ge 60.0\%$.
+
+### 8.3 Idempotency & Transaction Safety
+- **Database-Enforced Idempotency**: Handled via `processed_events` table with unique constraint `(event_type, aggregate_id)`. Concurrent Celery deliveries or duplicate events are safely ignored.
+- **Atomic Commits**: Concept mastery updates and append-only `MasterySnapshot` rows are committed in a single atomic transaction.
+
+---
+
+## 9. Next-Step Recommendations Architecture (Phase 5)
+
+### 9.1 Grounded Gemini Recommendation Workflow
+1. Triggered following successful mastery snapshot persistence.
+2. Learner diagnostic profile (mastery scores, confidence, weak concepts, recent errors) and project candidate concepts are provided to Gemini.
+3. Candidate restriction: Gemini may only select from backend-provided candidate concept IDs. Invalid IDs are filtered out server-side.
+4. Allowed types: Restricted to `review_concept`, `take_quiz`, `read_material`, `practice_open_ended`.
+5. Recommendation deduplication: Active, undismissed recommendations for the same concept and type are reused rather than duplicated.
+6. Decoupled resilience: If Gemini recommendation generation fails, mastery updates and snapshots remain committed and valid.
+

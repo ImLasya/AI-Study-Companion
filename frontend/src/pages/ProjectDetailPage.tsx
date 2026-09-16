@@ -19,13 +19,17 @@ import {
 } from "lucide-react";
 import {
   getProjectApi,
+  getProjectMasteryApi,
   getProjectMaterialsApi,
+  getProjectRecommendationsApi,
   retryMaterialApi,
   uploadMaterialApi,
 } from "@/lib/api";
-import { Material, Project } from "@/types";
+import { MasteryListResponse, Material, Project, Recommendation } from "@/types";
 import { TutorTab } from "@/components/TutorTab";
 import { QuizTab } from "@/components/QuizTab";
+import { GrowthTab } from "@/components/GrowthTab";
+import { RecommendationCard } from "@/components/RecommendationCard";
 
 type TabKey = "materials" | "tutor" | "quiz" | "growth" | "analytics";
 
@@ -53,14 +57,24 @@ export const ProjectDetailPage: React.FC = () => {
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch project details
+  // Phase 5 State
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [masteryData, setMasteryData] = useState<MasteryListResponse | null>(null);
+
+  // Fetch project details, recommendations, and mastery
   useEffect(() => {
     if (!projectId) return;
-    const fetchProject = async () => {
+    const fetchProjectAndMastery = async () => {
       try {
         setLoading(true);
-        const data = await getProjectApi(projectId);
-        setProject(data);
+        const [projectData, recsData, mastery] = await Promise.all([
+          getProjectApi(projectId),
+          getProjectRecommendationsApi(projectId).catch(() => []),
+          getProjectMasteryApi(projectId).catch(() => null),
+        ]);
+        setProject(projectData);
+        setRecommendations(recsData);
+        setMasteryData(mastery);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Failed to load project";
         setError(msg);
@@ -68,7 +82,7 @@ export const ProjectDetailPage: React.FC = () => {
         setLoading(false);
       }
     };
-    fetchProject();
+    fetchProjectAndMastery();
   }, [projectId]);
 
   // Fetch materials for project
@@ -216,7 +230,7 @@ export const ProjectDetailPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <span className="px-3 py-1.5 rounded-xl border border-indigo-500/20 bg-indigo-500/10 text-xs text-indigo-300 flex items-center gap-2 font-mono">
                 <Target className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Phase 2: Ingestion</span>
+                <span>Phase 5: Mastery &amp; Growth</span>
               </span>
             </div>
           </div>
@@ -231,8 +245,47 @@ export const ProjectDetailPage: React.FC = () => {
               <span className="text-gray-400">{project.learning_goal}</span>
             </div>
           </div>
+
+          {/* Phase 5 Mastery Overview */}
+          {masteryData && masteryData.assessed_count > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-800/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-4">
+                <div>
+                  <span className="text-gray-400">Average Mastery: </span>
+                  <span className="font-bold text-indigo-300">
+                    {masteryData.overall_average_mastery !== null
+                      ? `${masteryData.overall_average_mastery}%`
+                      : "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Assessed: </span>
+                  <span className="font-semibold text-gray-200">
+                    {masteryData.assessed_count} / {masteryData.total_concepts} concepts
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveTab("growth")}
+                className="text-xs text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1 transition-colors"
+              >
+                <span>View Growth Trajectory &rarr;</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Recommended Next Action */}
+      {recommendations.length > 0 && (
+        <RecommendationCard
+          recommendation={recommendations[0]}
+          projectId={project.id}
+          onDismiss={(recId) =>
+            setRecommendations((prev) => prev.filter((r) => r.id !== recId))
+          }
+        />
+      )}
 
       {/* Navigation Tabs */}
       <div className="flex border-b border-gray-800 overflow-x-auto no-scrollbar">
@@ -446,23 +499,8 @@ export const ProjectDetailPage: React.FC = () => {
       {/* Tab 3: Adaptive Quiz (Phase 4) */}
       {activeTab === "quiz" && projectId && <QuizTab projectId={projectId} />}
 
-      {/* Tab 4: Growth Placeholder (Phase 5) */}
-      {activeTab === "growth" && (
-        <div className="rounded-2xl border border-dashed border-gray-800 bg-gray-950/40 p-12 text-center min-h-[300px] flex flex-col items-center justify-center">
-          <div className="max-w-md">
-            <div className="p-3.5 rounded-2xl bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 inline-flex mb-4">
-              <TrendingUp className="w-8 h-8" />
-            </div>
-            <h3 className="text-base font-bold text-white">Concept Mastery & Growth Analysis</h3>
-            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-              Track mastery probability across topics, classify growth trends, and receive automated next-step recommendations in Phase 5.
-            </p>
-            <span className="inline-flex items-center gap-1 mt-4 px-2.5 py-1 rounded-full text-[11px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20">
-              <Sparkles className="w-3 h-3" /> Scheduled for Phase 5
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Tab 4: Growth Analysis — Phase 5 */}
+      {activeTab === "growth" && projectId && <GrowthTab projectId={projectId} />}
 
       {/* Tab 5: Analytics Placeholder (Phase 5) */}
       {activeTab === "analytics" && (

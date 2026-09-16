@@ -3,6 +3,8 @@
 import asyncio
 import logging
 import uuid
+from collections.abc import Callable, Coroutine
+from typing import Any, TypeVar
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -115,11 +117,35 @@ async def _execute_ingestion(material_id: uuid.UUID, session: AsyncSession) -> d
             f"Successfully processed material {material_id}: "
             f"{extraction_result.page_count} pages, {len(chunks_data)} chunks created."
         )
+
+        # 7. Incremental concept extraction (non-fatal, decoupled)
+        # Failure of Gemini concept extraction must NOT mark an otherwise valid material as failed.
+        new_concepts_count = 0
+        try:
+            from app.services.quiz_service import QuizService
+            quiz_service = QuizService(session)
+            added_concepts = await quiz_service.extract_material_concepts_incremental(
+                material_id=material_id,
+                user_id=material.user_id,
+                project_id=material.project_id,
+            )
+            new_concepts_count = len(added_concepts)
+            logger.info(
+                f"Incremental concept extraction added {new_concepts_count} new concepts for material {material_id}."
+            )
+        except Exception as c_err:
+            logger.warning(
+                f"Incremental concept extraction warning for material {material_id}: {c_err}. "
+                "Material remains 'ready'. Concept extraction is retryable.",
+                exc_info=True,
+            )
+
         return {
             "status": "ready",
             "material_id": str(material_id),
             "page_count": extraction_result.page_count,
             "chunk_count": len(chunks_data),
+            "new_concepts_count": new_concepts_count,
         }
 
     except Exception as e:
@@ -134,6 +160,21 @@ async def _execute_ingestion(material_id: uuid.UUID, session: AsyncSession) -> d
         raise
 
 
+T = TypeVar("T")
+
+
+def _run_async_in_worker(coro_factory: Callable[[], Coroutine[Any, Any, T]]) -> T:
+    """Run an async coroutine factory in a sync task safely even if an event loop is running."""
+    import concurrent.futures
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro_factory())
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            return executor.submit(lambda: asyncio.run(coro_factory())).result()
+
+
 @celery_app.task(bind=True, max_retries=2, name="app.workers.tasks.process_material")
 def process_material(self, material_id_str: str) -> dict:
     """Celery task entrypoint for material ingestion.
@@ -142,7 +183,7 @@ def process_material(self, material_id_str: str) -> dict:
     """
     material_id = uuid.UUID(material_id_str)
     try:
-        return asyncio.run(_process_material_async(material_id))
+        return _run_async_in_worker(lambda: _process_material_async(material_id))
     except ValueError as val_err:
         # Permanent errors (e.g. corrupt PDF, empty PDF) should not be retried
         logger.warning(f"Non-retryable processing failure for material {material_id}: {val_err}")
@@ -152,4 +193,46 @@ def process_material(self, material_id_str: str) -> dict:
         if self.request.retries < self.max_retries:
             logger.info(f"Retrying material {material_id} processing (attempt {self.request.retries + 1})...")
             raise self.retry(exc=exc, countdown=5)
+        return {"status": "failed", "error": str(exc)}
+
+
+async def _process_quiz_completed_async(
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    attempt_id: uuid.UUID,
+    session: AsyncSession | None = None,
+) -> dict:
+    if session is not None:
+        from app.services.mastery_service import MasteryService
+        service = MasteryService(session)
+        return await service.process_quiz_completion(user_id, project_id, attempt_id)
+
+    session_factory = get_worker_sessionmaker()
+    async with session_factory() as worker_session:
+        from app.services.mastery_service import MasteryService
+        service = MasteryService(worker_session)
+        return await service.process_quiz_completion(user_id, project_id, attempt_id)
+
+
+@celery_app.task(bind=True, max_retries=2, name="app.workers.tasks.process_quiz_completed")
+def process_quiz_completed(
+    self,
+    user_id_str: str,
+    project_id_str: str,
+    attempt_id_str: str,
+) -> dict:
+    """Celery task entrypoint for post-quiz mastery recomputation and recommendations."""
+    try:
+        return _run_async_in_worker(
+            lambda: _process_quiz_completed_async(
+                user_id=uuid.UUID(user_id_str),
+                project_id=uuid.UUID(project_id_str),
+                attempt_id=uuid.UUID(attempt_id_str),
+            )
+        )
+    except Exception as exc:
+        if self.request.retries < self.max_retries:
+            logger.info(f"Retrying quiz completion task for attempt {attempt_id_str}...")
+            raise self.retry(exc=exc, countdown=5)
+        logger.error(f"Failed processing quiz completion {attempt_id_str}: {exc}", exc_info=True)
         return {"status": "failed", "error": str(exc)}

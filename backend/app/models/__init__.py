@@ -4,6 +4,12 @@ from app.models.chunk import MaterialChunk
 from app.models.concept import Concept
 from app.models.conversation import TutorConversation, TutorMessage
 from app.models.event import ActivityEvent
+from app.models.mastery import (
+    ConceptMastery,
+    MasterySnapshot,
+    ProcessedEvent,
+    Recommendation,
+)
 from app.models.material import Material
 from app.models.project import Project
 from app.models.quiz import Quiz, QuizAnswer, QuizAttempt, QuizQuestion
@@ -24,5 +30,9 @@ __all__ = [
     "QuizQuestion",
     "QuizAttempt",
     "QuizAnswer",
+    "ConceptMastery",
+    "MasterySnapshot",
+    "Recommendation",
+    "ProcessedEvent",
 ]
 

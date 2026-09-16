@@ -228,3 +228,73 @@ export interface QuizResult {
   answers: QuizAnswer[];
   concept_performance: ConceptPerformance[];
 }
+
+// ---------------------------------------------------------------------------
+// Phase 5: Concept Mastery, Growth & Recommendations Types
+// ---------------------------------------------------------------------------
+
+export type ConfidenceLevel = "unassessed" | "low" | "medium" | "high";
+export type GrowthStatus = "improving" | "stable" | "needs_attention" | "unassessed";
+export type RecommendationType =
+  | "review_concept"
+  | "practice_quiz"
+  | "study_material"
+  | "explore_topic";
+
+export interface ConceptMastery {
+  id: string | null;
+  concept_id: string;
+  concept_name: string;
+  mastery_score: number | null;
+  confidence: number;
+  confidence_level: ConfidenceLevel;
+  evidence_count: number;
+  is_assessed: boolean;
+  last_updated_at: string | null;
+}
+
+export interface MasteryListResponse {
+  project_id: string;
+  masteries: ConceptMastery[];
+  overall_average_mastery: number | null;
+  assessed_count: number;
+  total_concepts: number;
+}
+
+export interface SnapshotPoint {
+  recorded_at: string;
+  score: number;
+}
+
+export interface ConceptGrowthItem {
+  concept_id: string;
+  concept_name: string;
+  current_score: number | null;
+  baseline_score: number | null;
+  delta: number;
+  status: GrowthStatus;
+  history: SnapshotPoint[];
+}
+
+export interface GrowthSummary {
+  project_id: string;
+  improving: ConceptGrowthItem[];
+  stable: ConceptGrowthItem[];
+  needs_attention: ConceptGrowthItem[];
+  unassessed: ConceptGrowthItem[];
+  overall_average: number | null;
+}
+
+export interface Recommendation {
+  id: string;
+  project_id: string;
+  recommendation_type: RecommendationType;
+  title: string;
+  body: string;
+  target_concept_id: string | null;
+  target_concept_name: string | null;
+  reasoning: string;
+  status: "active" | "dismissed" | "completed";
+  created_at: string;
+}
+

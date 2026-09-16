@@ -9,6 +9,11 @@ from sqlalchemy.pool import NullPool
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from app.workers import tasks
+from app.workers.celery_app import celery_app
+
+# Enable eager execution in test environment (no Redis broker required)
+celery_app.conf.update(task_always_eager=True, task_eager_propagates=True)
 
 # Postgres test database URL
 TEST_DB_URL = os.getenv(
@@ -30,6 +35,8 @@ TestingSessionLocal = async_sessionmaker(
     autocommit=False,
     autoflush=False,
 )
+
+tasks._worker_session_maker = TestingSessionLocal
 
 
 @pytest.fixture(scope="session")

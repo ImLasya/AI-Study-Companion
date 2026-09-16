@@ -41,24 +41,32 @@ This roadmap tracks the step-by-step implementation of the **AI Study Companion*
 - [x] React + Vite Materials UI with drag-and-drop, optimistic queuing, status badges, and polling.
 - [x] Test suite covering upload, pgvector similarity search, idempotency, corrupt PDF failure, and multi-tenant isolation.
 
-### Phase 3: AI Tutor & Grounded RAG with Citations
-- [ ] Semantic vector search repository with project-level isolation filters.
-- [ ] Grounded AI Tutor prompting with explicit citation format (`Source: File - Page X`).
-- [ ] Unsupported-question detector (returns uncertainty when evidence is insufficient).
-- [ ] Conversation history & persistent learning context persistence.
-- [ ] Frontend interactive chat interface with source citation previews.
+### Phase 3: AI Tutor & Grounded RAG with Citations (Completed)
+- [x] Semantic vector search repository with project-level isolation filters.
+- [x] Grounded AI Tutor prompting with explicit citation format (`Source: File - Page X`).
+- [x] Unsupported-question detector (returns uncertainty when evidence is insufficient).
+- [x] Conversation history & persistent learning context persistence.
+- [x] Frontend interactive chat interface with source citation previews.
 
-### Phase 4: Adaptive Quiz, Assessment & Concept Mastery
-- [ ] Concept extraction and relationship graph.
-- [ ] Adaptive question generator (Multiple-Choice & Open-Ended).
-- [ ] AI assessment engine evaluating open-ended answers against rubrics.
-- [ ] Concept mastery probability estimation and growth classification (Improving/Stable/Attention).
-- [ ] Frontend quiz taking and feedback results UI.
+### Phase 4: Adaptive Quiz & Assessment (Completed)
+- [x] Incremental concept extraction and persistence with normalized deduplication.
+- [x] Adaptive question generator (Multiple-Choice & Open-Ended) with difficulty calibration.
+- [x] AI assessment engine evaluating open-ended answers with continuous scoring against rubrics.
+- [x] Frontend quiz generation, taking, and instant feedback results UI.
 
-### Phase 5: Growth Analysis, Recommendations & Admin Dashboard
-- [ ] Recommendation engine generating targeted next actions.
-- [ ] Project-level and global analytics aggregates.
-- [ ] Activity/event tracking pipeline.
+### Phase 5: Concept Mastery, Growth Analysis & Recommendations (Completed)
+- [x] Pure deterministic MasteryEngine with exponential recency decay ($0.85^{\Delta i}$), difficulty weights, and continuous partial credit.
+- [x] Explicit answer eligibility rules: only submitted/evaluated answers count.
+- [x] Unassessed state representation (`mastery_score=None`, `is_assessed=False`) for concepts with no evidence.
+- [x] Deterministic GrowthEngine with categorical classification (`improving`, `stable`, `needs_attention`, `unassessed`) and historical timeline series.
+- [x] Database-enforced idempotency via `processed_events` (`event_type`, `aggregate_id`) preventing duplicate mastery snapshots.
+- [x] Transactionally consistent mastery updates and append-only `MasterySnapshot` persistence.
+- [x] Decoupled, resilient recommendation generation: candidate-restricted concept selection, allowed types validation, active recommendation deduplication, and graceful degradation on Gemini failure.
+- [x] Celery background task `process_quiz_completed` with robust worker execution.
+- [x] React frontend `GrowthTab` with mastery progress bars, confidence indicators, growth trajectory badges, historical trend visualization, and interactive dismissible recommendation cards.
+- [x] Comprehensive test suite with 69 passing backend tests and 100% type-checked code.
+
+### Phase 6: Admin Dashboard & Production Deployment (Next Phase)
 - [ ] Administrative dashboard with visibility into users, AI usage, and system health.
-- [ ] AI observability and evaluation suite (LangSmith integration).
+- [ ] Global analytics aggregates.
 - [ ] Production deployment to Vercel (Frontend) and Render/Railway (Backend).
