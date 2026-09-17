@@ -7,13 +7,18 @@ Strictly tenant-isolated: users can only see their own metrics.
 
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.analytics import GlobalAnalyticsResponse, ProjectAnalyticsResponse
+from app.schemas.analytics import (
+    GlobalAnalyticsResponse,
+    GlobalRecommendationItem,
+    ProjectAnalyticsResponse,
+    RecentActivityItem,
+)
 from app.services.analytics_service import AnalyticsService
 
 router = APIRouter(tags=["Analytics"])
@@ -51,3 +56,40 @@ async def get_global_analytics(
     """Fetch aggregated study metrics across all spaces and projects for the current user."""
     service = AnalyticsService(db)
     return await service.get_global_analytics(user_id=current_user.id)
+
+
+@router.get(
+    "/analytics/activity/recent",
+    response_model=list[RecentActivityItem],
+    status_code=status.HTTP_200_OK,
+    summary="Get user-scoped recent learning activity milestones",
+)
+async def get_recent_activity(
+    limit: int = Query(default=20, ge=1, le=100),
+    project_id: uuid.UUID | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[RecentActivityItem]:
+    """Fetch recent learning activity milestones for the authenticated user."""
+    service = AnalyticsService(db)
+    return await service.get_recent_activity(
+        user_id=current_user.id, limit=limit, project_id=project_id
+    )
+
+
+@router.get(
+    "/analytics/recommendations/global",
+    response_model=list[GlobalRecommendationItem],
+    status_code=status.HTTP_200_OK,
+    summary="Get active recommendations across all user spaces and projects",
+)
+async def get_global_recommendations(
+    project_id: uuid.UUID | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[GlobalRecommendationItem]:
+    """Fetch active recommendations for the authenticated user across all projects."""
+    service = AnalyticsService(db)
+    return await service.get_global_recommendations(
+        user_id=current_user.id, project_id=project_id
+    )

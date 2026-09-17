@@ -15,6 +15,9 @@ from app.db.session import engine
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     setup_logging()
+    from app.ai.tracing import setup_tracing_env
+
+    setup_tracing_env()
     logger.info(
         f"Starting AI Study Companion Backend v{settings.APP_VERSION} ({settings.ENVIRONMENT})"
     )

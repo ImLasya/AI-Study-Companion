@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, ForeignKey, Integer, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.config import settings
@@ -28,6 +28,8 @@ class MaterialChunk(Base):
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
     embedding = mapped_column(Vector(settings.EMBEDDING_DIMENSION), nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    section_heading: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_type: Mapped[str] = mapped_column(String(50), default="paragraph", index=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),

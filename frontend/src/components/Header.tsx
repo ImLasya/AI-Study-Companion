@@ -23,9 +23,6 @@ export const Header: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-lg text-white tracking-tight">AI Study Companion</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">
-                Phase 6
-              </span>
             </div>
             <p className="text-xs text-gray-400">Persistent, contextual, measurable learning</p>
           </div>

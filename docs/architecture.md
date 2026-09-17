@@ -276,3 +276,54 @@ To ensure sub-10ms query latency as event logs scale, composite and partial inde
 - **Non-Blocking Reliability**: Telemetry failures never interrupt or fail the primary user operation. Inline execution prevents dropped writes caused by event-loop shutdowns.
 - **Telemetry Sanitization**: Model names, latency, token counts, cost estimates, and error messages are recorded while stripping sensitive secrets or proprietary prompt text.
 
+---
+
+## 12. LangSmith Tracing & External Observability
+
+### 12.1 Overview & Dual Observability Model
+The AI Study Companion architecture implements a **dual observability model**:
+1. **Internal Application Telemetry (`ai_usage_logs`)**: Internal PostgreSQL-backed telemetry capturing token counts, latency, cost estimates, and success/failure statuses. Powers administrative dashboards and user usage metrics.
+2. **External Tracing & Observability (LangSmith)**: Deep execution tracing, debugging, token breakdown, and step-by-step latency profiling of Google Gemini calls via the official `langsmith.wrappers.wrap_gemini` SDK instrumentation.
+
+```
+                  Gemini Generation Call
+                            |
+             +--------------+--------------+
+             |                             |
+             v                             v
+   Internal Telemetry             LangSmith Tracing
+   (app.ai.observability)        (app.ai.tracing)
+             |                             |
+             v                             v
+    PostgreSQL Table:             LangSmith Cloud /
+     ai_usage_logs             Project: ai-study-companion
+```
+
+### 12.2 Fail-Safe & Non-Blocking Design
+- **Completely Optional**: LangSmith is fully optional. If `LANGSMITH_API_KEY` is not provided or `LANGSMITH_TRACING` is `false`, the application operates with zero performance penalty or exceptions.
+- **Error Isolation**: Tracing operates out-of-band. Any network error, timeout, or issue connecting to LangSmith is caught and logged as a warning; it **never** converts a successful Gemini call into a failed learner request.
+- **Preserved Business Logic**: Gemini error handling (such as HTTP 429 quota exhaustion) remains strictly within `GeminiProvider` and application service boundaries.
+
+### 12.3 Configuration Variables
+
+| Variable | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `LANGSMITH_TRACING` | boolean | `false` | Enables or disables LangSmith tracing (`true` or `false`). |
+| `LANGSMITH_API_KEY` | string | `None` | LangSmith API key (format: `lsv2_pt_...`). Keep secret; do not commit. |
+| `LANGSMITH_PROJECT` | string | `ai-study-companion` | Target project name in LangSmith for organizing traces. |
+| `LANGSMITH_ENDPOINT` | string | `https://api.smith.langchain.com` | LangSmith API endpoint URL. |
+
+> **Note**: Backward compatibility with legacy `LANGCHAIN_TRACING_V2`, `LANGCHAIN_API_KEY`, and `LANGCHAIN_PROJECT` is automatically maintained.
+
+### 12.4 Traced Operations & Sanitization
+Traced features include:
+- `tutor`: Grounded RAG conversational answers
+- `quiz`: Adaptive quiz generation and open-ended evaluation
+- `recommendation`: Next-step pedagogical recommendations
+- `concept_extraction`: Knowledge extraction from uploaded learning materials
+- `evaluation`: RAG offline benchmarks and accuracy assertions
+
+**Data Privacy & Sanitization**:
+All metadata passes through `sanitize_metadata()` before dispatch to LangSmith. Sensitive fields (including `api_key`, `access_token`, `jwt_token`, `user_password`, `authorization`) are automatically stripped. Embeddings remain local via `sentence-transformers` and are not dispatched to Gemini or external trace endpoints.
+
+

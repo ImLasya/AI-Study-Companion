@@ -5,8 +5,9 @@ token tracking, and error isolation.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
@@ -44,19 +45,29 @@ class LLMProvider(ABC):
         user_prompt: str,
         response_schema: type[T],
         temperature: float = 0.2,
+        feature: str = "general",
+        tags: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> tuple[T, LLMUsage]:
-        """Generate a structured response adhering to a Pydantic schema.
+        """Generate a structured response adhering to a Pydantic schema."""
+        raise NotImplementedError
 
-        Args:
-            system_instruction: High-priority system prompt / instructions.
-            user_prompt: User prompt containing question and context.
-            response_schema: Pydantic model class defining the output JSON schema.
-            temperature: Sampling temperature (default 0.2 for deterministic grounding).
+    @abstractmethod
+    def generate_stream(
+        self,
+        system_instruction: str,
+        user_prompt: str,
+        temperature: float = 0.2,
+        feature: str = "general",
+        tags: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> AsyncIterator[str]:
+        """Stream generated text tokens asynchronously.
 
-        Returns:
-            Tuple of (parsed_schema_instance, usage_metrics).
+        Yields:
+            Individual token or chunk strings.
 
         Raises:
-            LLMGenerationError: If the provider fails, times out, or schema validation fails.
+            LLMGenerationError: If the provider fails or the stream is interrupted.
         """
         raise NotImplementedError

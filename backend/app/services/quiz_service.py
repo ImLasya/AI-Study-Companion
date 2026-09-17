@@ -8,6 +8,7 @@ Orchestrates:
 5. Activity event tracking and AI metrics logging
 """
 
+import string
 import time
 import uuid
 from typing import Any
@@ -27,9 +28,10 @@ from app.ai.quiz_prompts import (
     build_open_ended_evaluation_prompt,
     build_quiz_generation_prompt,
 )
+from app.ai.tracing import traceable
 from app.core.config import settings
 from app.models.concept import Concept
-from app.models.quiz import QuizAttempt
+from app.models.quiz import QuizAttempt, QuizQuestion
 from app.repositories.concept_repository import ConceptRepository
 from app.repositories.event_repository import EventRepository
 from app.repositories.material_repository import MaterialRepository
@@ -48,11 +50,65 @@ from app.schemas.quiz import (
     QuizResultResponse,
 )
 from app.services.adaptive_engine import AdaptiveEngine
+from app.services.concept_validator import is_valid_academic_concept, normalize_concept_name
 
 
-def normalize_concept_name(name: str) -> str:
-    """Normalize concept names for deduplication using trimmed, case-insensitive, whitespace-normalized comparison."""
-    return " ".join(name.strip().lower().split())
+def normalize_question_text(text: str) -> str:
+    """Normalize question text for deduplication: lowercase, strip punctuation, collapse whitespace."""
+    if not text:
+        return ""
+    t = text.lower().strip()
+    t = t.translate(str.maketrans("", "", string.punctuation))
+    return " ".join(t.split())
+
+
+def calculate_word_similarity(text1: str, text2: str) -> float:
+    """Compute token-level Jaccard similarity between two question strings."""
+    tokens1 = set(normalize_question_text(text1).split())
+    tokens2 = set(normalize_question_text(text2).split())
+    if not tokens1 or not tokens2:
+        return 0.0
+    intersection = tokens1.intersection(tokens2)
+    union = tokens1.union(tokens2)
+    return len(intersection) / len(union)
+
+
+def is_duplicate_question(
+    candidate: str,
+    existing_list: list[str],
+    similarity_threshold: float = 0.80,
+) -> bool:
+    """Check if candidate question duplicates any question in existing_list.
+
+    Detects:
+    1. Exact text match
+    2. Normalized text match (punctuation & whitespace agnostic)
+    3. High token-level Jaccard similarity (>= similarity_threshold)
+    """
+    if not candidate or not candidate.strip():
+        return True
+
+    norm_cand = normalize_question_text(candidate)
+    cand_tokens = set(norm_cand.split())
+
+    for ex in existing_list:
+        if not ex or not ex.strip():
+            continue
+        # Exact match
+        if candidate.strip().lower() == ex.strip().lower():
+            return True
+        # Normalized match
+        norm_ex = normalize_question_text(ex)
+        if norm_cand == norm_ex:
+            return True
+        # Token-level Jaccard similarity
+        ex_tokens = set(norm_ex.split())
+        if cand_tokens and ex_tokens:
+            jaccard = len(cand_tokens & ex_tokens) / len(cand_tokens | ex_tokens)
+            if jaccard >= similarity_threshold:
+                return True
+
+    return False
 
 
 class QuizService:
@@ -67,6 +123,18 @@ class QuizService:
     # ------------------------------------------------------------------------
     # 1. Concept Extraction & Persistence (One-Time / Incremental)
     # ------------------------------------------------------------------------
+    @traceable(
+        name="Extract Concepts",
+        run_type="chain",
+        process_inputs=lambda inputs: {
+            "material_id": str(inputs.get("material_id", "")),
+            "project_id": str(inputs.get("project_id", "")),
+        },
+        process_outputs=lambda res: {
+            "extracted_count": len(res) if isinstance(res, list) else 0,
+            "status": "success",
+        },
+    )
     async def extract_material_concepts_incremental(
         self,
         material_id: uuid.UUID,
@@ -103,6 +171,9 @@ class QuizService:
                 user_prompt=prompt,
                 response_schema=ConceptExtractionOutput,
                 temperature=0.2,
+                feature="concept_extraction",
+                tags=["concept_extraction"],
+                metadata={"project_id": str(project_id)},
             )
             latency_ms = usage.latency_ms or ((time.perf_counter() - start_time) * 1000.0)
             await log_ai_usage(
@@ -135,6 +206,8 @@ class QuizService:
 
         concepts_to_create = []
         for item in raw_output.concepts:
+            if not is_valid_academic_concept(item.name, item.description):
+                continue
             normalized = normalize_concept_name(item.name)
             if normalized in existing_normalized:
                 continue
@@ -159,10 +232,11 @@ class QuizService:
         project_id: uuid.UUID,
         force_refresh: bool = False,
     ) -> list[Concept]:
-        """Fetch existing concepts or extract and persist them if not yet present."""
+        """Fetch existing concepts or extract and persist them via scalable batch extraction of valid academic concepts."""
         if not force_refresh:
             existing = await self.concept_repo.list_by_project(user_id, project_id)
-            if existing:
+            valid_existing = [c for c in existing if is_valid_academic_concept(c.name, c.description)]
+            if valid_existing:
                 return existing
 
         # Check material readiness
@@ -197,72 +271,108 @@ class QuizService:
                 detail="No processed material chunks found for concept extraction.",
             )
 
-        # Limit context to top 15 chunks to stay bounded
-        context_chunks = all_chunks[:15]
-        valid_chunk_ids = {c["chunk_id"] for c in all_chunks}
+        # Partition into substantive chunks (skipping promotional / front-matter if possible)
+        substantive_chunks = []
+        for c in all_chunks:
+            text_lower = c["content"].lower()
+            if any(
+                marker in text_lower
+                for marker in [
+                    "free video lessons",
+                    "smart answer key",
+                    "time to answer (tta)",
+                    "unique features of smartbook",
+                ]
+            ):
+                continue
+            substantive_chunks.append(c)
+
+        if not substantive_chunks:
+            substantive_chunks = all_chunks
+
+        # Scalable batch extraction across the document (up to 5 batches of 22 chunks each)
+        BATCH_SIZE = 22
+        MAX_BATCHES = 5
+        batches = [
+            substantive_chunks[i : i + BATCH_SIZE]
+            for i in range(0, len(substantive_chunks), BATCH_SIZE)
+        ][:MAX_BATCHES]
 
         provider = get_llm_provider()
-        prompt = build_concept_extraction_prompt(context_chunks)
+        candidate_concepts: dict[str, dict] = {}
+        valid_chunk_ids = {c["chunk_id"] for c in all_chunks}
 
-        start_time = time.perf_counter()
-        try:
-            raw_output, usage = await provider.generate_structured(
-                system_instruction=CONCEPT_EXTRACTION_SYSTEM_INSTRUCTION,
-                user_prompt=prompt,
-                response_schema=ConceptExtractionOutput,
-                temperature=0.2,
-            )
-            latency_ms = usage.latency_ms or ((time.perf_counter() - start_time) * 1000.0)
-            await log_ai_usage(
-                user_id=user_id,
-                project_id=project_id,
-                operation="concept_extraction",
-                provider="gemini",
-                model=settings.GEMINI_MODEL,
-                latency_ms=latency_ms,
-                input_tokens=usage.prompt_tokens,
-                output_tokens=usage.candidate_tokens,
-                total_tokens=usage.total_tokens,
-                success=True,
-                session=self.session,
-            )
-        except LLMGenerationError as err:
-            latency_ms = (time.perf_counter() - start_time) * 1000.0
-            await log_ai_usage(
-                user_id=user_id,
-                project_id=project_id,
-                operation="concept_extraction",
-                provider="gemini",
-                model=settings.GEMINI_MODEL,
-                latency_ms=latency_ms,
-                success=False,
-                error=str(err),
-                session=self.session,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="AI concept extraction failed. Please try again in a moment.",
-            ) from err
+        for batch_idx, batch_chunks in enumerate(batches):
+            prompt = build_concept_extraction_prompt(batch_chunks)
+            start_time = time.perf_counter()
+            try:
+                raw_output, usage = await provider.generate_structured(
+                    system_instruction=CONCEPT_EXTRACTION_SYSTEM_INSTRUCTION,
+                    user_prompt=prompt,
+                    response_schema=ConceptExtractionOutput,
+                    temperature=0.2,
+                    feature="concept_extraction",
+                    tags=["concept_extraction", f"batch_{batch_idx}"],
+                    metadata={"project_id": str(project_id)},
+                )
+                latency_ms = usage.latency_ms or ((time.perf_counter() - start_time) * 1000.0)
+                await log_ai_usage(
+                    user_id=user_id,
+                    project_id=project_id,
+                    operation="concept_extraction",
+                    provider="gemini",
+                    model=settings.GEMINI_MODEL,
+                    latency_ms=latency_ms,
+                    input_tokens=usage.prompt_tokens,
+                    output_tokens=usage.candidate_tokens,
+                    total_tokens=usage.total_tokens,
+                    success=True,
+                    session=self.session,
+                )
+            except Exception as err:
+                logger.warning(f"Batch {batch_idx} concept extraction warning: {err}")
+                continue
 
-        # Filter fabricated chunk IDs
-        concepts_to_create = []
-        for item in raw_output.concepts:
-            filtered_chunks = [cid for cid in item.source_chunk_ids if cid in valid_chunk_ids]
-            concepts_to_create.append(
-                {
-                    "name": item.name.strip(),
-                    "description": item.description.strip(),
-                    "source_chunk_ids": filtered_chunks,
-                }
-            )
+            for item in raw_output.concepts:
+                c_name = item.name.strip()
+                c_desc = item.description.strip()
+                # Strict academic validation: filter out meta-concepts
+                if not is_valid_academic_concept(c_name, c_desc):
+                    logger.info(f"Filtered out meta-concept from batch: {c_name}")
+                    continue
 
+                norm_key = normalize_concept_name(c_name)
+                # Deduplicate against existing candidate_concepts
+                matched_key = None
+                for ex_key in candidate_concepts.keys():
+                    if norm_key == ex_key or calculate_word_similarity(norm_key, ex_key) >= 0.70:
+                        matched_key = ex_key
+                        break
+
+                filtered_cids = [cid for cid in item.source_chunk_ids if cid in valid_chunk_ids]
+                if not filtered_cids and batch_chunks:
+                    filtered_cids = [str(batch_chunks[0]["chunk_id"])]
+
+                if matched_key:
+                    existing_cids = set(candidate_concepts[matched_key]["source_chunk_ids"])
+                    existing_cids.update(filtered_cids)
+                    candidate_concepts[matched_key]["source_chunk_ids"] = list(existing_cids)
+                    if len(c_desc) > len(candidate_concepts[matched_key]["description"]):
+                        candidate_concepts[matched_key]["description"] = c_desc
+                else:
+                    candidate_concepts[norm_key] = {
+                        "name": c_name,
+                        "description": c_desc,
+                        "source_chunk_ids": filtered_cids,
+                    }
+
+        concepts_to_create = list(candidate_concepts.values())
         if not concepts_to_create:
-            # Fallback if model output was empty
             concepts_to_create.append(
                 {
                     "name": "General Subject Matter",
                     "description": "Core concepts and principles discussed in uploaded project materials.",
-                    "source_chunk_ids": [str(context_chunks[0]["chunk_id"])],
+                    "source_chunk_ids": [str(all_chunks[0]["chunk_id"])],
                 }
             )
 
@@ -287,26 +397,39 @@ class QuizService:
             )
 
         # 1. Ensure concepts are persisted (one-time or retrieved)
-        concepts = await self.ensure_project_concepts(user_id, project_id)
-        if not concepts:
+        all_concepts = await self.ensure_project_concepts(user_id, project_id)
+        # Filter strictly for valid academic concepts (exclude meta/document concepts)
+        valid_concepts = [c for c in all_concepts if is_valid_academic_concept(c.name, c.description)]
+        if not valid_concepts:
+            all_concepts = await self.ensure_project_concepts(user_id, project_id, force_refresh=True)
+            valid_concepts = [c for c in all_concepts if is_valid_academic_concept(c.name, c.description)]
+        if not valid_concepts:
+            valid_concepts = all_concepts
+
+        if not valid_concepts:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Unable to generate quiz: no concepts available for this project.",
+                detail="Unable to generate quiz: no valid learning concepts available for this project.",
             )
 
-        # 2. Retrieve learner history for adaptive engine
+        # 2. Retrieve learner history & recent questions for adaptive engine
         history = await self.quiz_repo.get_project_learner_history(user_id, project_id, limit=50)
+        recent_questions = await self.quiz_repo.get_recent_project_questions(user_id, project_id, limit=50)
+        existing_quizzes = await self.quiz_repo.list_quizzes(user_id, project_id)
+        recent_q_texts = [q.question_text for q in recent_questions]
 
-        # 3. Compute deterministic adaptive plan
+        # 3. Compute deterministic adaptive plan with diverse concept rotation over valid academic concepts
         count = payload.question_count or settings.QUIZ_QUESTION_COUNT
         plan = AdaptiveEngine.compute_plan(
-            concepts=concepts,
+            concepts=valid_concepts,
             history=history,
             question_count=count,
             preferred_difficulty=payload.preferred_difficulty,
+            recent_questions=recent_questions,
+            quiz_count=len(existing_quizzes),
         )
 
-        # 4. Collect supporting chunks for selected concepts
+        # 4. Collect supporting chunks for selected concepts with rotation
         materials = await self.material_repo.list_by_project(user_id, project_id)
         ready_materials = [m for m in materials if m.status == "ready"]
         all_chunks_dict = {}
@@ -321,24 +444,28 @@ class QuizService:
                     "content": c.content,
                 }
 
-        # Select evidence chunks: target concept sources + first chunks
+        # Select evidence chunks: target concept sources + rotated general chunks
         evidence_chunks = []
         selected_chunk_ids = set()
         for score in plan.selected_concepts:
-            c_obj = next((c for c in concepts if c.id == score.concept_id), None)
+            c_obj = next((c for c in valid_concepts if c.id == score.concept_id), None)
             if c_obj and c_obj.source_chunk_ids:
                 for cid in c_obj.source_chunk_ids:
                     if cid in all_chunks_dict and cid not in selected_chunk_ids:
                         selected_chunk_ids.add(cid)
                         evidence_chunks.append(all_chunks_dict[cid])
 
-        # Fill with general chunks if needed
-        for cid, c_data in all_chunks_dict.items():
-            if len(evidence_chunks) >= 10:
-                break
-            if cid not in selected_chunk_ids:
-                selected_chunk_ids.add(cid)
-                evidence_chunks.append(c_data)
+        # Fill with general chunks if needed (rotating by quiz count to vary context)
+        chunk_items = list(all_chunks_dict.items())
+        if chunk_items:
+            chunk_offset = len(existing_quizzes) % len(chunk_items)
+            rotated_chunks = chunk_items[chunk_offset:] + chunk_items[:chunk_offset]
+            for cid, c_data in rotated_chunks:
+                if len(evidence_chunks) >= 12:
+                    break
+                if cid not in selected_chunk_ids:
+                    selected_chunk_ids.add(cid)
+                    evidence_chunks.append(c_data)
 
         if not evidence_chunks:
             raise HTTPException(
@@ -346,10 +473,12 @@ class QuizService:
                 detail="No evidence chunks available to generate quiz questions.",
             )
 
-        # 5. Question Generation via Gemini
+        # 5. Question Generation via Gemini with Anti-Repetition Guidance
         # Allocate: majority MCQ, at least 1 open-ended if count >= 3
         open_ended_count = 1 if count >= 3 else 0
         mcq_count = count - open_ended_count
+        # Request buffer MCQ in case some generated candidates are duplicates
+        mcq_request_count = mcq_count + (1 if mcq_count >= 2 else 0)
 
         concept_payloads = [
             {"name": s.concept_name, "description": s.rationale} for s in plan.selected_concepts
@@ -358,8 +487,9 @@ class QuizService:
             target_concepts=concept_payloads,
             evidence_chunks=evidence_chunks,
             target_difficulties=plan.recommended_difficulties,
-            mcq_count=mcq_count,
+            mcq_count=mcq_request_count,
             open_ended_count=open_ended_count,
+            recent_questions=recent_q_texts[:20],
         )
 
         provider = get_llm_provider()
@@ -369,7 +499,10 @@ class QuizService:
                 system_instruction=QUIZ_GENERATION_SYSTEM_INSTRUCTION,
                 user_prompt=prompt,
                 response_schema=QuizQuestionGenerationOutput,
-                temperature=0.3,
+                temperature=0.5,
+                feature="quiz_generation",
+                tags=["quiz"],
+                metadata={"project_id": str(project_id)},
             )
             latency_ms = usage.latency_ms or ((time.perf_counter() - start_time) * 1000.0)
             await log_ai_usage(
@@ -403,19 +536,25 @@ class QuizService:
                 detail="AI question generation failed. Please try again in a moment.",
             ) from err
 
-        # 6. Validate generated questions & chunk IDs server-side
-        concept_lookup = {c.name.lower(): c.id for c in concepts}
-        default_concept_id = concepts[0].id
-
+        # 6. Validate & Deduplicate generated questions against recent history
+        concept_lookup = {c.name.lower(): c.id for c in valid_concepts}
+        default_concept_id = valid_concepts[0].id
         valid_chunk_ids_set = set(all_chunks_dict.keys())
-        questions_data = []
-        q_order = 1
+
+        accepted_questions: list[dict] = []
+        accepted_texts: list[str] = []
 
         # Process MCQs
         for mcq in raw_output.mcq_questions:
-            # Validate options count
-            if len(mcq.options) != 4:
+            q_text = mcq.question.strip()
+            if not q_text or len(mcq.options) != 4:
                 continue
+
+            # Duplicate prevention check
+            if is_duplicate_question(q_text, recent_q_texts + accepted_texts):
+                logger.info(f"Quiz generation: rejected duplicate MCQ: '{q_text}'")
+                continue
+
             # Validate correct_answer matches one of the options
             matched_option = next(
                 (
@@ -426,7 +565,6 @@ class QuizService:
                 None,
             )
             if not matched_option:
-                # If model returned "A" or "Option 1", match index or first option
                 matched_option = mcq.options[0]
 
             # Validate evidence chunks (reject fabricated)
@@ -436,53 +574,124 @@ class QuizService:
 
             c_id = concept_lookup.get(mcq.concept_name.strip().lower(), default_concept_id)
 
-            questions_data.append(
+            accepted_questions.append(
                 {
                     "concept_id": c_id,
                     "question_type": "mcq",
-                    "question_text": mcq.question.strip(),
+                    "question_text": q_text,
                     "options": mcq.options,
                     "correct_answer": matched_option,
                     "explanation": mcq.explanation.strip(),
                     "rubric": None,
                     "difficulty": mcq.difficulty,
                     "source_chunk_ids": valid_evidence,
-                    "question_order": q_order,
                 }
             )
-            q_order += 1
+            accepted_texts.append(q_text)
 
         # Process Open-Ended
         for oeq in raw_output.open_ended_questions:
+            q_text = oeq.question.strip()
+            if not q_text:
+                continue
+
+            # Duplicate prevention check
+            if is_duplicate_question(q_text, recent_q_texts + accepted_texts):
+                logger.info(f"Quiz generation: rejected duplicate Open-Ended: '{q_text}'")
+                continue
+
             valid_evidence = [cid for cid in oeq.evidence_chunk_ids if cid in valid_chunk_ids_set]
             if not valid_evidence and evidence_chunks:
                 valid_evidence = [str(evidence_chunks[0]["chunk_id"])]
 
             c_id = concept_lookup.get(oeq.concept_name.strip().lower(), default_concept_id)
 
-            questions_data.append(
+            accepted_questions.append(
                 {
                     "concept_id": c_id,
                     "question_type": "open_ended",
-                    "question_text": oeq.question.strip(),
+                    "question_text": q_text,
                     "options": [],
                     "correct_answer": oeq.expected_answer.strip(),
                     "explanation": oeq.explanation.strip(),
                     "rubric": oeq.rubric.strip(),
                     "difficulty": oeq.difficulty,
                     "source_chunk_ids": valid_evidence,
-                    "question_order": q_order,
                 }
             )
-            q_order += 1
+            accepted_texts.append(q_text)
 
-        if not questions_data:
+        # 7. Infinite Variety Fallback:
+        # If generated questions fell short due to duplicate rejection or small material pool,
+        # fill from historical project question pool prioritizing reinforcement & unseen concepts.
+        if len(accepted_questions) < count:
+            all_project_questions = await self.quiz_repo.get_all_project_questions(
+                user_id=user_id, project_id=project_id
+            )
+
+            error_concept_ids = {
+                score.concept_id for score in plan.selected_concepts if score.error_signal > 0
+            }
+            unseen_concept_ids = {
+                score.concept_id for score in plan.selected_concepts if score.unseen_signal > 0
+            }
+
+            # Filter candidate questions not currently in accepted_texts
+            candidate_pool = [
+                q
+                for q in all_project_questions
+                if not is_duplicate_question(q.question_text, accepted_texts)
+            ]
+
+            # Prefer candidates not in immediate recent quiz history
+            immediate_recent_ids = {q.id for q in recent_questions[:count]}
+            non_recent_candidates = [q for q in candidate_pool if q.id not in immediate_recent_ids]
+
+            pool_to_use = non_recent_candidates if non_recent_candidates else candidate_pool
+
+            # Sort: reinforcement concepts first, unseen concepts second, oldest creation date third
+            def fallback_priority(q: QuizQuestion) -> tuple[int, Any]:
+                rank = 2
+                if q.concept_id in error_concept_ids:
+                    rank = 0
+                elif q.concept_id in unseen_concept_ids:
+                    rank = 1
+                return (rank, q.created_at)
+
+            pool_to_use.sort(key=fallback_priority)
+
+            for fallback_q in pool_to_use:
+                if len(accepted_questions) >= count:
+                    break
+                accepted_questions.append(
+                    {
+                        "concept_id": fallback_q.concept_id or default_concept_id,
+                        "question_type": fallback_q.question_type,
+                        "question_text": fallback_q.question_text,
+                        "options": fallback_q.options,
+                        "correct_answer": fallback_q.correct_answer,
+                        "explanation": fallback_q.explanation,
+                        "rubric": fallback_q.rubric,
+                        "difficulty": fallback_q.difficulty,
+                        "source_chunk_ids": fallback_q.source_chunk_ids,
+                    }
+                )
+                accepted_texts.append(fallback_q.question_text)
+
+        # Absolute safety check: if still empty
+        if not accepted_questions:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Unable to assemble valid questions from AI output. Please retry.",
             )
 
-        # 7. Persist Quiz & Questions
+        # Assign consecutive 1-indexed question order
+        final_questions_data = []
+        for idx, q_data in enumerate(accepted_questions[:count], start=1):
+            q_data["question_order"] = idx
+            final_questions_data.append(q_data)
+
+        # 8. Persist Quiz & Questions
         quiz = await self.quiz_repo.create_quiz(
             user_id=user_id,
             project_id=project_id,
@@ -492,10 +701,10 @@ class QuizService:
             quiz_id=quiz.id,
             user_id=user_id,
             project_id=project_id,
-            questions_data=questions_data,
+            questions_data=final_questions_data,
         )
 
-        # 8. Record Activity Event
+        # 9. Record Activity Event
         await self.event_repo.record_event(
             user_id=user_id,
             project_id=project_id,
@@ -705,6 +914,9 @@ class QuizService:
                     user_prompt=eval_prompt,
                     response_schema=OpenEndedEvaluationOutput,
                     temperature=0.1,
+                    feature="quiz_evaluation",
+                    tags=["quiz", "evaluation"],
+                    metadata={"project_id": str(attempt.project_id)},
                 )
                 latency_ms = usage.latency_ms or ((time.perf_counter() - start_time) * 1000.0)
                 await log_ai_usage(

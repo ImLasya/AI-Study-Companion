@@ -9,6 +9,7 @@ Computes explainable concept priority scores and difficulty distribution based o
 
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
 from app.models.concept import Concept
 from app.models.quiz import QuizAnswer
@@ -43,6 +44,8 @@ class AdaptiveEngine:
         history: list[QuizAnswer],
         question_count: int = 5,
         preferred_difficulty: str | None = "adaptive",
+        recent_questions: list[Any] | None = None,
+        quiz_count: int = 0,
     ) -> AdaptivePlan:
         """Compute an explainable, deterministic adaptive plan for the next quiz."""
         if not concepts:
@@ -53,7 +56,7 @@ class AdaptiveEngine:
                 total_history_answers=0,
             )
 
-        # 1. Aggregate historical performance by concept
+        # 1. Aggregate historical performance and question exposure by concept
         history_by_concept: dict[uuid.UUID, list[QuizAnswer]] = {c.id: [] for c in concepts}
         recent_question_ids: set[uuid.UUID] = set()
 
@@ -61,6 +64,15 @@ class AdaptiveEngine:
             recent_question_ids.add(ans.question_id)
             if ans.concept_id in history_by_concept:
                 history_by_concept[ans.concept_id].append(ans)
+
+        # Count recent question occurrences per concept (from immediate prior quizzes)
+        recent_q_counts_by_concept: dict[uuid.UUID, int] = {c.id: 0 for c in concepts}
+        if recent_questions:
+            # Look at the most recent batch of questions
+            for q in recent_questions[: max(question_count * 2, 10)]:
+                c_id = getattr(q, "concept_id", None)
+                if c_id and c_id in recent_q_counts_by_concept:
+                    recent_q_counts_by_concept[c_id] += 1
 
         # Overall accuracy
         total_answers = len(history)
@@ -103,10 +115,19 @@ class AdaptiveEngine:
 
                 # Recency saturation penalty: if learner answered correctly in last 2 without errors
                 if len(ans_list) >= 2 and all(a.is_correct is True for a in ans_list[:2]):
-                    recency_penalty = 25.0
+                    recency_penalty += 25.0
                     rationale_parts.append(
                         "Recently answered correctly: -25 recency saturation penalty"
                     )
+
+            # Recency exposure penalty from recent quiz questions (even if not yet answered)
+            recent_q_cnt = recent_q_counts_by_concept.get(concept.id, 0)
+            if recent_q_cnt > 0:
+                exposure_penalty = min(recent_q_cnt * 15.0, 30.0)
+                recency_penalty += exposure_penalty
+                rationale_parts.append(
+                    f"Featured in recent quiz ({recent_q_cnt}x): -{exposure_penalty:.1f} exposure penalty"
+                )
 
             final_weight = round(base + error_bonus + unseen_bonus - recency_penalty, 2)
             rationale_text = (
@@ -126,13 +147,24 @@ class AdaptiveEngine:
                 )
             )
 
-        # Sort concepts by final_weight descending, then name for deterministic ordering
-        scored_concepts.sort(key=lambda x: (x.final_weight, x.concept_name), reverse=True)
+        # Sort concepts by final_weight descending.
+        # For concepts with tied weights, apply a rotating offset by quiz_count to ensure diverse coverage.
+        from itertools import groupby
+
+        scored_concepts.sort(key=lambda x: x.final_weight, reverse=True)
+        ordered_concepts: list[ConceptAdaptiveScore] = []
+        for _, group in groupby(scored_concepts, key=lambda x: x.final_weight):
+            group_list = list(group)
+            if len(group_list) > 1 and quiz_count > 0:
+                # Rotate within tied group
+                offset = quiz_count % len(group_list)
+                group_list = group_list[offset:] + group_list[:offset]
+            ordered_concepts.extend(group_list)
 
         # Cycle/pick concepts up to question_count
         selected: list[ConceptAdaptiveScore] = []
         for i in range(question_count):
-            c = scored_concepts[i % len(scored_concepts)]
+            c = ordered_concepts[i % len(ordered_concepts)]
             selected.append(c)
 
         # 3. Determine difficulty distribution

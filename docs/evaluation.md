@@ -29,28 +29,41 @@ While rule-based judging satisfies Phase 6 requirements, future expansions may i
 
 ## 3. Evaluation Test Suites
 
-The test fixtures are located at [`backend/app/evaluations/fixtures/eval_test_cases.json`](file:///c:/Users/lasya/Desktop/ai-study-companion/backend/app/evaluations/fixtures/eval_test_cases.json) and cover three core suites:
+The test fixtures are located at [`backend/app/evaluations/fixtures/eval_test_cases.json`](file:///c:/Users/lasya/Desktop/ai-study-companion/backend/app/evaluations/fixtures/eval_test_cases.json) and cover four core suites executed deterministically by [`AIEvaluationRunner`](file:///c:/Users/lasya/Desktop/ai-study-companion/backend/app/evaluations/runner.py):
 
-### Suite 1: Grounded Retrieval (`groundedness`)
-- **Objective**: Ensure the AI Tutor grounds its explanations strictly in the supplied source chunks and explicitly cites sources (e.g., `[Chunk 1]`, `[Chunk 2]`).
+### Suite 1: Grounded Retrieval (`tutor_grounding`)
+- **Objective**: Ensure the AI Tutor strictly grounds its explanations in the supplied source chunks and contains expected factual keywords without introducing forbidden or hallucinated claims.
+- **Test Cases**:
+  - `grounding_basic_facts`: Verifies Long-Term Potentiation (LTP) description grounds in synaptic strengthening and memory keywords without unsupported claims.
+  - `grounding_receptor_mechanism`: Verifies NMDA receptor magnesium block expulsion and calcium ion influx description matches provided material text.
 - **Scoring Rules**:
-  - Requires presence of chunk citation references matching `\[(Chunk \d+|Material \w+)\]`.
-  - Requires inclusion of key terminology present in the retrieved material chunks.
-  - Penalizes unsupported claims.
+  - Requires presence of key terminology from source evidence chunks.
+  - Penalizes presence of forbidden keywords or ungrounded claims.
+  - Score $\ge 0.5$ and 0 forbidden keywords yields PASS.
 
-### Suite 2: Hallucination Detection (`hallucination_detection`)
-- **Objective**: Verify that when asked questions whose answers are absent from the context, the tutor explicitly declines or admits insufficient context rather than hallucinating facts.
+### Suite 2: Citation Correctness (`citation_correctness`)
+- **Objective**: Verify that citation references produced by the AI Tutor accurately map to valid source chunk IDs provided in the evidence context.
+- **Test Cases**:
+  - `citation_single_source`: Evaluates that answers regarding NMDA channels correctly cite the required source chunk ID.
 - **Scoring Rules**:
-  - Must match refusal patterns: `(?i)(not mentioned|insufficient context|not found in the provided|cannot be determined)`.
-  - Fails if the model outputs affirmative false statements regarding unprovided context.
+  - Validates that returned `citation_chunk_ids` match the required evidence chunk identifiers.
+  - Returns PASS (score 1.0) when citation chunk references intersect expected IDs.
 
-### Suite 3: Adaptive MCQ Generation (`mcq_generation`)
-- **Objective**: Ensure generated questions conform to structural validity, distinct distractors, and valid schema.
+### Suite 3: Unsupported Question Handling (`unsupported_handling`)
+- **Objective**: Verify that when asked questions whose answers are absent from material context, the tutor explicitly communicates uncertainty rather than hallucinating facts.
+- **Test Cases**:
+  - `unsupported_out_of_domain`: Asks out-of-domain questions (e.g. capital/population of Australia when context only contains neuroscience text).
 - **Scoring Rules**:
-  - Validates question text length (> 20 characters).
-  - Validates exactly 4 distinct options labeled A, B, C, D.
-  - Validates correct option pointer points to a valid option index (0 to 3).
-  - Validates non-empty explanation grounding the correct choice.
+  - Requires `insufficient_evidence` boolean flag set to `True` OR output matching uncertainty phrases (`"not covered"`, `"does not contain"`, `"cannot be determined"`, `"insufficient"`, `"no information"`).
+  - Returns PASS (score 1.0) when hesitation or insufficient evidence is explicitly signaled.
+
+### Suite 4: Retrieval Relevance Ranking (`retrieval_relevance`)
+- **Objective**: Evaluates token-overlap and semantic ranking against a distractor corpus.
+- **Test Cases**:
+  - `retrieval_ranking_ltp`: Queries synapse strengthening during learning against target text and unrelated distractor chunks (e.g. digestive system, plate tectonics).
+- **Scoring Rules**:
+  - Validates that the top-ranked retrieved item matches `expected_top_id`.
+  - Returns PASS (score 1.0) when the relevant chunk ranks above distractors.
 
 ---
 

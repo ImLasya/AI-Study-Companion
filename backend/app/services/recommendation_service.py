@@ -27,6 +27,8 @@ from app.repositories.mastery_repository import MasteryRepository
 from app.repositories.material_repository import MaterialRepository
 from app.schemas.mastery import RecommendationGenerationOutput
 
+from app.services.concept_validator import is_valid_academic_concept
+
 VALID_RECOMMENDATION_TYPES = {
     "review_concept",
     "practice_quiz",
@@ -70,7 +72,11 @@ class RecommendationService:
         if not concepts:
             return None
 
-        concept_map = {c.id: c for c in concepts}
+        # Filter strictly for valid academic concepts (exclude meta/document concepts)
+        academic_concepts = [c for c in concepts if is_valid_academic_concept(c.name, c.description)]
+        target_concepts = academic_concepts if academic_concepts else concepts
+
+        concept_map = {c.id: c for c in target_concepts}
         valid_concept_ids = set(concept_map.keys())
 
         # 2. Fetch Current Masteries
@@ -78,7 +84,7 @@ class RecommendationService:
         mastery_by_concept = {m.concept_id: m for m in masteries}
 
         candidate_concepts = []
-        for c in concepts:
+        for c in target_concepts:
             m = mastery_by_concept.get(c.id)
             candidate_concepts.append(
                 {
@@ -144,6 +150,9 @@ class RecommendationService:
                 user_prompt=prompt,
                 response_schema=RecommendationGenerationOutput,
                 temperature=0.2,
+                feature="recommendation",
+                tags=["recommendation"],
+                metadata={"project_id": str(project_id)},
             )
             latency_ms = usage.latency_ms or ((time.perf_counter() - start_time) * 1000.0)
             await log_ai_usage(

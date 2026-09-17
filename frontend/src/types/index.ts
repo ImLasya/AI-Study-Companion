@@ -83,7 +83,7 @@ export interface ApiResponse<T> {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 3: AI Tutor Types
+// AI Tutor Types
 // ---------------------------------------------------------------------------
 
 export interface TutorCitation {
@@ -143,7 +143,7 @@ export interface ChatTurn {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 4: Adaptive Quiz & Assessment Types
+// Adaptive Quiz & Assessment Types
 // ---------------------------------------------------------------------------
 
 export interface Concept {
@@ -230,7 +230,7 @@ export interface QuizResult {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 5: Concept Mastery, Growth & Recommendations Types
+// Concept Mastery, Growth & Recommendations Types
 // ---------------------------------------------------------------------------
 
 export type ConfidenceLevel = "unassessed" | "low" | "medium" | "high";
@@ -299,7 +299,7 @@ export interface Recommendation {
 }
 
 // ----------------------------------------------------------------------------
-// Phase 6: Analytics & Admin Observability Types
+// Analytics & Admin Observability Types
 // ----------------------------------------------------------------------------
 
 export interface DailyActivityBucket {
@@ -356,6 +356,20 @@ export interface ProjectAnalyticsResponse {
   concept_trends: ConceptTrendItem[];
   tutor_interaction_counts: TutorInteractionSummary;
   ai_activity: AIActivitySummary;
+  material_coverage_percentage?: number;
+  learning_consistency_score?: number;
+  current_streak_days?: number;
+  active_days_past_30?: number;
+}
+
+export interface LearningInsight {
+  id: string;
+  project_id: string;
+  insight_type: "weak_concept" | "repeated_mistake" | "improving_concept" | "review_prompt";
+  title: string;
+  content: string;
+  metadata_json: Record<string, any> | null;
+  created_at: string;
 }
 
 export interface ProjectProgressItem {
@@ -365,6 +379,11 @@ export interface ProjectProgressItem {
   learning_goal: string;
   total_concepts: number;
   assessed_concepts: number;
+  mastered_concepts: number;
+  weak_concepts: number;
+  total_quiz_definitions: number;
+  total_quiz_attempts: number;
+  completed_quiz_attempts: number;
   average_mastery: number | null;
   last_active_at: string | null;
 }
@@ -381,8 +400,15 @@ export interface WeakAreaItem {
 export interface GlobalStudyActivity {
   total_events: number;
   total_quizzes_completed: number;
+  total_quiz_attempts: number;
+  total_quiz_definitions: number;
+  total_concepts: number;
+  mastered_concepts: number;
+  weak_concepts_count: number;
   total_tutor_conversations: number;
   active_study_days: number;
+  review_streak_days?: number;
+  consistency_score?: number;
 }
 
 export interface GlobalAnalyticsResponse {
@@ -392,6 +418,36 @@ export interface GlobalAnalyticsResponse {
   weakest_areas: WeakAreaItem[];
   overall_trend: DailyActivityBucket[];
   ai_usage_summary: AIActivitySummary;
+}
+
+export interface RecentActivityItem {
+  id: string;
+  event_type: string;
+  title: string;
+  detail: string | null;
+  project_id: string | null;
+  project_name: string | null;
+  space_id: string | null;
+  space_name: string | null;
+  payload: Record<string, any>;
+  created_at: string;
+}
+
+export interface GlobalRecommendationItem {
+  id: string;
+  project_id: string;
+  project_name: string;
+  space_id: string;
+  space_name: string;
+  recommendation_type: string;
+  title: string;
+  body: string;
+  reasoning: string;
+  target_concept_id: string | null;
+  target_concept_name: string | null;
+  priority: string;
+  current_mastery: number | null;
+  created_at: string;
 }
 
 export interface AdminOverviewResponse {
@@ -547,4 +603,142 @@ export interface AIEvaluationSummaryResponse {
   suite_summaries: AIEvaluationSuiteSummary[];
   cases: AIEvaluationCaseItem[];
 }
+
+// ---------------------------------------------------------------------------
+// Flashcards
+// ---------------------------------------------------------------------------
+
+export interface Flashcard {
+  id: string;
+  project_id: string;
+  user_id: string;
+  material_id: string | null;
+  concept_id: string | null;
+  front: string;
+  back: string;
+  source_chunk_id: string | null;
+  citation_chunk_ids: string[];
+  page_number: number | null;
+  filename: string | null;
+  card_type: string;
+  review_count: number;
+  known: boolean;
+  difficult: boolean;
+  ease_factor: number;
+  interval_days: number;
+  next_review_at: string | null;
+  last_rating: string | null;
+  last_reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  is_due: boolean;
+}
+
+export type FlashcardRating = "again" | "difficult" | "good" | "easy";
+
+export interface FlashcardGenerateRequest {
+  count: number;
+  concept_id?: string | null;
+  topic_hint?: string | null;
+}
+
+export interface FlashcardGenerateResponse {
+  flashcards: Flashcard[];
+  total_generated: number;
+  duplicates_skipped: number;
+  message: string | null;
+}
+
+export interface FlashcardReviewRequest {
+  action?: "known" | "difficult" | "reset";
+  rating?: FlashcardRating;
+  idempotency_key?: string;
+}
+
+export interface FlashcardReviewResponse {
+  flashcard_id: string;
+  rating: string;
+  review_count: number;
+  interval_days: number;
+  ease_factor: number;
+  next_review_at: string;
+  is_due: boolean;
+  previous_interval: number;
+  new_interval: number;
+  flashcard: Flashcard;
+}
+
+export interface DueFlashcardsSummary {
+  due_count: number;
+  new_count: number;
+  completed_today_count: number;
+}
+
+// ============================================================================
+// Learning Plans
+// ============================================================================
+
+export type LearningPlanItemStatus = "not_started" | "in_progress" | "completed" | "needs_review";
+export type LearningPlanStatus = "active" | "completed" | "archived";
+
+export interface LearningPlanItem {
+  id: string;
+  concept_id: string;
+  concept_name: string;
+  concept_description: string;
+  position: number;
+  status: LearningPlanItemStatus;
+  target_mastery: number;
+  current_mastery: number | null;
+  is_assessed: boolean;
+  confidence: number;
+  completed_at: string | null;
+  source_material_title: string | null;
+  source_page: number | null;
+  recommended_action: string | null;
+  flashcard_count: number;
+  quiz_question_count: number;
+}
+
+export interface LearningPlanProgress {
+  total_concepts: number;
+  completed_count: number;
+  in_progress_count: number;
+  needs_review_count: number;
+  not_started_count: number;
+  progress_percentage: number;
+}
+
+export interface LearningPlan {
+  id: string;
+  project_id: string;
+  title: string;
+  description: string | null;
+  status: LearningPlanStatus;
+  progress: LearningPlanProgress;
+  next_recommended_concept: LearningPlanItem | null;
+  items: LearningPlanItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConceptMilestoneDetail {
+  concept_id: string;
+  concept_name: string;
+  concept_description: string;
+  roadmap_status: string;
+  mastery_score: number | null;
+  confidence: number;
+  is_assessed: boolean;
+  evidence_count: number;
+  source_material_title: string | null;
+  source_page: number | null;
+  source_chunk_count: number;
+  flashcard_count: number;
+  due_flashcards_count: number;
+  quiz_question_count: number;
+  active_recommendation: string | null;
+  recommended_actions: string[];
+}
+
 

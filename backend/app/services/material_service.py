@@ -8,6 +8,8 @@ import logging
 import uuid
 
 from fastapi import HTTPException, UploadFile, status
+from langsmith import traceable
+from langsmith.run_helpers import get_current_run_tree
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -21,6 +23,26 @@ from app.workers.tasks import process_material
 logger = logging.getLogger("ai_study_companion.services.material")
 
 
+def _safe_upload_inputs(inputs: dict) -> dict:
+    file = inputs.get("file")
+    filename = getattr(file, "filename", "uploaded.pdf") or "uploaded.pdf"
+    return {
+        "project_id": str(inputs.get("project_id", "")),
+        "filename": filename,
+        "file_type": "application/pdf",
+    }
+
+
+def _safe_upload_outputs(material: Material) -> dict:
+    return {
+        "project_id": str(material.project_id),
+        "material_id": str(material.id),
+        "filename": material.filename,
+        "file_type": "application/pdf",
+        "status": material.status,
+    }
+
+
 class MaterialService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -28,6 +50,12 @@ class MaterialService:
         self.project_repo = ProjectRepository(session)
         self.event_repo = EventRepository(session)
 
+    @traceable(
+        name="Document Upload",
+        run_type="chain",
+        process_inputs=_safe_upload_inputs,
+        process_outputs=_safe_upload_outputs,
+    )
     async def upload_material(
         self,
         user_id: uuid.UUID,
@@ -107,8 +135,18 @@ class MaterialService:
         )
 
         # 7. Enqueue asynchronous Celery processing task
+        parent_trace: dict | None = None
         try:
-            process_material.delay(str(material.id))
+            current_run = get_current_run_tree()
+            if current_run:
+                parent_trace = current_run.to_headers()
+        except Exception:
+            parent_trace = None
+
+        setattr(material, "_parent_trace", parent_trace)
+
+        try:
+            process_material.delay(str(material.id), parent_trace=parent_trace)
         except Exception as exc:
             logger.warning(
                 f"Celery task enqueue failed for material {material.id}: {exc}. "
@@ -172,8 +210,16 @@ class MaterialService:
             )
 
         # Enqueue processing task
+        parent_trace: dict | None = None
         try:
-            process_material.delay(str(material.id))
+            current_run = get_current_run_tree()
+            if current_run:
+                parent_trace = current_run.to_headers()
+        except Exception:
+            parent_trace = None
+
+        try:
+            process_material.delay(str(material.id), parent_trace=parent_trace)
         except Exception as exc:
             logger.warning(f"Celery retry task enqueue failed for {material.id}: {exc}")
 

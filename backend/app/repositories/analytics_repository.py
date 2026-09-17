@@ -18,18 +18,21 @@ from app.models.conversation import TutorConversation, TutorMessage
 from app.models.event import ActivityEvent
 from app.models.mastery import ConceptMastery
 from app.models.project import Project
-from app.models.quiz import QuizAttempt
+from app.models.quiz import Quiz, QuizAttempt
 from app.models.space import Space
+from app.services.concept_validator import is_valid_academic_concept
 from app.schemas.analytics import (
     AIActivitySummary,
     ConceptTrendItem,
     DailyActivityBucket,
     GlobalAnalyticsResponse,
+    GlobalRecommendationItem,
     GlobalStudyActivity,
     MasteryDistribution,
     ProjectAnalyticsResponse,
     ProjectProgressItem,
     QuizPerformanceTrendItem,
+    RecentActivityItem,
     TutorInteractionSummary,
     WeakAreaItem,
 )
@@ -110,6 +113,7 @@ class AnalyticsRepository:
             select(
                 Concept.id,
                 Concept.name,
+                Concept.description,
                 ConceptMastery.mastery_score,
                 ConceptMastery.confidence,
             )
@@ -129,6 +133,8 @@ class AnalyticsRepository:
         concept_trends: list[ConceptTrendItem] = []
 
         for c in concepts:
+            if not is_valid_academic_concept(c.name, c.description):
+                continue
             score = c.mastery_score
             conf = c.confidence or 0.0
             if score is None:
@@ -213,7 +219,22 @@ class AnalyticsRepository:
             ai_summary.avg_latency_ms = round(
                 float((await self.session.execute(stmt_avg_lat)).scalar() or 0.0), 1
             )
-            ai_summary.total_estimated_cost_usd = round(ai_summary.total_estimated_cost_usd, 6)
+        # 7. Material Coverage Percentage and Streak / Consistency
+        tot_concepts_p = dist.unassessed + dist.needs_attention + dist.stable + dist.mastered
+        assessed_concepts_p = dist.needs_attention + dist.stable + dist.mastered
+        coverage_pct = round((assessed_concepts_p / tot_concepts_p) * 100.0, 1) if tot_concepts_p > 0 else 0.0
+
+        today_date = datetime.now(UTC).date()
+        current_streak = 0
+        check_date = today_date
+        if check_date.strftime("%Y-%m-%d") not in daily_map:
+            check_date = check_date - timedelta(days=1)
+        while check_date.strftime("%Y-%m-%d") in daily_map:
+            current_streak += 1
+            check_date = check_date - timedelta(days=1)
+
+        active_days_count = len(daily_map)
+        consistency_score = min(100.0, round((active_days_count / 30.0) * 100.0 * 1.5, 1))
 
         return ProjectAnalyticsResponse(
             project_id=project_id,
@@ -223,6 +244,10 @@ class AnalyticsRepository:
             concept_trends=concept_trends,
             tutor_interaction_counts=tutor_counts,
             ai_activity=ai_summary,
+            material_coverage_percentage=coverage_pct,
+            learning_consistency_score=consistency_score,
+            current_streak_days=current_streak,
+            active_days_past_30=active_days_count,
         )
 
     # ------------------------------------------------------------------------
@@ -247,20 +272,139 @@ class AnalyticsRepository:
         )
         tot_quizzes = (await self.session.execute(stmt_q)).scalar() or 0
 
+        # Total quiz attempts started by user
+        stmt_q_attempts = select(func.count(QuizAttempt.id)).where(QuizAttempt.user_id == user_id)
+        tot_attempts = (await self.session.execute(stmt_q_attempts)).scalar() or 0
+
+        # Total quiz definitions available to user
+        stmt_q_defs = select(func.count(Quiz.id)).where(Quiz.user_id == user_id)
+        tot_defs = (await self.session.execute(stmt_q_defs)).scalar() or 0
+
+        # Total concepts across all user projects
+        stmt_concepts = (
+            select(func.count(distinct(Concept.id)))
+            .join(Project, Concept.project_id == Project.id)
+            .where(Project.user_id == user_id)
+        )
+        tot_concepts = (await self.session.execute(stmt_concepts)).scalar() or 0
+
+        # Mastered concepts across all projects (score >= 70.0)
+        stmt_mastered = (
+            select(func.count(distinct(Concept.id)))
+            .join(Project, Concept.project_id == Project.id)
+            .join(
+                ConceptMastery,
+                (Concept.id == ConceptMastery.concept_id) & (ConceptMastery.user_id == user_id),
+            )
+            .where(Project.user_id == user_id, ConceptMastery.mastery_score >= 70.0)
+        )
+        tot_mastered = (await self.session.execute(stmt_mastered)).scalar() or 0
+
+        # Weak concepts across all projects (score < 60.0 and assessed)
+        stmt_weak_cnt = (
+            select(func.count(distinct(Concept.id)))
+            .join(Project, Concept.project_id == Project.id)
+            .join(
+                ConceptMastery,
+                (Concept.id == ConceptMastery.concept_id) & (ConceptMastery.user_id == user_id),
+            )
+            .where(
+                Project.user_id == user_id,
+                ConceptMastery.mastery_score.is_not(None),
+                ConceptMastery.mastery_score < 60.0,
+            )
+        )
+        tot_weak = (await self.session.execute(stmt_weak_cnt)).scalar() or 0
+
         # Tutor conversations
         stmt_tc = select(func.count(TutorConversation.id)).where(
             TutorConversation.user_id == user_id
         )
         tot_convs = (await self.session.execute(stmt_tc)).scalar() or 0
 
+        # Global daily activity for streaks and consistency
+        stmt_global_days = (
+            select(distinct(func.date_trunc("day", ActivityEvent.created_at).label("d")))
+            .where(ActivityEvent.user_id == user_id)
+            .order_by(text("d DESC"))
+        )
+        res_g_days = await self.session.execute(stmt_global_days)
+        g_day_set = {row.d.strftime("%Y-%m-%d") for row in res_g_days.fetchall() if row.d}
+        g_check = datetime.now(UTC).date()
+        if g_check.strftime("%Y-%m-%d") not in g_day_set:
+            g_check = g_check - timedelta(days=1)
+        g_streak = 0
+        while g_check.strftime("%Y-%m-%d") in g_day_set:
+            g_streak += 1
+            g_check = g_check - timedelta(days=1)
+
+        g_consistency = min(100.0, round((len(g_day_set) / 30.0) * 100.0 * 1.5, 1))
+
         study_act = GlobalStudyActivity(
             total_events=tot_events,
             total_quizzes_completed=tot_quizzes,
+            total_quiz_attempts=tot_attempts,
+            total_quiz_definitions=tot_defs,
+            total_concepts=tot_concepts,
+            mastered_concepts=tot_mastered,
+            weak_concepts_count=tot_weak,
             total_tutor_conversations=tot_convs,
             active_study_days=active_days,
+            review_streak_days=g_streak,
+            consistency_score=g_consistency,
         )
 
-        # 2. Projects by Progress
+        # 2. Per-project Attempt & Definition Breakdowns
+        stmt_proj_attempts = (
+            select(
+                QuizAttempt.project_id,
+                func.count(QuizAttempt.id).label("tot_attempts"),
+                func.count(case((QuizAttempt.status == "completed", QuizAttempt.id))).label(
+                    "comp_attempts"
+                ),
+            )
+            .where(QuizAttempt.user_id == user_id)
+            .group_by(QuizAttempt.project_id)
+        )
+        res_pa = await self.session.execute(stmt_proj_attempts)
+        proj_attempts_map = {
+            row.project_id: (row.tot_attempts, row.comp_attempts) for row in res_pa.fetchall()
+        }
+
+        stmt_proj_defs = (
+            select(Quiz.project_id, func.count(Quiz.id).label("tot_defs"))
+            .where(Quiz.user_id == user_id)
+            .group_by(Quiz.project_id)
+        )
+        res_pd = await self.session.execute(stmt_proj_defs)
+        proj_defs_map = {row.project_id: row.tot_defs for row in res_pd.fetchall()}
+
+        stmt_proj_mastery = (
+            select(
+                Concept.project_id,
+                func.count(case((ConceptMastery.mastery_score >= 70.0, Concept.id))).label("mast_cnt"),
+                func.count(
+                    case(
+                        (
+                            (ConceptMastery.mastery_score.is_not(None))
+                            & (ConceptMastery.mastery_score < 60.0),
+                            Concept.id,
+                        )
+                    )
+                ).label("weak_cnt"),
+            )
+            .join(
+                ConceptMastery,
+                (Concept.id == ConceptMastery.concept_id) & (ConceptMastery.user_id == user_id),
+            )
+            .group_by(Concept.project_id)
+        )
+        res_pm = await self.session.execute(stmt_proj_mastery)
+        proj_mastery_map = {
+            row.project_id: (row.mast_cnt, row.weak_cnt) for row in res_pm.fetchall()
+        }
+
+        # 3. Projects by Progress
         stmt_proj = (
             select(
                 Project.id,
@@ -286,23 +430,32 @@ class AnalyticsRepository:
             .order_by(text("last_active DESC NULLS LAST"))
         )
         res_proj = await self.session.execute(stmt_proj)
-        project_items = [
-            ProjectProgressItem(
-                project_id=r.id,
-                project_name=r.name,
-                space_name=r.space_name,
-                learning_goal=r.learning_goal,
-                total_concepts=r.tot_concepts,
-                assessed_concepts=r.assessed_concepts,
-                average_mastery=round(float(r.avg_mastery), 1)
-                if r.avg_mastery is not None
-                else None,
-                last_active_at=r.last_active,
+        project_items = []
+        for r in res_proj.fetchall():
+            tot_att, comp_att = proj_attempts_map.get(r.id, (0, 0))
+            tot_d = proj_defs_map.get(r.id, 0)
+            mast_c, weak_c = proj_mastery_map.get(r.id, (0, 0))
+            project_items.append(
+                ProjectProgressItem(
+                    project_id=r.id,
+                    project_name=r.name,
+                    space_name=r.space_name,
+                    learning_goal=r.learning_goal,
+                    total_concepts=r.tot_concepts,
+                    assessed_concepts=r.assessed_concepts,
+                    mastered_concepts=mast_c,
+                    weak_concepts=weak_c,
+                    total_quiz_definitions=tot_d,
+                    total_quiz_attempts=tot_att,
+                    completed_quiz_attempts=comp_att,
+                    average_mastery=round(float(r.avg_mastery), 1)
+                    if r.avg_mastery is not None
+                    else None,
+                    last_active_at=r.last_active,
+                )
             )
-            for r in res_proj.fetchall()
-        ]
 
-        # 3. Weakest Areas Across All Projects (Score < 50%)
+        # 4. Weakest Areas Across All Projects (Score < 60%)
         stmt_weak = (
             select(
                 Concept.id,
@@ -320,7 +473,7 @@ class AnalyticsRepository:
             .where(
                 Project.user_id == user_id,
                 ConceptMastery.mastery_score.is_not(None),
-                ConceptMastery.mastery_score < 50.0,
+                ConceptMastery.mastery_score < 60.0,
             )
             .order_by(ConceptMastery.mastery_score.asc(), ConceptMastery.confidence.desc())
             .limit(6)
@@ -336,9 +489,10 @@ class AnalyticsRepository:
                 confidence=round(r.confidence, 2),
             )
             for r in res_weak.fetchall()
+            if is_valid_academic_concept(r.name)
         ]
 
-        # 4. Overall Trend (Daily Events across all spaces/projects for past 30 days)
+        # 5. Overall Trend (Daily Events across all spaces/projects for past 30 days)
         since_30d = datetime.now(UTC) - timedelta(days=30)
         stmt_trend = (
             select(
@@ -358,7 +512,7 @@ class AnalyticsRepository:
             for r in res_trend.fetchall()
         ]
 
-        # 5. User AI Usage Summary
+        # 6. User AI Usage Summary
         stmt_user_ai = select(
             func.count(AIUsageLog.id).label("tot_calls"),
             func.coalesce(func.sum(AIUsageLog.total_tokens), 0).label("tot_tokens"),
@@ -381,3 +535,175 @@ class AnalyticsRepository:
             overall_trend=overall_trend,
             ai_usage_summary=user_ai_summary,
         )
+
+    # ------------------------------------------------------------------------
+    # Authenticated User Recent Activity Stream
+    # ------------------------------------------------------------------------
+    async def get_recent_activity(
+        self, user_id: uuid.UUID, limit: int = 20, project_id: uuid.UUID | None = None
+    ) -> list[RecentActivityItem]:
+        """Fetch recent learning activity milestones for the authenticated user."""
+        milestone_types = [
+            "quiz_completed",
+            "quiz_started",
+            "quiz_created",
+            "material_uploaded",
+            "tutor_turn",
+            "tutor_conversation_started",
+            "mastery_updated",
+            "recommendation_generated",
+        ]
+        stmt = (
+            select(
+                ActivityEvent.id,
+                ActivityEvent.event_type,
+                ActivityEvent.payload,
+                ActivityEvent.created_at,
+                ActivityEvent.project_id,
+                Project.name.label("project_name"),
+                Project.space_id,
+                Space.name.label("space_name"),
+            )
+            .outerjoin(Project, ActivityEvent.project_id == Project.id)
+            .outerjoin(Space, Project.space_id == Space.id)
+            .where(
+                ActivityEvent.user_id == user_id,
+                ActivityEvent.event_type.in_(milestone_types),
+            )
+        )
+        if project_id:
+            stmt = stmt.where(ActivityEvent.project_id == project_id)
+
+        stmt = stmt.order_by(ActivityEvent.created_at.desc()).limit(limit)
+        res = await self.session.execute(stmt)
+
+        items: list[RecentActivityItem] = []
+        for r in res.fetchall():
+            ev_type = r.event_type
+            payload = r.payload or {}
+
+            if ev_type == "quiz_completed":
+                score = payload.get("score")
+                correct = payload.get("correct_answers")
+                total = payload.get("total_questions")
+                title = "Quiz Completed"
+                if score is not None and correct is not None and total is not None:
+                    detail = f"Score: {score:.0f}% ({correct}/{total} correct)"
+                elif score is not None:
+                    detail = f"Score: {score:.0f}%"
+                else:
+                    detail = "Practice evaluation completed"
+            elif ev_type == "quiz_started":
+                title = "Quiz Started"
+                detail = "Adaptive quiz attempt initiated"
+            elif ev_type == "quiz_created":
+                title = "Quiz Available"
+                q_title = payload.get("title", "Adaptive Quiz")
+                q_count = payload.get("question_count", 5)
+                detail = f"{q_title} ({q_count} questions generated)"
+            elif ev_type == "material_uploaded":
+                title = "Material Uploaded"
+                filename = payload.get("filename", "Document")
+                detail = f"Processed {filename}"
+            elif ev_type in ("tutor_turn", "tutor_conversation_started"):
+                title = "AI Tutor Session"
+                query = payload.get("query") or payload.get("topic")
+                detail = f"Discussed: {query[:60]}..." if query else "Grounded conceptual tutoring"
+            elif ev_type == "mastery_updated":
+                title = "Mastery Updated"
+                concept = payload.get("concept_name", "Concept")
+                score = payload.get("new_score")
+                detail = f"{concept}: {score:.0f}%" if score is not None else f"{concept} assessed"
+            elif ev_type == "recommendation_generated":
+                title = "Recommendation"
+                detail = payload.get("title", "Targeted study advice generated")
+            else:
+                title = ev_type.replace("_", " ").title()
+                detail = payload.get("title") or payload.get("message")
+
+            items.append(
+                RecentActivityItem(
+                    id=r.id,
+                    event_type=ev_type,
+                    title=title,
+                    detail=detail,
+                    project_id=r.project_id,
+                    project_name=r.project_name,
+                    space_id=r.space_id,
+                    space_name=r.space_name,
+                    payload=payload,
+                    created_at=r.created_at,
+                )
+            )
+        return items
+
+    # ------------------------------------------------------------------------
+    # Authenticated User Cross-Project Active Recommendations
+    # ------------------------------------------------------------------------
+    async def get_global_recommendations(
+        self, user_id: uuid.UUID, project_id: uuid.UUID | None = None
+    ) -> list[GlobalRecommendationItem]:
+        """Fetch active recommendations across all user spaces and projects."""
+        from app.models.mastery import Recommendation
+
+        stmt = (
+            select(
+                Recommendation.id,
+                Recommendation.project_id,
+                Project.name.label("project_name"),
+                Project.space_id,
+                Space.name.label("space_name"),
+                Recommendation.recommendation_type,
+                Recommendation.title,
+                Recommendation.body,
+                Recommendation.reasoning,
+                Recommendation.target_concept_id,
+                Concept.name.label("target_concept_name"),
+                ConceptMastery.mastery_score,
+                Recommendation.created_at,
+            )
+            .join(Project, Recommendation.project_id == Project.id)
+            .join(Space, Project.space_id == Space.id)
+            .outerjoin(Concept, Recommendation.target_concept_id == Concept.id)
+            .outerjoin(
+                ConceptMastery,
+                (Concept.id == ConceptMastery.concept_id) & (ConceptMastery.user_id == user_id),
+            )
+            .where(
+                Recommendation.user_id == user_id,
+                Recommendation.status == "active",
+            )
+        )
+        if project_id:
+            stmt = stmt.where(Recommendation.project_id == project_id)
+
+        stmt = stmt.order_by(Recommendation.created_at.desc())
+        res = await self.session.execute(stmt)
+
+        items: list[GlobalRecommendationItem] = []
+        for idx, r in enumerate(res.fetchall()):
+            score = r.mastery_score
+            if score is not None:
+                priority = "High" if score < 50.0 else ("Medium" if score < 70.0 else "Low")
+            else:
+                priority = "High" if idx == 0 else "Medium"
+
+            items.append(
+                GlobalRecommendationItem(
+                    id=r.id,
+                    project_id=r.project_id,
+                    project_name=r.project_name,
+                    space_id=r.space_id,
+                    space_name=r.space_name,
+                    recommendation_type=r.recommendation_type,
+                    title=r.title,
+                    body=r.body,
+                    reasoning=r.reasoning,
+                    target_concept_id=r.target_concept_id,
+                    target_concept_name=r.target_concept_name,
+                    priority=priority,
+                    current_mastery=round(score, 1) if score is not None else None,
+                    created_at=r.created_at,
+                )
+            )
+        return items

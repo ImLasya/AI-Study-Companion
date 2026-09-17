@@ -47,7 +47,13 @@ class AIEvaluationRunner:
             case_id = case["case_id"]
 
             try:
-                if suite == "tutor_grounding":
+                if suite in (
+                    "tutor_grounding",
+                    "prompt_injection_defense",
+                    "multi_turn_continuity",
+                    "table_grounding",
+                    "weak_concept_personalization",
+                ):
                     res = await self._eval_grounding(case)
                 elif suite == "citation_correctness":
                     res = await self._eval_citations(case)
@@ -95,7 +101,8 @@ class AIEvaluationRunner:
         prompt = build_tutor_user_prompt(
             question=case["question"],
             evidence_chunks=chunks,
-            conversation_history=[],
+            conversation_history=case.get("conversation_history", []),
+            pedagogical_context=case.get("pedagogical_context"),
         )
 
         output, _ = await self.provider.generate_structured(
@@ -103,6 +110,8 @@ class AIEvaluationRunner:
             user_prompt=prompt,
             response_schema=TutorStructuredOutput,
             temperature=0.0,
+            feature="evaluation",
+            tags=["evaluation"],
         )
 
         answer_lower = output.answer.lower()
@@ -135,6 +144,8 @@ class AIEvaluationRunner:
             user_prompt=prompt,
             response_schema=TutorStructuredOutput,
             temperature=0.0,
+            feature="evaluation",
+            tags=["evaluation"],
         )
 
         returned_chunks = set(output.citation_chunk_ids)
@@ -161,6 +172,8 @@ class AIEvaluationRunner:
             user_prompt=prompt,
             response_schema=TutorStructuredOutput,
             temperature=0.0,
+            feature="evaluation",
+            tags=["evaluation"],
         )
 
         uncertainty_phrases = case.get("uncertainty_phrases", [])
@@ -209,19 +222,23 @@ if __name__ == "__main__":
         async with AsyncSessionLocal() as session:
             runner = AIEvaluationRunner(session, provider=MockLLMProvider())
             summary = await runner.run_all()
-            print("\n" + "=" * 60)
-            print("AI EVALUATION RUN COMPLETED")
-            print("=" * 60)
-            print(f"Run ID:    {summary['run_id']}")
-            print(f"Timestamp: {summary['run_at']}")
-            print(f"Total:     {summary['total_cases']}")
-            print(f"Passed:    {summary['passed_cases']}")
-            print(f"Pass Rate: {summary['pass_rate']}%")
-            print("=" * 60)
+            print("\n" + "=" * 90)
+            print("                   AI REGRESSION EVALUATION RUN SUMMARY")
+            print("=" * 90)
+            print(f"Run ID:     {summary['run_id']}")
+            print(f"Timestamp:  {summary['run_at'].isoformat()}")
+            print(f"Total:      {summary['total_cases']} cases")
+            print(f"Passed:     {summary['passed_cases']} cases")
+            print(f"Pass Rate:  {summary['pass_rate']}%")
+            print("-" * 90)
+            print(f"{'Status':<8} | {'Suite':<28} | {'Case ID':<36} | {'Score':<6}")
+            print("-" * 90)
             for c in summary["cases"]:
-                status = "PASS" if c["passed"] else "FAIL"
-                print(
-                    f"[{status}] {c['suite']}::{c['case_id']} - score: {c['score']} ({c['notes']})"
-                )
+                status_badge = "[PASS]" if c["passed"] else "[FAIL]"
+                suite_name = c["suite"][:28]
+                case_name = c["case_id"][:36]
+                score_str = f"{c['score']:.2f}"
+                print(f"{status_badge:<8} | {suite_name:<28} | {case_name:<36} | {score_str:<6}")
+            print("=" * 90)
 
     asyncio.run(main())

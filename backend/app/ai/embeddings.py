@@ -8,6 +8,8 @@ import logging
 import time
 from typing import Any
 
+from langsmith import traceable
+
 from app.core.config import settings
 
 logger = logging.getLogger("ai_study_companion.ai.embeddings")
@@ -82,3 +84,23 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
             "success": success,
         }
         logger.info(f"AI Usage: {usage_record}")
+
+@traceable(
+    name="Generate Chunk Embeddings",
+    run_type="embedding",
+    process_inputs=lambda inputs: {
+        "chunk_count": len(inputs.get("texts", [])),
+        "embedding_model": settings.EMBEDDING_MODEL_NAME,
+        "embedding_dimension": settings.EMBEDDING_DIMENSION,
+    },
+    process_outputs=lambda res: {
+        "chunk_count": len(res),
+        "embedding_dimension": len(res[0]) if res else settings.EMBEDDING_DIMENSION,
+        "embedding_model": settings.EMBEDDING_MODEL_NAME,
+        "status": "success",
+    },
+)
+def embed_chunk_texts(texts: list[str]) -> list[list[float]]:
+    """Traced entrypoint for generating chunk embeddings during document ingestion."""
+    return embed_texts(texts)
+

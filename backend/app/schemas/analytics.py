@@ -65,6 +65,10 @@ class ProjectAnalyticsResponse(BaseModel):
         default_factory=TutorInteractionSummary
     )
     ai_activity: AIActivitySummary = Field(default_factory=AIActivitySummary)
+    material_coverage_percentage: float = 0.0
+    learning_consistency_score: float = 0.0
+    current_streak_days: int = 0
+    active_days_past_30: int = 0
 
 
 class ProjectProgressItem(BaseModel):
@@ -74,6 +78,11 @@ class ProjectProgressItem(BaseModel):
     learning_goal: str
     total_concepts: int = 0
     assessed_concepts: int = 0
+    mastered_concepts: int = 0
+    weak_concepts: int = 0
+    total_quiz_definitions: int = 0
+    total_quiz_attempts: int = 0
+    completed_quiz_attempts: int = 0
     average_mastery: float | None = None
     last_active_at: datetime | None = None
 
@@ -90,8 +99,15 @@ class WeakAreaItem(BaseModel):
 class GlobalStudyActivity(BaseModel):
     total_events: int = 0
     total_quizzes_completed: int = 0
+    total_quiz_attempts: int = 0
+    total_quiz_definitions: int = 0
+    total_concepts: int = 0
+    mastered_concepts: int = 0
+    weak_concepts_count: int = 0
     total_tutor_conversations: int = 0
     active_study_days: int = 0
+    review_streak_days: int = 0
+    consistency_score: float = 0.0
 
 
 class GlobalAnalyticsResponse(BaseModel):
@@ -101,3 +117,33 @@ class GlobalAnalyticsResponse(BaseModel):
     weakest_areas: list[WeakAreaItem] = Field(default_factory=list)
     overall_trend: list[DailyActivityBucket] = Field(default_factory=list)
     ai_usage_summary: AIActivitySummary = Field(default_factory=AIActivitySummary)
+
+
+class RecentActivityItem(BaseModel):
+    id: uuid.UUID
+    event_type: str
+    title: str
+    detail: str | None = None
+    project_id: uuid.UUID | None = None
+    project_name: str | None = None
+    space_id: uuid.UUID | None = None
+    space_name: str | None = None
+    payload: dict = Field(default_factory=dict)
+    created_at: datetime
+
+
+class GlobalRecommendationItem(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    project_name: str
+    space_id: uuid.UUID
+    space_name: str
+    recommendation_type: str
+    title: str
+    body: str
+    reasoning: str
+    target_concept_id: uuid.UUID | None = None
+    target_concept_name: str | None = None
+    priority: str = "Medium"
+    current_mastery: float | None = None
+    created_at: datetime

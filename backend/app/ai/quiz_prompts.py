@@ -4,14 +4,16 @@ Enforces strict grounding, evidence bounding, and Pydantic-compatible JSON schem
 """
 
 CONCEPT_EXTRACTION_SYSTEM_INSTRUCTION = """You are an expert educational curriculum analyzer.
-Your task is to extract the core, distinct conceptual topics from the provided learning material chunks.
+Your task is to extract substantive academic and learning concepts from the provided learning material chunks.
 
 Rules:
-1. ONLY extract concepts directly taught and defined within the <retrieved_evidence> blocks.
-2. Never invent or extrapolate concepts not explicitly supported by the text.
-3. For each concept, extract 1-3 accurate summary sentences.
-4. Attach the exact chunk IDs (UUIDs) that provide supporting evidence for that concept.
-5. Return between 3 and 8 concepts that represent the fundamental building blocks of the material.
+1. ONLY extract substantive academic concepts that represent educational knowledge a student can study, practice, assess, and master (e.g. historical periods, scientific principles, mathematical models, constitutional doctrines, core algorithms, domain methodologies).
+2. STRICTLY FORBIDDEN: Do NOT extract document meta-structure, front matter, book features, marketing descriptions, study tips, or difficulty level schemes (e.g. NEVER extract "SmartBook", "Question Difficulty Levels", "General Knowledge Preparation Strategies", "Smart Answer Key", "Table of Contents", "Chapter Index", "Document Structure", "Level 1/2/3").
+3. ONLY extract concepts directly taught and defined within the <retrieved_evidence> blocks.
+4. Never invent or extrapolate concepts not explicitly supported by the text.
+5. For each concept, extract a normalized, professional topic name and 1-3 accurate summary sentences.
+6. Attach the exact chunk IDs (UUIDs) that provide supporting evidence for that concept.
+7. Return between 2 and 6 core academic concepts from this chunk batch.
 """
 
 
@@ -32,6 +34,10 @@ Rules:
    - Provide an explanation linking the concept to the evidence.
 5. Assign appropriate difficulty levels ('easy', 'medium', 'hard') matching the cognitive depth required.
 6. Do NOT invent concepts, facts, or citations outside <retrieved_evidence>.
+7. Novelty and Variety (Anti-Repetition):
+   - You MUST NOT repeat, duplicate, or trivially rephrase any question listed in <recent_questions_to_avoid>.
+   - Formulate fresh questions exploring different angles, applications, definitions, trade-offs, mechanisms, and edge cases of the target concepts.
+   - Vary question wording, options, scenarios, and difficulty levels across quiz sessions.
 """
 
 
@@ -66,8 +72,9 @@ def build_concept_extraction_prompt(evidence_chunks: list[dict]) -> str:
         )
     sections.append("</retrieved_evidence>\n")
     sections.append(
-        "Extract 3 to 8 core concepts taught in this material. "
-        "For each concept, provide its name, a concise summary description, and the chunk IDs that support it."
+        "Extract 2 to 6 substantive academic concepts taught in these material chunks. "
+        "Focus exclusively on core educational subject matter (ignore book features, preface, difficulty levels, or study tips). "
+        "For each concept, provide a clear normalized topic name, a concise summary description, and the chunk IDs that support it."
     )
     return "\n".join(sections)
 
@@ -78,8 +85,9 @@ def build_quiz_generation_prompt(
     target_difficulties: list[str],
     mcq_count: int,
     open_ended_count: int,
+    recent_questions: list[str] | None = None,
 ) -> str:
-    """Build structured prompt for generating grounded quiz questions."""
+    """Build structured prompt for generating grounded quiz questions with anti-repetition guidance."""
     sections = [
         "Please generate an adaptive quiz grounded exclusively in the provided document evidence.\n",
         "<retrieved_evidence>",
@@ -99,6 +107,18 @@ def build_quiz_generation_prompt(
         sections.append(f"- {c.get('name')}: {c.get('description', '')}")
     sections.append("</target_concepts>\n")
 
+    if recent_questions:
+        sections.append("<recent_questions_to_avoid>")
+        sections.append(
+            "The learner has already answered the following questions recently in this project. "
+            "DO NOT duplicate, repeat, or trivially rephrase any of these questions. Create completely fresh questions:"
+        )
+        for q_text in recent_questions[:20]:
+            cleaned_q = q_text.strip()
+            if cleaned_q:
+                sections.append(f"- {cleaned_q}")
+        sections.append("</recent_questions_to_avoid>\n")
+
     sections.append("<generation_requirements>")
     sections.append(f"- Total MCQ questions: {mcq_count}")
     sections.append(f"- Total Open-Ended questions: {open_ended_count}")
@@ -106,6 +126,10 @@ def build_quiz_generation_prompt(
     sections.append(
         "- Each question MUST map to one of the target concepts and cite valid chunk IDs from <retrieved_evidence>."
     )
+    if recent_questions:
+        sections.append(
+            "- CRITICAL: Ensure all generated questions test different angles or sub-topics than those in <recent_questions_to_avoid>."
+        )
     sections.append("</generation_requirements>")
 
     return "\n".join(sections)

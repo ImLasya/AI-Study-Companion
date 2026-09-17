@@ -6,6 +6,8 @@ from app.models.concept import Concept
 from app.models.conversation import TutorConversation, TutorMessage
 from app.models.evaluation import AIEvaluationRun
 from app.models.event import ActivityEvent
+from app.models.flashcard import Flashcard, FlashcardReview
+from app.models.learning_plan import LearningPlan, LearningPlanItem
 from app.models.mastery import (
     ConceptMastery,
     MasterySnapshot,
@@ -28,6 +30,10 @@ __all__ = [
     "TutorConversation",
     "TutorMessage",
     "Concept",
+    "Flashcard",
+    "FlashcardReview",
+    "LearningPlan",
+    "LearningPlanItem",
     "Quiz",
     "QuizQuestion",
     "QuizAttempt",

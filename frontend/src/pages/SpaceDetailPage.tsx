@@ -93,7 +93,7 @@ export const SpaceDetailPage: React.FC = () => {
           {error || "Space not found"}
         </div>
         <Link
-          to="/dashboard"
+          to="/spaces"
           className="inline-flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 font-medium"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Spaces
@@ -107,7 +107,7 @@ export const SpaceDetailPage: React.FC = () => {
       {/* Navigation Breadcrumb & Header */}
       <div>
         <Link
-          to="/dashboard"
+          to="/spaces"
           className="inline-flex items-center gap-2 text-xs text-gray-400 hover:text-gray-200 transition-colors mb-4"
         >
           <ArrowLeft className="w-3.5 h-3.5" />

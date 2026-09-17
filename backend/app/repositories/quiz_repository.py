@@ -327,3 +327,68 @@ class QuizRepository:
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_recent_project_questions(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        limit: int = 50,
+    ) -> list[QuizQuestion]:
+        """Fetch recent questions created for this learner in this project, newest first."""
+        stmt = (
+            select(QuizQuestion)
+            .options(selectinload(QuizQuestion.concept))
+            .where(
+                QuizQuestion.project_id == project_id,
+                QuizQuestion.user_id == user_id,
+            )
+            .order_by(QuizQuestion.created_at.desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_all_project_questions(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+    ) -> list[QuizQuestion]:
+        """Fetch all historical questions for this learner in this project, oldest first."""
+        stmt = (
+            select(QuizQuestion)
+            .options(selectinload(QuizQuestion.concept))
+            .where(
+                QuizQuestion.project_id == project_id,
+                QuizQuestion.user_id == user_id,
+            )
+            .order_by(QuizQuestion.created_at.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_recent_attempted_question_ids(
+        self,
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        limit: int = 50,
+    ) -> list[uuid.UUID]:
+        """Fetch question IDs recently answered by the learner in this project, newest first."""
+        stmt = (
+            select(QuizAnswer.question_id)
+            .join(QuizAttempt, QuizAnswer.attempt_id == QuizAttempt.id)
+            .where(
+                QuizAttempt.project_id == project_id,
+                QuizAnswer.user_id == user_id,
+            )
+            .order_by(QuizAnswer.evaluated_at.desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        seen: set[uuid.UUID] = set()
+        deduped: list[uuid.UUID] = []
+        for qid in result.scalars().all():
+            if qid not in seen:
+                seen.add(qid)
+                deduped.append(qid)
+        return deduped
+

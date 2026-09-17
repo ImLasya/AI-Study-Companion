@@ -5,7 +5,7 @@ import { User } from "@/types";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   signup: (email: string, password: string, fullName?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -32,9 +32,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshUser();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     const loggedInUser = await loginApi({ email, password });
     setUser(loggedInUser);
+    return loggedInUser;
   };
 
   const signup = async (email: string, password: string, fullName?: string) => {

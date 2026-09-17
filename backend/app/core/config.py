@@ -54,7 +54,7 @@ class Settings(BaseSettings):
 
     # 7. Phase 3: AI Tutor & Grounded RAG
     GEMINI_API_KEY: str | None = None
-    GEMINI_MODEL: str = "gemini-3.6-flash"
+    GEMINI_MODEL: str = "gemini-flash-lite-latest"
     # Empirical prototype starting point (cosine distance <= 0.65 is accepted as relevant evidence).
     # Note: 0.65 is an empirical prototype threshold for all-MiniLM-L6-v2, not a guaranteed relevance cutoff.
     TUTOR_SIMILARITY_THRESHOLD: float = 0.65
@@ -78,9 +78,39 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str | None = None
     STORAGE_BUCKET: str = "study-companion-materials"
 
+    # LangSmith Tracing & Observability (Optional)
+    LANGSMITH_TRACING: bool = False
+    LANGSMITH_API_KEY: str | None = None
+    LANGSMITH_PROJECT: str | None = None
+    LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
+
+    # Backward compatibility with legacy LANGCHAIN_* environment variables
     LANGCHAIN_TRACING_V2: bool = False
     LANGCHAIN_API_KEY: str | None = None
     LANGCHAIN_PROJECT: str = "ai-study-companion"
+    LANGCHAIN_ENDPOINT: str = "https://api.smith.langchain.com"
+
+    @property
+    def is_langsmith_enabled(self) -> bool:
+        """Check if LangSmith tracing is enabled and credentials are present."""
+        tracing_flag = self.LANGSMITH_TRACING or self.LANGCHAIN_TRACING_V2
+        api_key = self.LANGSMITH_API_KEY or self.LANGCHAIN_API_KEY
+        return bool(tracing_flag and api_key and api_key.strip())
+
+    @property
+    def langsmith_api_key(self) -> str | None:
+        """Resolve LangSmith API key with fallback to legacy LANGCHAIN_API_KEY."""
+        return self.LANGSMITH_API_KEY or self.LANGCHAIN_API_KEY
+
+    @property
+    def langsmith_project(self) -> str:
+        """Resolve LangSmith project name with fallback to legacy LANGCHAIN_PROJECT."""
+        return self.LANGSMITH_PROJECT or self.LANGCHAIN_PROJECT or "ai-study-companion"
+
+    @property
+    def langsmith_endpoint(self) -> str:
+        """Resolve LangSmith endpoint with fallback to legacy LANGCHAIN_ENDPOINT."""
+        return self.LANGSMITH_ENDPOINT or self.LANGCHAIN_ENDPOINT or "https://api.smith.langchain.com"
 
 
 settings = Settings()

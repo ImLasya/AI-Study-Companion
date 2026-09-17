@@ -831,3 +831,306 @@ async def test_security_cross_tenant_retrieval_impossible(
     )
     assert len(result_cross.accepted_chunks) == 0
     assert not result_cross.is_sufficient
+
+
+@pytest.mark.asyncio
+async def test_tutor_stream_success(client: AsyncClient, db_session: AsyncSession):
+    """Verifies end-to-end token streaming via SSE with completion event and DB persistence."""
+    mock_provider = MockLLMProvider()
+    set_llm_provider(mock_provider)
+
+    try:
+        creds = await signup_and_login(client, f"stream_{uuid.uuid4().hex[:6]}@example.com")
+        await client.post(
+            "/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]}
+        )
+
+        space_resp = await client.post("/api/v1/spaces", json={"name": "Streaming Space"})
+        space_id = space_resp.json()["id"]
+        proj_resp = await client.post(
+            f"/api/v1/spaces/{space_id}/projects",
+            json={"name": "Streaming Project", "learning_goal": "Learn Streaming RAG"},
+        )
+        project_id = proj_resp.json()["id"]
+
+        me_resp = await client.get("/api/v1/auth/me")
+        user_id = uuid.UUID(me_resp.json()["id"])
+        project_uuid = uuid.UUID(project_id)
+
+        await create_ready_material(db_session, user_id, project_uuid)
+
+        # Call streaming endpoint
+        resp = await client.post(
+            f"/api/v1/projects/{project_id}/tutor/stream",
+            json={"question": "How does self-attention work?"},
+        )
+        assert resp.status_code == 200
+        assert "text/event-stream" in resp.headers.get("content-type", "")
+
+        raw_stream = resp.text
+        assert "event: start" in raw_stream
+        assert "event: token" in raw_stream
+        assert "event: done" in raw_stream
+
+        # Parse SSE events from stream text
+        import json
+        blocks = raw_stream.strip().split("\n\n")
+        events = []
+        for block in blocks:
+            event_name = None
+            data = None
+            for line in block.split("\n"):
+                if line.startswith("event: "):
+                    event_name = line[7:].strip()
+                elif line.startswith("data: "):
+                    data = json.loads(line[6:].strip())
+            if event_name:
+                events.append((event_name, data))
+
+        event_names = [e[0] for e in events]
+        assert "start" in event_names
+        assert "token" in event_names
+        assert "done" in event_names
+
+        done_event = next(e[1] for e in events if e[0] == "done")
+        assert done_event["grounded"] is True
+        assert done_event["insufficient_evidence"] is False
+        assert len(done_event["citations"]) > 0
+        assert "self-attention" in done_event["answer"].lower()
+
+        # Verify completed message is saved in database
+        conv_id = done_event["conversation_id"]
+        conv_resp = await client.get(f"/api/v1/tutor/conversations/{conv_id}")
+        assert conv_resp.status_code == 200
+        messages = conv_resp.json()["messages"]
+        assert len(messages) == 2  # user + completed assistant
+        assert messages[1]["role"] == "assistant"
+        assert messages[1]["grounded"] is True
+        assert len(messages[1]["citations"]) > 0
+
+    finally:
+        set_llm_provider(None)
+
+
+@pytest.mark.asyncio
+async def test_tutor_stream_insufficient_evidence(client: AsyncClient, db_session: AsyncSession):
+    """Verifies that out-of-domain queries emit insufficient_evidence cleanly without LLM streaming."""
+    mock_provider = MockLLMProvider()
+    set_llm_provider(mock_provider)
+
+    try:
+        creds = await signup_and_login(client, f"stream_insuf_{uuid.uuid4().hex[:6]}@example.com")
+        await client.post(
+            "/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]}
+        )
+
+        space_resp = await client.post("/api/v1/spaces", json={"name": "Space"})
+        space_id = space_resp.json()["id"]
+        proj_resp = await client.post(
+            f"/api/v1/spaces/{space_id}/projects",
+            json={"name": "Project", "learning_goal": "Goal"},
+        )
+        project_id = proj_resp.json()["id"]
+
+        me_resp = await client.get("/api/v1/auth/me")
+        user_id = uuid.UUID(me_resp.json()["id"])
+        project_uuid = uuid.UUID(project_id)
+
+        await create_ready_material(db_session, user_id, project_uuid)
+
+        # Query outside the material domain
+        resp = await client.post(
+            f"/api/v1/projects/{project_id}/tutor/stream",
+            json={"question": "What is the capital of Australia?"},
+        )
+        assert resp.status_code == 200
+        raw_stream = resp.text
+        assert "event: insufficient_evidence" in raw_stream
+        assert "event: done" in raw_stream
+
+        # Verify token events were NOT emitted
+        assert "event: token" not in raw_stream
+
+    finally:
+        set_llm_provider(None)
+
+
+@pytest.mark.asyncio
+async def test_tutor_stream_provider_failure(client: AsyncClient, db_session: AsyncSession):
+    """Verifies that provider failure emits controlled error event without persisting corrupted assistant message."""
+    mock_provider = MockLLMProvider(should_fail=True)
+    set_llm_provider(mock_provider)
+
+    try:
+        creds = await signup_and_login(client, f"stream_fail_{uuid.uuid4().hex[:6]}@example.com")
+        await client.post(
+            "/api/v1/auth/login", json={"email": creds["email"], "password": creds["password"]}
+        )
+
+        space_resp = await client.post("/api/v1/spaces", json={"name": "Space"})
+        space_id = space_resp.json()["id"]
+        proj_resp = await client.post(
+            f"/api/v1/spaces/{space_id}/projects",
+            json={"name": "Project", "learning_goal": "Goal"},
+        )
+        project_id = proj_resp.json()["id"]
+
+        me_resp = await client.get("/api/v1/auth/me")
+        user_id = uuid.UUID(me_resp.json()["id"])
+        project_uuid = uuid.UUID(project_id)
+
+        await create_ready_material(db_session, user_id, project_uuid)
+
+        resp = await client.post(
+            f"/api/v1/projects/{project_id}/tutor/stream",
+            json={"question": "How does self-attention work?"},
+        )
+        assert resp.status_code == 200
+        raw_stream = resp.text
+        assert "event: error" in raw_stream
+        assert "event: done" not in raw_stream
+
+        # Verify no assistant message was persisted
+        from app.models.conversation import TutorMessage
+        from sqlalchemy import select
+        res = await db_session.execute(
+            select(TutorMessage).where(
+                TutorMessage.project_id == project_uuid,
+                TutorMessage.role == "assistant",
+            )
+        )
+        assistant_msgs = res.scalars().all()
+        assert len(assistant_msgs) == 0
+
+    finally:
+        set_llm_provider(None)
+
+
+@pytest.mark.asyncio
+async def test_tutor_stream_client_disconnect(db_session: AsyncSession):
+    """Verifies that client disconnect stops generation and does NOT persist an incomplete message."""
+    mock_provider = MockLLMProvider()
+    set_llm_provider(mock_provider)
+
+    try:
+        from unittest.mock import AsyncMock
+        from app.services.tutor_service import TutorService
+        from app.schemas.tutor import TutorRequest
+        from app.models.user import User
+        from app.models.space import Space
+        from app.models.project import Project
+
+        # Setup test entities
+        user = User(email=f"disconn_{uuid.uuid4().hex[:6]}@example.com", hashed_password="pw")
+        db_session.add(user)
+        await db_session.flush()
+
+        space = Space(name="Disconnect Space", user_id=user.id)
+        db_session.add(space)
+        await db_session.flush()
+
+        project = Project(name="Disconnect Proj", space_id=space.id, user_id=user.id, learning_goal="Goal")
+        db_session.add(project)
+        await db_session.flush()
+
+        await create_ready_material(db_session, user.id, project.id)
+
+        # Mock request with is_disconnected returning True immediately
+        mock_request = AsyncMock()
+        mock_request.is_disconnected.return_value = True
+
+        svc = TutorService(db_session)
+        payload = TutorRequest(question="How does self-attention work?")
+
+        events = []
+        async for sse_line in svc.ask_stream(user_id=user.id, project_id=project.id, payload=payload, request=mock_request):
+            events.append(sse_line)
+
+        # Confirm that done event was NOT reached
+        assert not any("event: done" in e for e in events)
+
+        # Confirm no assistant message was persisted
+        from app.models.conversation import TutorMessage
+        from sqlalchemy import select
+        res = await db_session.execute(
+            select(TutorMessage).where(
+                TutorMessage.project_id == project.id,
+                TutorMessage.role == "assistant",
+            )
+        )
+        assert len(res.scalars().all()) == 0
+
+    finally:
+        set_llm_provider(None)
+
+
+@pytest.mark.asyncio
+async def test_tutor_context_continuity_and_isolation(db_session: AsyncSession):
+    """Verifies TutorContextService properly aggregates weak concepts, quiz mistakes,
+    and historical Q&A with strict tenant isolation and character budget limits."""
+    from app.models.concept import Concept
+    from app.models.mastery import ConceptMastery
+    from app.models.project import Project
+    from app.models.space import Space
+    from app.models.user import User
+    from app.services.tutor_context_service import TutorContextService
+
+    # 1. Setup User A and project
+    user_a = User(email=f"tutor_ctx_a_{uuid.uuid4().hex[:6]}@example.com", hashed_password="pw")
+    user_b = User(email=f"tutor_ctx_b_{uuid.uuid4().hex[:6]}@example.com", hashed_password="pw")
+    db_session.add_all([user_a, user_b])
+    await db_session.flush()
+
+    space_a = Space(name="Space A", user_id=user_a.id)
+    space_b = Space(name="Space B", user_id=user_b.id)
+    db_session.add_all([space_a, space_b])
+    await db_session.flush()
+
+    proj_a = Project(name="Proj A", space_id=space_a.id, user_id=user_a.id, learning_goal="Goal A")
+    proj_b = Project(name="Proj B", space_id=space_b.id, user_id=user_b.id, learning_goal="Goal B")
+    db_session.add_all([proj_a, proj_b])
+    await db_session.flush()
+
+    # 2. Add weak concept for User A
+    concept = Concept(
+        project_id=proj_a.id,
+        user_id=user_a.id,
+        name="Multi-Head Attention",
+        description="Attention mechanism across multiple heads",
+    )
+    db_session.add(concept)
+    await db_session.flush()
+
+    mastery = ConceptMastery(
+        project_id=proj_a.id,
+        user_id=user_a.id,
+        concept_id=concept.id,
+        mastery_score=0.45,
+        confidence=0.8,
+        evidence_count=3,
+    )
+    db_session.add(mastery)
+    await db_session.commit()
+
+    # 3. Assemble context for User A
+    ctx_service = TutorContextService(db_session)
+    ctx_a = await ctx_service.assemble_context(
+        user_id=user_a.id,
+        project_id=proj_a.id,
+        conversation_id=None,
+    )
+
+    assert len(ctx_a.weak_concepts) == 1
+    assert ctx_a.weak_concepts[0]["name"] == "Multi-Head Attention"
+    assert ctx_a.weak_concepts[0]["mastery_score"] == 0.45
+
+    # 4. Assemble context for User B in Proj B - must be completely isolated
+    ctx_b = await ctx_service.assemble_context(
+        user_id=user_b.id,
+        project_id=proj_b.id,
+        conversation_id=None,
+    )
+    assert len(ctx_b.weak_concepts) == 0
+    assert len(ctx_b.historical_qas) == 0
+    assert len(ctx_b.recent_mistakes) == 0
+

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Activity,
   Award,
@@ -46,8 +47,81 @@ import {
 
 type AdminTab = "overview" | "users" | "activity" | "ai" | "jobs" | "evals";
 
+const TAB_CONFIG: Record<
+  AdminTab,
+  {
+    title: string;
+    description: string;
+    badge: string;
+    icon: React.ElementType;
+    badgeColor: string;
+    iconColor: string;
+    iconBg: string;
+  }
+> = {
+  overview: {
+    title: "System Overview",
+    description: "Cross-tenant system visibility, high-level learning performance, and platform capacity.",
+    badge: "Platform Telemetry",
+    icon: BarChart3,
+    badgeColor: "bg-indigo-500/10 text-indigo-300 border-indigo-500/20",
+    iconColor: "text-indigo-400",
+    iconBg: "bg-indigo-500/10 border-indigo-500/20",
+  },
+  users: {
+    title: "Users & Tenancy",
+    description: "Platform user accounts, active spaces, learning journeys, and strict data isolation boundaries.",
+    badge: "Tenant Auditing",
+    icon: Users,
+    badgeColor: "bg-purple-500/10 text-purple-300 border-purple-500/20",
+    iconColor: "text-purple-400",
+    iconBg: "bg-purple-500/10 border-purple-500/20",
+  },
+  activity: {
+    title: "Audit & Activity Feed",
+    description: "Live real-time activity stream across all student actions, quiz sessions, and material events.",
+    badge: "System Event Stream",
+    icon: Activity,
+    badgeColor: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20",
+    iconColor: "text-emerald-400",
+    iconBg: "bg-emerald-500/10 border-emerald-500/20",
+  },
+  ai: {
+    title: "AI Observability",
+    description: "Granular model telemetry, prompt/completion token usage, execution latency, and cost breakdown.",
+    badge: "Model Telemetry",
+    icon: Zap,
+    badgeColor: "bg-amber-500/10 text-amber-300 border-amber-500/20",
+    iconColor: "text-amber-400",
+    iconBg: "bg-amber-500/10 border-amber-500/20",
+  },
+  jobs: {
+    title: "Pipeline Health & Background Jobs",
+    description: "Celery worker processing status, asynchronous task queues, and PDF extraction error logs.",
+    badge: "Asynchronous Workers",
+    icon: Server,
+    badgeColor: "bg-sky-500/10 text-sky-300 border-sky-500/20",
+    iconColor: "text-sky-400",
+    iconBg: "bg-sky-500/10 border-sky-500/20",
+  },
+  evals: {
+    title: "AI Evaluations & Benchmarks",
+    description: "Automated regression benchmark suites covering grounding, citation accuracy, and retrieval relevance.",
+    badge: "Quality Assurance",
+    icon: Sparkles,
+    badgeColor: "bg-pink-500/10 text-pink-300 border-pink-500/20",
+    iconColor: "text-pink-400",
+    iconBg: "bg-pink-500/10 border-pink-500/20",
+  },
+};
+
 export const AdminPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<AdminTab>("overview");
+  const [searchParams] = useSearchParams();
+  const rawTab = searchParams.get("tab");
+  const validTabs: AdminTab[] = ["overview", "users", "activity", "ai", "jobs", "evals"];
+  const activeTab: AdminTab = rawTab && validTabs.includes(rawTab as AdminTab)
+    ? (rawTab as AdminTab)
+    : "overview";
 
   // Tab 1: Overview
   const [overview, setOverview] = useState<AdminOverviewResponse | null>(null);
@@ -201,113 +275,47 @@ export const AdminPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-800 pb-6">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <Shield className="w-6 h-6" />
-            </div>
+      {/* Dynamic Header based on active tab */}
+      {(() => {
+        const config = TAB_CONFIG[activeTab] || TAB_CONFIG.overview;
+        const Icon = config.icon;
+        return (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-800 pb-5">
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-white tracking-tight">Admin & Operations</h1>
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
-                  Tenant-Isolated Read Path
-                </span>
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-xl border ${config.iconBg} ${config.iconColor}`}>
+                  <Icon className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <h1 className="text-2xl font-bold text-white tracking-tight">{config.title}</h1>
+                    <span className={`text-[11px] font-mono px-2.5 py-0.5 rounded-full border ${config.badgeColor}`}>
+                      {config.badge}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">{config.description}</p>
+                </div>
               </div>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Cross-tenant system visibility, AI telemetry, asynchronous pipeline health, and model evaluations.
-              </p>
             </div>
+
+            {/* Global Refresh Button */}
+            <button
+              onClick={() => {
+                if (activeTab === "overview") fetchOverview();
+                if (activeTab === "users") fetchUsers(userPage);
+                if (activeTab === "activity") fetchActivity();
+                if (activeTab === "ai") fetchAiUsage();
+                if (activeTab === "jobs") fetchJobs();
+                if (activeTab === "evals") fetchEvaluations();
+              }}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-gray-800 bg-gray-900/60 hover:bg-gray-900 text-gray-300 hover:text-white text-xs font-medium transition-colors self-start sm:self-auto shadow-sm"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
+              Refresh
+            </button>
           </div>
-        </div>
-
-        {/* Global Refresh Button */}
-        <button
-          onClick={() => {
-            if (activeTab === "overview") fetchOverview();
-            if (activeTab === "users") fetchUsers(userPage);
-            if (activeTab === "activity") fetchActivity();
-            if (activeTab === "ai") fetchAiUsage();
-            if (activeTab === "jobs") fetchJobs();
-            if (activeTab === "evals") fetchEvaluations();
-          }}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-gray-800 bg-gray-900/60 hover:bg-gray-900 text-gray-300 hover:text-white text-xs font-medium transition-colors self-start sm:self-auto"
-        >
-          <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
-          Refresh
-        </button>
-      </div>
-
-      {/* Navigation Tabs */}
-      <div className="flex items-center gap-1.5 border-b border-gray-800 pb-2 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab("overview")}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === "overview"
-              ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-semibold"
-              : "text-gray-400 hover:text-gray-200 hover:bg-gray-900"
-          }`}
-        >
-          <BarChart3 className="w-4 h-4" />
-          System Overview
-        </button>
-        <button
-          onClick={() => setActiveTab("users")}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === "users"
-              ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-semibold"
-              : "text-gray-400 hover:text-gray-200 hover:bg-gray-900"
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          Users & Tenancy
-        </button>
-        <button
-          onClick={() => setActiveTab("activity")}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === "activity"
-              ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-semibold"
-              : "text-gray-400 hover:text-gray-200 hover:bg-gray-900"
-          }`}
-        >
-          <Activity className="w-4 h-4" />
-          Audit & Activity
-        </button>
-        <button
-          onClick={() => setActiveTab("ai")}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === "ai"
-              ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-semibold"
-              : "text-gray-400 hover:text-gray-200 hover:bg-gray-900"
-          }`}
-        >
-          <Zap className="w-4 h-4" />
-          AI Observability
-        </button>
-        <button
-          onClick={() => setActiveTab("jobs")}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === "jobs"
-              ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-semibold"
-              : "text-gray-400 hover:text-gray-200 hover:bg-gray-900"
-          }`}
-        >
-          <Server className="w-4 h-4" />
-          Pipeline Health
-        </button>
-        <button
-          onClick={() => setActiveTab("evals")}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === "evals"
-              ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-semibold"
-              : "text-gray-400 hover:text-gray-200 hover:bg-gray-900"
-          }`}
-        >
-          <Sparkles className="w-4 h-4" />
-          AI Evaluations
-        </button>
-      </div>
+        );
+      })()}
 
       {/* TAB 1: OVERVIEW */}
       {activeTab === "overview" && (

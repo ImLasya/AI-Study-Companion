@@ -25,6 +25,7 @@ from app.schemas.mastery import (
 from app.services.growth_engine import SnapshotPoint, classify_concept_growth
 from app.services.mastery_engine import AnswerEvidence, calculate_concept_mastery
 from app.services.recommendation_service import RecommendationService
+from app.services.concept_validator import is_valid_academic_concept
 
 
 class MasteryService:
@@ -154,13 +155,14 @@ class MasteryService:
             )
 
         concepts = await self.concept_repo.list_by_project(user_id, project_id)
+        valid_concepts = [c for c in concepts if is_valid_academic_concept(c.name, c.description)]
         persisted_masteries = await self.mastery_repo.list_project_masteries(user_id, project_id)
         mastery_map = {m.concept_id: m for m in persisted_masteries}
 
         results = []
         assessed_scores = []
 
-        for c in concepts:
+        for c in valid_concepts:
             m = mastery_map.get(c.id)
             if m and m.evidence_count > 0 and m.mastery_score is not None:
                 score = m.mastery_score
@@ -201,7 +203,7 @@ class MasteryService:
             masteries=results,
             overall_average_mastery=avg_mastery,
             assessed_count=len(assessed_scores),
-            total_concepts=len(concepts),
+            total_concepts=len(valid_concepts),
         )
 
     # ------------------------------------------------------------------------
@@ -223,6 +225,7 @@ class MasteryService:
             )
 
         concepts = await self.concept_repo.list_by_project(user_id, project_id)
+        valid_concepts = [c for c in concepts if is_valid_academic_concept(c.name, c.description)]
         persisted_masteries = await self.mastery_repo.list_project_masteries(user_id, project_id)
         mastery_map = {m.concept_id: m for m in persisted_masteries}
 
@@ -239,7 +242,7 @@ class MasteryService:
         unassessed: list[ConceptGrowthItem] = []
         assessed_scores: list[float] = []
 
-        for c in concepts:
+        for c in valid_concepts:
             m = mastery_map.get(c.id)
             score = m.mastery_score if m else None
             ev_count = m.evidence_count if m else 0

@@ -30,8 +30,8 @@ async def test_evaluation_runner_mock_provider(db_session: AsyncSession):
     runner = AIEvaluationRunner(db_session, provider=MockLLMProvider())
     summary = await runner.run_all()
 
-    assert summary["total_cases"] == 5
-    assert summary["passed_cases"] == 5
+    assert summary["total_cases"] >= 5
+    assert summary["passed_cases"] == summary["total_cases"]
     assert summary["pass_rate"] == 100.0
 
     # Verify rows in database
@@ -45,7 +45,7 @@ async def test_evaluation_runner_mock_provider(db_session: AsyncSession):
         .all()
     )
 
-    assert len(db_runs) == 5
+    assert len(db_runs) == summary["total_cases"]
     suites = {r.suite for r in db_runs}
     assert "tutor_grounding" in suites
     assert "citation_correctness" in suites

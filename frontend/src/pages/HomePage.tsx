@@ -1,157 +1,201 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  Layers,
-  BrainCircuit,
-  CheckCircle2,
-  Workflow,
+  ArrowRight,
+  BarChart3,
+  Bot,
+  Brain,
+  FileText,
+  FolderKanban,
+  HelpCircle,
+  Repeat,
+  TrendingUp,
 } from "lucide-react";
-import { SystemStatus } from "@/components/SystemStatus";
-
-const learningLoopSteps = [
-  { step: 1, title: "Space", desc: "Broad knowledge domain" },
-  { step: 2, title: "Project", desc: "Focused learning journey" },
-  { step: 3, title: "Learning Material", desc: "PDF & document ingestion" },
-  { step: 4, title: "Document Processing", desc: "Async OCR, chunking, metadata" },
-  { step: 5, title: "Knowledge / RAG", desc: "pgvector semantic embeddings" },
-  { step: 6, title: "AI Tutor", desc: "Grounded responses with citations" },
-  { step: 7, title: "Adaptive Quiz", desc: "Targeted MCQ & open questions" },
-  { step: 8, title: "Assessment", desc: "Qualitative evaluation of understanding" },
-  { step: 9, title: "Concept Mastery", desc: "Dynamic probability of mastery" },
-  { step: 10, title: "Growth Analysis", desc: "Trend tracking & weak areas" },
-  { step: 11, title: "Recommendation", desc: "Actionable next study step" },
-  { step: 12, title: "Continue Learning", desc: "Loop closed without context loss" },
-];
-
-const phase0Checklist = [
-  { name: "Monorepo & Environment Configuration", done: true },
-  { name: "FastAPI Backend Scaffolding with CORS & Logging", done: true },
-  { name: "SQLAlchemy 2.0 Async Engine & Sessionmaker", done: true },
-  { name: "Docker Compose with PostgreSQL 16 & pgvector", done: true },
-  { name: "Alembic Migrations Configured with pgvector Extension", done: true },
-  { name: "Redis 7 & Celery Asynchronous Worker Scaffold", done: true },
-  { name: "FastAPI Health Probes (/health, /health/ready, /health/db)", done: true },
-  { name: "React + Vite + TypeScript Strict Mode + Tailwind CSS", done: true },
-  { name: "Automated Pytest Suite with Async Client", done: true },
-  { name: "Architecture & Data Model Documentation under docs/", done: true },
-];
+import { useAuth } from "@/lib/auth-context";
 
 export const HomePage: React.FC = () => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // If already logged in, redirect to dashboard
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, loading, navigate]);
+
+  const features = [
+    {
+      icon: FolderKanban,
+      title: "Learning Spaces & Projects",
+      desc: "Organize wide subject domains into focused learning projects with target goals and dedicated progress tracking.",
+    },
+    {
+      icon: FileText,
+      title: "PDF Learning Materials",
+      desc: "Upload textbooks, papers, and lecture slides with asynchronous OCR extraction, semantic chunking, and metadata parsing.",
+    },
+    {
+      icon: Bot,
+      title: "Grounded AI Tutor",
+      desc: "Interactive conversational tutor providing verified, grounded answers strictly citing your uploaded source documents.",
+    },
+    {
+      icon: HelpCircle,
+      title: "Adaptive Quizzes",
+      desc: "Dynamically generated multiple-choice and open-ended questions calibrated to your current knowledge gaps.",
+    },
+    {
+      icon: Brain,
+      title: "Concept Mastery",
+      desc: "Bayesian-inspired mastery probability tracking across every core domain concept to identify strengths and weaknesses.",
+    },
+    {
+      icon: TrendingUp,
+      title: "Growth & Recommendations",
+      desc: "Personalized, targeted study recommendations guiding you to the most impactful next step in your curriculum.",
+    },
+    {
+      icon: BarChart3,
+      title: "Learning Analytics",
+      desc: "Comprehensive activity telemetry, study day streaks, quiz score progressions, and token observability.",
+    },
+  ];
+
+  const learningLoop = [
+    { step: "01", title: "Learn", desc: "Ingest textbooks, notes, and PDF materials into structured vector knowledge." },
+    { step: "02", title: "Understand", desc: "Engage with the Grounded AI Tutor for interactive Q&A backed by exact citations." },
+    { step: "03", title: "Practice", desc: "Test comprehension with adaptive quizzes tailored to key domain concepts." },
+    { step: "04", title: "Evaluate", desc: "Receive automated qualitative assessment and rubrics on your submissions." },
+    { step: "05", title: "Improve", desc: "Review actionable recommendations to reinforce weak areas and fill knowledge gaps." },
+    { step: "06", title: "Repeat", desc: "Close the learning cycle with persistent mastery growth and zero context loss." },
+  ];
+
   return (
-    <div className="space-y-8">
-      {/* Hero / Intro Banner */}
-      <div className="border border-gray-800 rounded-2xl bg-gradient-to-r from-gray-900 via-gray-900/90 to-indigo-950/40 p-8 shadow-sm">
-        <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-4">
-            <Workflow className="w-3.5 h-3.5" /> Phase 0 Foundation Complete
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-            AI Study Companion
-          </h1>
-          <p className="mt-3 text-base text-gray-300 leading-relaxed">
-            A persistent, contextual, and measurable AI learning workspace designed to help users
-            understand, practice, measure, and continuously improve a skill or area of knowledge.
-          </p>
-        </div>
-      </div>
-
-      {/* System Health Section */}
-      <SystemStatus />
-
-      {/* 2-Column Grid: Architecture Flow & Learning Loop */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* System Architecture */}
-        <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-6 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Layers className="w-5 h-5 text-indigo-400" />
-              <h3 className="text-base font-semibold text-white">System Architecture</h3>
-            </div>
-            <p className="text-xs text-gray-400 mb-6">
-              Clean separation of responsibilities between presentation, application, storage, and AI layers.
-            </p>
-
-            <div className="space-y-3 font-mono text-xs">
-              <div className="p-3 rounded-lg border border-gray-800 bg-gray-950/70 flex items-center justify-between">
-                <span className="text-indigo-300 font-semibold">1. Frontend Layer</span>
-                <span className="text-gray-400">React &bull; Vite &bull; Tailwind CSS</span>
-              </div>
-              <div className="flex justify-center text-gray-600">↓</div>
-              <div className="p-3 rounded-lg border border-gray-800 bg-gray-950/70 flex items-center justify-between">
-                <span className="text-sky-300 font-semibold">2. Application Layer</span>
-                <span className="text-gray-400">FastAPI &bull; Pydantic v2 &bull; API v1</span>
-              </div>
-              <div className="flex justify-center text-gray-600">↓</div>
-              <div className="p-3 rounded-lg border border-gray-800 bg-gray-950/70 flex items-center justify-between">
-                <span className="text-emerald-300 font-semibold">3. Data & Storage Layer</span>
-                <span className="text-gray-400">PostgreSQL 16 &bull; pgvector &bull; Alembic</span>
-              </div>
-              <div className="flex justify-center text-gray-600">↓</div>
-              <div className="p-3 rounded-lg border border-gray-800 bg-gray-950/70 flex items-center justify-between">
-                <span className="text-amber-300 font-semibold">4. Background Processing</span>
-                <span className="text-gray-400">Redis 7 &bull; Celery Workers</span>
-              </div>
-              <div className="flex justify-center text-gray-600">↓</div>
-              <div className="p-3 rounded-lg border border-gray-800 bg-gray-950/70 flex items-center justify-between">
-                <span className="text-purple-300 font-semibold">5. AI & Evaluation Layer</span>
-                <span className="text-gray-400">Google Gemini &bull; Pydantic &bull; AI Telemetry</span>
-              </div>
-            </div>
-          </div>
+    <div className="space-y-20 pb-16">
+      {/* Hero Section */}
+      <section className="pt-8 sm:pt-16 pb-8 text-center max-w-4xl mx-auto px-4">
+        {/* Small Operational Status Indicator */}
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/40 border border-emerald-800/40 text-xs text-emerald-400 mb-6">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>All systems operational</span>
+          <span className="text-gray-500">•</span>
+          <Link to="/status" className="hover:underline flex items-center gap-1 font-medium">
+            <span>View System Status</span>
+            <ArrowRight className="w-3 h-3" />
+          </Link>
         </div>
 
-        {/* Phase 0 Acceptance Checklist */}
-        <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-6 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-              <h3 className="text-base font-semibold text-white">Phase 0 Scaffolding Checklist</h3>
-            </div>
-            <p className="text-xs text-gray-400 mb-6">
-              Foundations established before implementing business features in Phase 1+.
-            </p>
+        {/* Main Title */}
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-tight">
+          AI Study Companion
+        </h1>
 
-            <ul className="space-y-2.5 text-xs">
-              {phase0Checklist.map((item, idx) => (
-                <li
-                  key={idx}
-                  className="flex items-center gap-2.5 p-2 rounded-lg bg-gray-950/40 border border-gray-800/80"
-                >
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                  <span className="text-gray-300">{item.name}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* The 12-Step PRD Learning Loop */}
-      <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-6">
-        <div className="flex items-center gap-2 mb-2">
-          <BrainCircuit className="w-5 h-5 text-indigo-400" />
-          <h3 className="text-base font-semibold text-white">The PRD Core Learning Loop</h3>
-        </div>
-        <p className="text-xs text-gray-400 mb-6">
-          The central continuous cycle connecting knowledge ingestion, intelligent tutoring, adaptive assessment, and personalized recommendations.
+        {/* Subtitle */}
+        <p className="mt-4 text-lg sm:text-xl text-indigo-200/90 font-medium">
+          Your personal AI-powered learning workspace.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {learningLoopSteps.map((item) => (
-            <div
-              key={item.step}
-              className="p-3.5 rounded-lg border border-gray-800/90 bg-gray-950/60 flex flex-col justify-between hover:border-gray-700 transition-colors"
-            >
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 font-mono">
-                  Step {item.step < 10 ? `0${item.step}` : item.step}
-                </span>
-                <h4 className="text-sm font-semibold text-gray-100 mt-1">{item.title}</h4>
-              </div>
-              <p className="text-xs text-gray-400 mt-2">{item.desc}</p>
-            </div>
-          ))}
+        {/* Supporting text */}
+        <p className="mt-3 text-sm sm:text-base text-gray-400 max-w-2xl mx-auto leading-relaxed">
+          Learn from your own materials, ask grounded questions, practice with adaptive quizzes,
+          and track your understanding over time.
+        </p>
+
+        {/* CTAs */}
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Link
+            to="/signup"
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-all shadow-md hover:shadow-indigo-500/20 flex items-center justify-center gap-2"
+          >
+            <span>Create Account</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+          <Link
+            to="/signin"
+            className="w-full sm:w-auto px-6 py-3 rounded-xl border border-gray-800 bg-gray-900/60 hover:bg-gray-800 text-gray-200 font-semibold text-sm transition-colors flex items-center justify-center"
+          >
+            Sign In
+          </Link>
         </div>
-      </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="max-w-6xl mx-auto px-4 scroll-mt-20">
+        <div className="text-center mb-12">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+            Comprehensive Learning Architecture
+          </h2>
+          <p className="text-xs sm:text-sm text-gray-400 mt-2 max-w-xl mx-auto">
+            Everything you need to master complex topics with rigorous AI grounding and measurable feedback.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map((f, idx) => {
+            const Icon = f.icon;
+            return (
+              <div
+                key={idx}
+                className="rounded-2xl border border-[#1e293b] bg-slate-900/50 p-6 hover:border-indigo-500/40 hover:bg-slate-900/80 transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="p-3 rounded-xl bg-indigo-600/15 text-indigo-400 border border-indigo-500/25 w-fit mb-4">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-base font-bold text-white tracking-tight">{f.title}</h3>
+                  <p className="text-xs text-gray-400 mt-2 leading-relaxed">{f.desc}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Your Learning Loop Section */}
+      <section className="max-w-5xl mx-auto px-4">
+        <div className="rounded-2xl border border-gray-800 bg-gray-900/40 p-8 sm:p-10">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-3">
+              <Repeat className="w-3.5 h-3.5" />
+              <span>Continuous Improvement</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+              Your Learning Loop
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-400 mt-2 max-w-lg mx-auto">
+              A closed-feedback loop designed to ensure deep conceptual retention rather than passive reading.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {learningLoop.map((step, idx) => (
+              <div
+                key={idx}
+                className="rounded-xl border border-gray-800 bg-gray-950/60 p-4 flex flex-col justify-between hover:border-gray-700 transition-colors"
+              >
+                <div>
+                  <span className="text-[11px] font-mono font-bold text-indigo-400">
+                    Step {step.step}
+                  </span>
+                  <h3 className="text-sm font-bold text-white mt-1">{step.title}</h3>
+                  <p className="text-xs text-gray-400 mt-2 leading-relaxed">{step.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10 pt-6 border-t border-gray-800/80 text-center">
+            <Link
+              to="/signup"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-colors shadow-sm"
+            >
+              <span>Get Started with AI Study Companion</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

@@ -7,10 +7,21 @@ import {
   AdminUserListResponse,
   AIEvaluationSummaryResponse,
   Concept,
+  ConceptMilestoneDetail,
   DatabaseHealthStatus,
+  DueFlashcardsSummary,
+  Flashcard,
+  FlashcardGenerateRequest,
+  FlashcardGenerateResponse,
+  FlashcardRating,
+  FlashcardReviewResponse,
   GlobalAnalyticsResponse,
+  GlobalRecommendationItem,
   GrowthSummary,
   HealthStatus,
+  LearningPlan,
+  LearningPlanItem,
+  LearningPlanItemStatus,
   MasteryListResponse,
   Material,
   Project,
@@ -20,6 +31,7 @@ import {
   QuizAttempt,
   QuizResult,
   ReadyStatus,
+  RecentActivityItem,
   Recommendation,
   Space,
   User,
@@ -256,7 +268,7 @@ export async function deleteProjectApi(projectId: string): Promise<void> {
 }
 
 // ----------------------------------------------------------------------------
-// Materials API (Phase 2)
+// Materials API
 // ----------------------------------------------------------------------------
 export async function uploadMaterialApi(
   projectId: string,
@@ -317,13 +329,96 @@ export async function retryMaterialApi(materialId: string): Promise<Material> {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 3: AI Tutor API
+// AI Tutor API
 // ---------------------------------------------------------------------------
 import type {
   TutorAnswer,
   TutorConversation,
   TutorConversationSummary,
 } from "@/types";
+
+export interface TutorStreamCallbacks {
+  onStart?: (conversationId: string) => void;
+  onToken?: (token: string) => void;
+  onInsufficientEvidence?: (data: { answer: string; conversation_id: string; message_id: string }) => void;
+  onError?: (error: string) => void;
+  onDone?: (data: TutorAnswer) => void;
+}
+
+export async function askTutorStreamApi(
+  projectId: string,
+  question: string,
+  conversationId: string | undefined,
+  callbacks: TutorStreamCallbacks,
+  signal?: AbortSignal
+): Promise<void> {
+  const payload: { question: string; conversation_id?: string } = { question };
+  if (conversationId) payload.conversation_id = conversationId;
+
+  const res = await fetch(`${API_BASE_URL}/projects/${projectId}/tutor/stream`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(payload),
+    signal,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "AI Tutor is temporarily unavailable.");
+  }
+
+  if (!res.body) {
+    throw new Error("No streaming response body available.");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const blocks = buffer.split("\n\n");
+    buffer = blocks.pop() || "";
+
+    for (const block of blocks) {
+      if (!block.trim()) continue;
+      let eventType = "message";
+      let eventData = "";
+
+      for (const line of block.split("\n")) {
+        if (line.startsWith("event: ")) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith("data: ")) {
+          eventData = line.slice(6);
+        }
+      }
+
+      if (!eventData) continue;
+      try {
+        const parsed = JSON.parse(eventData);
+        if (eventType === "start" && callbacks.onStart) {
+          callbacks.onStart(parsed.conversation_id);
+        } else if (eventType === "token" && callbacks.onToken) {
+          callbacks.onToken(parsed.token);
+        } else if (eventType === "insufficient_evidence" && callbacks.onInsufficientEvidence) {
+          callbacks.onInsufficientEvidence(parsed);
+        } else if (eventType === "error" && callbacks.onError) {
+          callbacks.onError(parsed.error);
+        } else if (eventType === "done" && callbacks.onDone) {
+          callbacks.onDone(parsed);
+        }
+      } catch (e) {
+        console.error("Failed to parse SSE event chunk", e);
+      }
+    }
+  }
+}
 
 export async function askTutorApi(
   projectId: string,
@@ -375,7 +470,7 @@ export async function getConversationApi(
 }
 
 // ----------------------------------------------------------------------------
-// Phase 4: Adaptive Quiz & Assessment Endpoints
+// Adaptive Quiz & Assessment Endpoints
 // ----------------------------------------------------------------------------
 
 export async function getProjectConceptsApi(projectId: string): Promise<Concept[]> {
@@ -512,7 +607,7 @@ export async function completeQuizAttemptApi(
 }
 
 // ----------------------------------------------------------------------------
-// Phase 5: Concept Mastery, Growth & Recommendations APIs
+// Concept Mastery, Growth & Recommendations APIs
 // ----------------------------------------------------------------------------
 
 export async function getProjectMasteryApi(projectId: string): Promise<MasteryListResponse> {
@@ -557,7 +652,31 @@ export async function dismissRecommendationApi(
 }
 
 // ----------------------------------------------------------------------------
-// Phase 6: Analytics & Admin Observability APIs
+// Background Learning Insights APIs
+// ----------------------------------------------------------------------------
+
+export async function listProjectInsightsApi(projectId: string): Promise<any[]> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/projects/${projectId}/insights`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch learning insights.");
+  }
+  return await res.json();
+}
+
+export async function generateProjectInsightsApi(projectId: string): Promise<any[]> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/projects/${projectId}/insights/generate`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to generate learning insights.");
+  }
+  return await res.json();
+}
+
+// ----------------------------------------------------------------------------
+// Analytics & Admin Observability APIs
 // ----------------------------------------------------------------------------
 
 export async function getProjectAnalyticsApi(
@@ -576,6 +695,36 @@ export async function getGlobalAnalyticsApi(): Promise<GlobalAnalyticsResponse> 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to fetch global analytics.");
+  }
+  return await res.json();
+}
+
+export async function getRecentActivityApi(params?: {
+  projectId?: string;
+  limit?: number;
+}): Promise<RecentActivityItem[]> {
+  const query = new URLSearchParams();
+  if (params?.projectId) query.append("project_id", params.projectId);
+  if (params?.limit) query.append("limit", String(params.limit));
+  const queryString = query.toString() ? `?${query.toString()}` : "";
+  const res = await fetchWithTimeout(`${API_BASE_URL}/analytics/activity/recent${queryString}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch recent activity.");
+  }
+  return await res.json();
+}
+
+export async function getGlobalRecommendationsApi(params?: {
+  projectId?: string;
+}): Promise<GlobalRecommendationItem[]> {
+  const query = new URLSearchParams();
+  if (params?.projectId) query.append("project_id", params.projectId);
+  const queryString = query.toString() ? `?${query.toString()}` : "";
+  const res = await fetchWithTimeout(`${API_BASE_URL}/analytics/recommendations/global${queryString}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch global recommendations.");
   }
   return await res.json();
 }
@@ -694,4 +843,218 @@ export async function runAdminEvaluationsApi(): Promise<AIEvaluationSummaryRespo
   return await res.json();
 }
 
+// ----------------------------------------------------------------------------
+// Flashcards
+// ----------------------------------------------------------------------------
+
+export async function generateFlashcardsApi(
+  projectId: string,
+  payload: FlashcardGenerateRequest
+): Promise<FlashcardGenerateResponse> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/projects/${projectId}/flashcards/generate`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    30000
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to generate flashcards.");
+  }
+  return await res.json();
+}
+
+export async function listFlashcardsApi(projectId: string): Promise<Flashcard[]> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/projects/${projectId}/flashcards`
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to list flashcards.");
+  }
+  return await res.json();
+}
+
+export async function getDueFlashcardsApi(
+  projectId: string,
+  limit: number = 10,
+  conceptId?: string
+): Promise<Flashcard[]> {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (conceptId) query.set("concept_id", conceptId);
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/projects/${projectId}/flashcards/due?${query.toString()}`
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch due flashcards.");
+  }
+  return await res.json();
+}
+
+export async function getDueFlashcardsSummaryApi(
+  projectId: string
+): Promise<DueFlashcardsSummary> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/projects/${projectId}/flashcards/due/summary`
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch due summary.");
+  }
+  return await res.json();
+}
+
+export async function reviewFlashcardSpacedApi(
+  projectId: string,
+  flashcardId: string,
+  rating: FlashcardRating,
+  idempotencyKey?: string
+): Promise<FlashcardReviewResponse> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/projects/${projectId}/flashcards/${flashcardId}/review`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        rating,
+        idempotency_key: idempotencyKey,
+      }),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to submit spaced repetition review.");
+  }
+  return await res.json();
+}
+
+export async function recordFlashcardSessionApi(
+  projectId: string,
+  eventType: "flashcard_session_started" | "flashcard_session_completed",
+  payload: Record<string, any> = {}
+): Promise<void> {
+  const endpoint =
+    eventType === "flashcard_session_started"
+      ? "session/start"
+      : "session/complete";
+  await fetchWithTimeout(
+    `${API_BASE_URL}/projects/${projectId}/flashcards/${endpoint}`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  ).catch(() => {});
+}
+
+export async function getFlashcardApi(
+  projectId: string,
+  flashcardId: string
+): Promise<Flashcard> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/projects/${projectId}/flashcards/${flashcardId}`
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Flashcard not found.");
+  }
+  return await res.json();
+}
+
+export async function reviewFlashcardApi(
+  projectId: string,
+  flashcardId: string,
+  action: "known" | "difficult" | "reset"
+): Promise<Flashcard> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/projects/${projectId}/flashcards/${flashcardId}/review`,
+    {
+      method: "POST",
+      body: JSON.stringify({ action }),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update flashcard review.");
+  }
+  const data = await res.json();
+  // Compatible with FlashcardReviewResponse structure
+  return data.flashcard || data;
+}
+
+export async function deleteFlashcardApi(
+  projectId: string,
+  flashcardId: string
+): Promise<void> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/projects/${projectId}/flashcards/${flashcardId}`,
+    { method: "DELETE" }
+  );
+  if (!res.ok && res.status !== 204) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to delete flashcard.");
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Personalized Learning Plans APIs
+// ----------------------------------------------------------------------------
+
+export async function getLearningPlanApi(projectId: string): Promise<LearningPlan | null> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/projects/${projectId}/learning-plan`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch learning plan.");
+  }
+  return await res.json();
+}
+
+export async function generateLearningPlanApi(
+  projectId: string,
+  forceReorder = false
+): Promise<LearningPlan> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/projects/${projectId}/learning-plan/generate`, {
+    method: "POST",
+    body: JSON.stringify({ force_reorder: forceReorder }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to generate learning plan.");
+  }
+  return await res.json();
+}
+
+export async function updateLearningPlanItemApi(
+  projectId: string,
+  itemId: string,
+  status: LearningPlanItemStatus
+): Promise<LearningPlanItem> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/projects/${projectId}/learning-plan/items/${itemId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update roadmap item.");
+  }
+  return await res.json();
+}
+
+export async function getConceptMilestoneDetailApi(
+  projectId: string,
+  itemId: string
+): Promise<ConceptMilestoneDetail> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/projects/${projectId}/learning-plan/items/${itemId}/detail`
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to fetch milestone detail.");
+  }
+  return await res.json();
+}
 

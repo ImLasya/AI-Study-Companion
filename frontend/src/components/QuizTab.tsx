@@ -1,5 +1,5 @@
 /**
- * QuizTab — Phase 4 Adaptive Quiz & Assessment Interface
+ * QuizTab — Adaptive Quiz & Assessment Interface
  *
  * Features:
  * - Concept inventory display and on-demand extraction
@@ -689,16 +689,23 @@ export const QuizTab: React.FC<QuizTabProps> = ({ projectId }) => {
       )}
 
       {/* Quizzes List Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-white">Adaptive Quizzes</h2>
-          <p className="text-xs text-gray-400">
-            Targeted evaluations calibrated against your personal learning history.
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-white">Adaptive Quizzes</h2>
+            {quizzes.length > 0 && (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-mono bg-purple-500/15 text-purple-300 border border-purple-500/30 font-medium">
+                {quizzes.length} Available Quizzes
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Targeted evaluations calibrated against your personal learning history. Start an attempt to measure mastery.
           </p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-600/20"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-600/20 self-start sm:self-auto"
         >
           <Sparkles className="w-4 h-4" />
           New Adaptive Quiz
@@ -716,13 +723,16 @@ export const QuizTab: React.FC<QuizTabProps> = ({ projectId }) => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span className="font-mono">{new Date(q.created_at).toLocaleDateString()}</span>
-                  <span className="px-2 py-0.5 rounded-full bg-gray-800 text-gray-300 font-medium">
+                  <span className="px-2 py-0.5 rounded-full bg-gray-800 text-gray-300 font-medium text-[11px]">
                     {q.question_count} questions
                   </span>
                 </div>
                 <h4 className="text-base font-semibold text-white group-hover:text-indigo-300 transition-colors">
                   {q.title}
                 </h4>
+                <p className="text-[11px] text-slate-400">
+                  Available Quiz • Targeted Assessment
+                </p>
               </div>
 
               <button
@@ -741,7 +751,7 @@ export const QuizTab: React.FC<QuizTabProps> = ({ projectId }) => {
           </div>
           <h3 className="text-base font-bold text-white">No Quizzes Generated Yet</h3>
           <p className="text-xs text-gray-400 mt-2 max-w-sm">
-            Generate an adaptive quiz to assess your grasp of neural architectures and key concepts from your learning material.
+            Generate an adaptive quiz to evaluate your understanding of core concepts from your learning materials.
           </p>
           <button
             onClick={() => setShowCreateModal(true)}

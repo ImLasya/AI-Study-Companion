@@ -28,6 +28,9 @@ class Material(Base):
     status: Mapped[str] = mapped_column(String(50), default="queued", index=True, nullable=False)
     failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),

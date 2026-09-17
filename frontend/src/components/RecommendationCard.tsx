@@ -1,5 +1,5 @@
 /**
- * RecommendationCard — Phase 5 Actionable Guidance Card
+ * RecommendationCard — Actionable Guidance Card
  *
  * Displays targeted next steps with transparent reasoning ("Why am I seeing this?")
  * and dismiss capabilities.
@@ -67,7 +67,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
         return {
           label: "Study Source Material",
           icon: <Lightbulb className="w-3.5 h-3.5" />,
-          color: "bg-amber-900/40 text-amber-300 border-amber-700/50",
+          color: "bg-indigo-900/40 text-indigo-300 border-indigo-700/50",
         };
       case "explore_topic":
         return {

@@ -13,10 +13,19 @@ const config: Config = {
         border: "var(--border)",
         card: "var(--card)",
         "card-foreground": "var(--card-foreground)",
+        navy: {
+          950: "#070a13",
+          900: "#0b1220",
+          850: "#0e172a",
+          800: "#131f38",
+          750: "#182644",
+          700: "#1e293b",
+        },
         primary: {
-          DEFAULT: "#4f46e5",
+          DEFAULT: "#6366f1",
           foreground: "#ffffff",
-          hover: "#4338ca",
+          hover: "#4f46e5",
+          light: "#818cf8",
         },
         secondary: {
           DEFAULT: "#0ea5e9",
@@ -36,7 +45,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
       },
     },
   },

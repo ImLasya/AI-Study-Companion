@@ -6,7 +6,8 @@ and retrieving multi-turn study session threads.
 
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -44,6 +45,37 @@ async def ask_tutor(
         user_id=current_user.id,
         project_id=project_id,
         payload=payload,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/tutor/stream",
+    status_code=status.HTTP_200_OK,
+    summary="Stream AI Tutor answer grounded in project materials via SSE",
+)
+async def ask_tutor_stream(
+    project_id: uuid.UUID,
+    payload: TutorRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Stream a grounded tutor response token-by-token using Server-Sent Events (SSE)."""
+    service = TutorService(db)
+    event_generator = service.ask_stream(
+        user_id=current_user.id,
+        project_id=project_id,
+        payload=payload,
+        request=request,
+    )
+    return StreamingResponse(
+        event_generator,
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

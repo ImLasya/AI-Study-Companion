@@ -6,11 +6,37 @@ Enforces strict tenant isolation: all user-facing queries must filter by both en
 import uuid
 from datetime import UTC, datetime
 
+from langsmith import traceable
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.models.chunk import MaterialChunk
 from app.models.material import Material
+
+
+def _safe_store_chunks_inputs(inputs: dict) -> dict:
+    chunks_data = inputs.get("chunks_data", [])
+    return {
+        "material_id": str(inputs.get("material_id", "")),
+        "project_id": str(inputs.get("project_id", "")),
+        "chunk_count": len(chunks_data),
+        "index_target": "ix_material_chunks_embedding_hnsw",
+        "index_type": "HNSW",
+        "distance_metric": "cosine",
+        "vector_dimension": settings.EMBEDDING_DIMENSION,
+    }
+
+
+def _safe_store_chunks_outputs(result: list[MaterialChunk]) -> dict:
+    return {
+        "inserted_count": len(result),
+        "index_target": "ix_material_chunks_embedding_hnsw",
+        "index_type": "HNSW",
+        "distance_metric": "cosine",
+        "vector_dimension": settings.EMBEDDING_DIMENSION,
+        "status": "success",
+    }
 
 
 class MaterialRepository:
@@ -45,8 +71,8 @@ class MaterialRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def has_ready_materials(self, user_id: uuid.UUID, project_id: uuid.UUID) -> bool:
-        """Check if a project has at least one material with status='ready', scoped to user."""
+    async def count_ready_materials(self, user_id: uuid.UUID, project_id: uuid.UUID) -> int:
+        """Count the number of materials with status='ready' for a project, scoped to user."""
         stmt = (
             select(func.count())
             .select_from(Material)
@@ -57,7 +83,11 @@ class MaterialRepository:
             )
         )
         result = await self.session.execute(stmt)
-        count = result.scalar_one()
+        return int(result.scalar_one())
+
+    async def has_ready_materials(self, user_id: uuid.UUID, project_id: uuid.UUID) -> bool:
+        """Check if a project has at least one material with status='ready', scoped to user."""
+        count = await self.count_ready_materials(user_id=user_id, project_id=project_id)
         return count > 0
 
     async def get_by_id_internal(self, material_id: uuid.UUID) -> Material | None:
@@ -97,6 +127,8 @@ class MaterialRepository:
         status: str,
         failure_reason: str | None = None,
         page_count: int | None = None,
+        retry_count: int | None = None,
+        completed_at: datetime | None = None,
     ) -> Material | None:
         """Update processing status, failure reason, and page count."""
         stmt = select(Material).where(Material.id == material_id)
@@ -107,14 +139,26 @@ class MaterialRepository:
 
         material.status = status
         material.failure_reason = failure_reason
+        if failure_reason:
+            material.last_error = failure_reason
         if page_count is not None:
             material.page_count = page_count
+        if retry_count is not None:
+            material.retry_count = retry_count
+        if status == "ready":
+            material.completed_at = completed_at or datetime.now(UTC)
         material.updated_at = datetime.now(UTC)
 
         await self.session.commit()
         await self.session.refresh(material)
         return material
 
+    @traceable(
+        name="Store Chunks",
+        run_type="chain",
+        process_inputs=_safe_store_chunks_inputs,
+        process_outputs=_safe_store_chunks_outputs,
+    )
     async def replace_chunks(
         self,
         material_id: uuid.UUID,
@@ -140,6 +184,8 @@ class MaterialRepository:
                 page_number=chunk["page_number"],
                 embedding=chunk["embedding"],
                 chunk_index=chunk["chunk_index"],
+                section_heading=chunk.get("section_heading"),
+                content_type=chunk.get("content_type", "paragraph"),
                 created_at=datetime.now(UTC),
             )
             for chunk in chunks_data
