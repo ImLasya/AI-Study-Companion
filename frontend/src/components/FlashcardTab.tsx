@@ -142,24 +142,17 @@ const TodayReviewWidget: React.FC<TodayReviewWidgetProps> = ({
   const readyToStudy = dueCount + newCount;
 
   return (
-    <div
-      className="rounded-2xl p-6 border border-slate-700/60 mb-8 relative overflow-hidden"
-      style={{
-        background:
-          "linear-gradient(135deg, rgba(30, 27, 75, 0.45) 0%, rgba(15, 23, 42, 0.85) 100%)",
-        boxShadow: "0 10px 30px rgba(0, 0, 0, 0.25)",
-      }}
-    >
+    <div className="rounded-2xl p-6 border border-border bg-surface shadow-sm mb-8 relative overflow-hidden">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <Calendar className="w-5 h-5 text-indigo-400" />
-            <h3 className="font-semibold text-white text-lg">Today's Review</h3>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium">
+            <Calendar className="w-5 h-5 text-accent" />
+            <h3 className="font-semibold text-text-primary text-lg">Today's Review</h3>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/25 font-semibold">
               Spaced Repetition
             </span>
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-text-secondary">
             Lightweight SM-2 scheduler prioritizes overdue items and newly grounded concepts.
           </p>
         </div>
@@ -170,7 +163,7 @@ const TodayReviewWidget: React.FC<TodayReviewWidgetProps> = ({
             <select
               value={selectedConceptId || ""}
               onChange={(e) => onSelectConcept(e.target.value || null)}
-              className="h-10 bg-slate-800/90 border border-slate-700 rounded-xl px-3 text-xs text-slate-300 focus:outline-none focus:border-indigo-500"
+              className="h-10 bg-surface-muted border border-border rounded-xl px-3 text-xs text-text-primary focus:outline-none focus:border-accent"
             >
               <option value="">All Concepts</option>
               {concepts.map((c) => (
@@ -185,7 +178,7 @@ const TodayReviewWidget: React.FC<TodayReviewWidgetProps> = ({
             id="start-spaced-review-btn"
             onClick={onStartReview}
             disabled={readyToStudy === 0 || loadingSummary}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-slate-800 disabled:to-slate-800 text-white font-medium text-sm transition-all duration-200 shadow-lg shadow-indigo-500/20 disabled:shadow-none disabled:text-slate-500 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent hover:bg-accent-hover disabled:bg-surface-muted disabled:text-text-muted text-white font-semibold text-sm transition-all shadow-sm disabled:cursor-not-allowed"
           >
             <Play className="w-4 h-4 fill-current" />
             <span>
@@ -198,24 +191,24 @@ const TodayReviewWidget: React.FC<TodayReviewWidgetProps> = ({
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-3 gap-4 mt-6 pt-5 border-t border-slate-800">
-        <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-amber-400">
+      <div className="grid grid-cols-3 gap-4 mt-6 pt-5 border-t border-border">
+        <div className="bg-surface-muted/60 border border-border rounded-xl p-3 text-center">
+          <p className="text-2xl font-bold text-amber-500 dark:text-amber-400 font-mono">
             {loadingSummary ? "–" : dueCount}
           </p>
-          <p className="text-xs text-slate-400 mt-0.5">Due for Review</p>
+          <p className="text-xs text-text-muted mt-0.5">Due for Review</p>
         </div>
-        <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-purple-400">
+        <div className="bg-surface-muted/60 border border-border rounded-xl p-3 text-center">
+          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 font-mono">
             {loadingSummary ? "–" : newCount}
           </p>
-          <p className="text-xs text-slate-400 mt-0.5">New Cards</p>
+          <p className="text-xs text-text-muted mt-0.5">New Cards</p>
         </div>
-        <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-emerald-400">
+        <div className="bg-surface-muted/60 border border-border rounded-xl p-3 text-center">
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
             {loadingSummary ? "–" : completedToday}
           </p>
-          <p className="text-xs text-slate-400 mt-0.5">Completed Today</p>
+          <p className="text-xs text-text-muted mt-0.5">Completed Today</p>
         </div>
       </div>
     </div>
@@ -591,8 +584,7 @@ const CardGrid: React.FC<CardGridProps> = ({
           <div
             key={card.id}
             onClick={() => onStudyCard(card)}
-            className="group relative rounded-2xl p-5 border border-slate-800 bg-slate-900/60 hover:border-indigo-500/40 hover:bg-slate-900/90 transition-all duration-200 cursor-pointer flex flex-col justify-between"
-            style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}
+            className="group relative rounded-2xl p-5 border border-border bg-surface hover:border-accent/50 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between"
           >
             <div>
               {/* Header Badges */}
@@ -604,13 +596,13 @@ const CardGrid: React.FC<CardGridProps> = ({
               </div>
 
               {/* Front Text */}
-              <p className="text-sm font-medium text-white leading-relaxed line-clamp-3 mb-3">
+              <p className="text-sm font-semibold text-text-primary leading-relaxed line-clamp-3 mb-3">
                 {card.front}
               </p>
             </div>
 
             {/* Footer Details */}
-            <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-500">
+            <div className="pt-3 border-t border-border flex items-center justify-between text-xs text-text-muted">
               <div className="flex items-center gap-2">
                 <span>EF: {card.ease_factor?.toFixed(2) ?? "2.50"}</span>
                 <span>·</span>
@@ -618,13 +610,13 @@ const CardGrid: React.FC<CardGridProps> = ({
               </div>
 
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-indigo-400 font-medium hover:underline">Review →</span>
+                <span className="text-accent font-medium hover:underline">Review →</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onDeleteCard(card.id);
                   }}
-                  className="p-1 text-slate-500 hover:text-rose-400 transition-colors ml-1"
+                  className="p-1 text-text-muted hover:text-rose-500 transition-colors ml-1"
                   aria-label="Delete card"
                   title="Delete card"
                 >
@@ -667,17 +659,11 @@ const GeneratePanel: React.FC<GeneratePanelProps> = ({
   };
 
   return (
-    <div
-      className="rounded-2xl p-6 border border-slate-700/60 mb-8"
-      style={{
-        background:
-          "linear-gradient(135deg, rgba(30, 27, 75, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%)",
-      }}
-    >
+    <div className="rounded-2xl p-6 border border-border bg-surface shadow-sm mb-8">
       <div className="flex items-center gap-2 mb-5">
-        <Sparkles className="w-5 h-5 text-indigo-400" />
-        <h3 className="font-semibold text-white">Generate Grounded Flashcards</h3>
-        <span className="text-xs text-slate-500 ml-auto hidden sm:inline">
+        <Sparkles className="w-5 h-5 text-accent" />
+        <h3 className="font-semibold text-text-primary">Generate Grounded Flashcards</h3>
+        <span className="text-xs text-text-muted ml-auto hidden sm:inline">
           Server-verified pgvector citations
         </span>
       </div>
@@ -685,20 +671,20 @@ const GeneratePanel: React.FC<GeneratePanelProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         {/* Count */}
         <div>
-          <label className="text-xs font-medium text-slate-400 mb-2 block">
+          <label className="text-xs font-medium text-text-secondary mb-2 block">
             Cards to generate (1–10)
           </label>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCount((c) => Math.max(1, c - 1))}
-              className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition-colors flex items-center justify-center font-bold"
+              className="w-8 h-8 rounded-lg bg-surface-muted border border-border text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center font-bold"
             >
               −
             </button>
-            <span className="w-10 text-center text-white font-semibold">{count}</span>
+            <span className="w-10 text-center text-text-primary font-semibold">{count}</span>
             <button
               onClick={() => setCount((c) => Math.min(10, c + 1))}
-              className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition-colors flex items-center justify-center font-bold"
+              className="w-8 h-8 rounded-lg bg-surface-muted border border-border text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center font-bold"
             >
               +
             </button>
@@ -707,13 +693,13 @@ const GeneratePanel: React.FC<GeneratePanelProps> = ({
 
         {/* Concept filter */}
         <div>
-          <label className="text-xs font-medium text-slate-400 mb-2 block">
+          <label className="text-xs font-medium text-text-secondary mb-2 block">
             Focus on concept (optional)
           </label>
           <select
             value={selectedConceptId || ""}
             onChange={(e) => setSelectedConceptId(e.target.value || null)}
-            className="w-full h-10 bg-slate-800 border border-slate-700 rounded-lg px-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+            className="w-full h-10 bg-surface-muted border border-border rounded-xl px-3 text-sm text-text-primary focus:outline-none focus:border-accent transition-colors"
           >
             <option value="">All concepts</option>
             {concepts.map((c) => (
@@ -726,7 +712,7 @@ const GeneratePanel: React.FC<GeneratePanelProps> = ({
 
         {/* Topic hint */}
         <div>
-          <label className="text-xs font-medium text-slate-400 mb-2 block">
+          <label className="text-xs font-medium text-text-secondary mb-2 block">
             Topic hint (optional)
           </label>
           <input
@@ -735,20 +721,20 @@ const GeneratePanel: React.FC<GeneratePanelProps> = ({
             onChange={(e) => setTopicHint(e.target.value)}
             placeholder="e.g. supervised algorithms"
             maxLength={200}
-            className="w-full h-10 bg-slate-800 border border-slate-700 rounded-lg px-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+            className="w-full h-10 bg-surface-muted border border-border rounded-xl px-3 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent transition-colors"
           />
         </div>
       </div>
 
       {generateError && (
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm mb-4">
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-300 text-sm mb-4">
           <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
           <span>{generateError}</span>
         </div>
       )}
 
       {lastMessage && !generateError && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm mb-4">
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-sm mb-4">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{lastMessage}</span>
         </div>
@@ -758,7 +744,7 @@ const GeneratePanel: React.FC<GeneratePanelProps> = ({
         id="generate-flashcards-btn"
         onClick={handleGenerate}
         disabled={generating}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-indigo-800 disabled:to-purple-800 text-white font-medium text-sm transition-all duration-200 shadow-lg shadow-indigo-500/20 disabled:shadow-none disabled:cursor-not-allowed"
+        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent hover:bg-accent-hover disabled:bg-surface-muted disabled:text-text-muted text-white font-semibold text-sm transition-all shadow-sm disabled:cursor-not-allowed"
       >
         {generating ? (
           <>

@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { ThemeProvider } from "@/lib/theme-context";
 import { PublicLayout } from "@/layouts/PublicLayout";
 import { AuthenticatedLayout } from "@/layouts/AuthenticatedLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -35,8 +36,10 @@ const StatusRoute: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+
         <Routes>
           {/* Public Landing & Authentication Views */}
           <Route element={<PublicLayout />}>
@@ -78,7 +81,9 @@ export const App: React.FC = () => {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+  </ThemeProvider>
   );
 };
+
 
 export default App;

@@ -246,8 +246,8 @@ export const ProjectDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-28 text-slate-400">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-3" />
+      <div className="flex flex-col items-center justify-center py-24 text-text-muted">
+        <Loader2 className="w-8 h-8 animate-spin text-accent mb-3" />
         <p className="text-sm">Loading project workspace...</p>
       </div>
     );
@@ -256,12 +256,12 @@ export const ProjectDetailPage: React.FC = () => {
   if (error || !project) {
     return (
       <div className="max-w-md mx-auto my-16 text-center">
-        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800/40 text-rose-300 text-xs mb-4">
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-300 text-xs mb-4">
           {error || "Project not found"}
         </div>
         <Link
           to="/spaces"
-          className="inline-flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 font-medium"
+          className="inline-flex items-center gap-2 text-xs text-accent hover:text-accent-hover font-medium"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Spaces
         </Link>
@@ -290,33 +290,33 @@ export const ProjectDetailPage: React.FC = () => {
       <div>
         <Link
           to={`/spaces/${project.space_id}`}
-          className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 transition-colors mb-3"
+          className="inline-flex items-center gap-2 text-xs text-text-muted hover:text-text-primary transition-colors mb-3"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Space</span>
         </Link>
 
-        <div className="rounded-2xl border border-[#1e293b] bg-slate-900/60 p-5 sm:p-6 shadow-sm">
+        <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start sm:items-center gap-3.5">
-              <div className="p-2.5 rounded-xl bg-indigo-600/15 text-indigo-400 border border-indigo-500/25 flex-shrink-0">
+              <div className="p-2.5 rounded-xl bg-accent/10 text-accent border border-accent/20 flex-shrink-0">
                 <Target className="w-6 h-6" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-400 font-bold">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-accent font-bold">
                     Project Workspace
                   </span>
-                  <span className="text-slate-600">•</span>
-                  <span className="text-[11px] text-slate-400 font-mono">
+                  <span className="text-text-muted">•</span>
+                  <span className="text-[11px] text-text-muted font-mono">
                     {averageMastery !== null ? `${averageMastery}% Mastery` : "Unassessed"}
                   </span>
                 </div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight mt-0.5">
+                <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight mt-0.5">
                   {project.name}
                 </h1>
                 {project.description && (
-                  <p className="text-xs text-slate-400 mt-1">{project.description}</p>
+                  <p className="text-xs text-text-secondary mt-1">{project.description}</p>
                 )}
               </div>
             </div>
@@ -325,7 +325,7 @@ export const ProjectDetailPage: React.FC = () => {
             <div className="flex items-center gap-2 self-start sm:self-auto">
               <button
                 onClick={() => handleTabChange("tutor")}
-                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors"
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold transition-colors shadow-sm"
               >
                 <Bot className="w-3.5 h-3.5" />
                 <span>Ask AI Tutor</span>
@@ -335,11 +335,11 @@ export const ProjectDetailPage: React.FC = () => {
 
           {/* Learning Goal Banner */}
           {project.learning_goal && (
-            <div className="mt-4 pt-3.5 border-t border-[#1e293b]/80 flex items-start gap-2.5 text-xs">
-              <Sparkles className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+            <div className="mt-4 pt-3.5 border-t border-border flex items-start gap-2.5 text-xs">
+              <Sparkles className="w-4 h-4 text-accent shrink-0 mt-0.5" />
               <div>
-                <span className="font-semibold text-slate-300">Learning Goal: </span>
-                <span className="text-slate-400 italic">"{project.learning_goal}"</span>
+                <span className="font-semibold text-text-primary">Learning Goal: </span>
+                <span className="text-text-secondary italic">"{project.learning_goal}"</span>
               </div>
             </div>
           )}
@@ -351,8 +351,8 @@ export const ProjectDetailPage: React.FC = () => {
       {/* ==================================================================== */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
         {/* Left Sub-Sidebar (3 cols on md / ~220px) */}
-        <div className="md:col-span-3 lg:col-span-3 rounded-2xl border border-[#1e293b] bg-slate-900/60 p-2.5 space-y-1">
-          <div className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500">
+        <div className="md:col-span-3 lg:col-span-3 rounded-2xl border border-border bg-surface p-2.5 space-y-1 shadow-sm">
+          <div className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-text-muted">
             Workspace Nav
           </div>
 
@@ -365,26 +365,26 @@ export const ProjectDetailPage: React.FC = () => {
                 onClick={() => handleTabChange(item.key)}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                   isActive
-                    ? "bg-indigo-600/15 text-indigo-300 border border-indigo-500/30 font-semibold shadow-sm shadow-indigo-950/40"
-                    : "text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent"
+                    ? "bg-accent-soft text-accent border border-accent/30 font-semibold shadow-sm"
+                    : "text-text-secondary hover:text-text-primary hover:bg-surface-muted border border-transparent"
                 }`}
               >
                 <div className="flex items-center gap-2.5">
                   <Icon
                     className={`w-4 h-4 ${
-                      isActive ? "text-indigo-400" : "text-slate-500"
+                      isActive ? "text-accent" : "text-text-muted"
                     }`}
                   />
                   <span>{item.label}</span>
                 </div>
 
                 {item.key === "materials" && materials.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-accent/15 text-accent border border-accent/25">
                     {materials.length}
                   </span>
                 )}
                 {item.key === "quiz" && quizzes.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/25">
                     {quizzes.length}
                   </span>
                 )}
@@ -403,65 +403,65 @@ export const ProjectDetailPage: React.FC = () => {
               {/* Row 1: Project Overview KPIs */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Overall Mastery */}
-                <div className="rounded-xl border border-[#1e293b] bg-slate-900/60 p-4">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">
+                <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                  <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider font-mono">
                     Overall Mastery
                   </span>
-                  <div className="mt-2 text-2xl font-bold text-white font-mono">
+                  <div className="mt-2 text-2xl font-bold text-text-primary font-mono">
                     {averageMastery !== null ? `${averageMastery}%` : "—"}
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Assessed progress</p>
+                  <p className="text-[11px] text-text-muted mt-0.5">Assessed progress</p>
                 </div>
 
                 {/* Total Concepts */}
-                <div className="rounded-xl border border-[#1e293b] bg-slate-900/60 p-4">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">
+                <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                  <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider font-mono">
                     Total Concepts
                   </span>
-                  <div className="mt-2 text-2xl font-bold text-indigo-300 font-mono">
+                  <div className="mt-2 text-2xl font-bold text-accent font-mono">
                     {totalConceptsCount}
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Extracted from notes</p>
+                  <p className="text-[11px] text-text-muted mt-0.5">Extracted from notes</p>
                 </div>
 
                 {/* Completed Concepts */}
-                <div className="rounded-xl border border-[#1e293b] bg-slate-900/60 p-4">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">
+                <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                  <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider font-mono">
                     Completed
                   </span>
-                  <div className="mt-2 text-2xl font-bold text-emerald-400 font-mono">
+                  <div className="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
                     {completedConceptsCount}
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Mastery &ge; 75%</p>
+                  <p className="text-[11px] text-text-muted mt-0.5">Mastery &ge; 70%</p>
                 </div>
 
                 {/* Weak Topics */}
-                <div className="rounded-xl border border-[#1e293b] bg-slate-900/60 p-4">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">
+                <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                  <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider font-mono">
                     Weak Topics
                   </span>
-                  <div className="mt-2 text-2xl font-bold text-amber-400 font-mono">
+                  <div className="mt-2 text-2xl font-bold text-amber-500 dark:text-amber-400 font-mono">
                     {weakTopicsCount}
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Needs practice</p>
+                  <p className="text-[11px] text-text-muted mt-0.5">Needs practice</p>
                 </div>
               </div>
 
               {/* Continue Learning Action Card */}
               {recommendations.length > 0 && (
-                <div className="p-4 rounded-xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/30 to-purple-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="p-4 rounded-xl border border-accent/25 bg-accent-soft/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+                    <div className="p-2 rounded-xl bg-accent/15 text-accent border border-accent/25">
                       <Sparkles className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="text-[10px] font-mono text-indigo-300 uppercase font-bold tracking-wider">
+                      <span className="text-[10px] font-mono text-accent uppercase font-bold tracking-wider">
                         Continue Learning
                       </span>
-                      <h4 className="text-xs sm:text-sm font-semibold text-white mt-0.5">
+                      <h4 className="text-xs sm:text-sm font-semibold text-text-primary mt-0.5">
                         Your next recommended action: Review {recommendations[0].target_concept_name || recommendations[0].title}
                       </h4>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
+                      <p className="text-[11px] text-text-secondary mt-0.5">
                         {recommendations[0].reasoning || recommendations[0].body || "Based on your latest assessment"}
                       </p>
                     </div>
@@ -469,7 +469,7 @@ export const ProjectDetailPage: React.FC = () => {
 
                   <button
                     onClick={() => handleTabChange("quiz")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold self-start sm:self-auto transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold self-start sm:self-auto transition-colors shadow-sm"
                   >
                     <span>Start Practice</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -478,17 +478,17 @@ export const ProjectDetailPage: React.FC = () => {
               )}
 
               {/* Advisory Learning Insights (Background Intelligence) */}
-              <div className="p-4 rounded-xl border border-indigo-500/20 bg-slate-900/60 space-y-3">
+              <div className="p-4 rounded-xl border border-border bg-surface space-y-3 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/20">
                       <Lightbulb className="w-4 h-4" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+                      <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider font-mono">
                         Advisory Learning Insights
                       </h4>
-                      <p className="text-[11px] text-slate-400">
+                      <p className="text-[11px] text-text-secondary">
                         Observations &amp; study suggestions based on your practice
                       </p>
                     </div>
@@ -497,7 +497,7 @@ export const ProjectDetailPage: React.FC = () => {
                   <button
                     onClick={handleRefreshInsights}
                     disabled={refreshingInsights}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-surface-muted hover:bg-surface text-text-secondary hover:text-text-primary border border-border transition-colors disabled:opacity-50"
                   >
                     <RotateCw className={`w-3 h-3 ${refreshingInsights ? "animate-spin" : ""}`} />
                     <span>Refresh</span>
@@ -505,28 +505,28 @@ export const ProjectDetailPage: React.FC = () => {
                 </div>
 
                 {insights.length === 0 ? (
-                  <div className="py-4 text-center text-slate-500 text-xs">
+                  <div className="py-4 text-center text-text-muted text-xs">
                     No learning insights generated yet. Complete quizzes or ask the AI Tutor to generate personalized study patterns!
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                     {insights.slice(0, 4).map((ins) => {
-                      let badgeColor = "bg-indigo-500/10 text-indigo-300 border-indigo-500/20";
+                      let badgeColor = "bg-accent/10 text-accent border-accent/20";
                       if (ins.insight_type === "repeated_mistake") {
-                        badgeColor = "bg-rose-500/10 text-rose-300 border-rose-500/20";
+                        badgeColor = "bg-rose-500/10 text-rose-600 dark:text-rose-300 border-rose-500/20";
                       } else if (ins.insight_type === "weak_concept") {
-                        badgeColor = "bg-amber-500/10 text-amber-300 border-amber-500/20";
+                        badgeColor = "bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/20";
                       } else if (ins.insight_type === "improving_concept") {
-                        badgeColor = "bg-emerald-500/10 text-emerald-300 border-emerald-500/20";
+                        badgeColor = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border-emerald-500/20";
                       }
 
                       return (
                         <div
                           key={ins.id}
-                          className="p-3 rounded-lg bg-slate-950/50 border border-slate-800 space-y-1.5"
+                          className="p-3 rounded-xl bg-surface-muted/60 border border-border space-y-1.5"
                         >
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-slate-100 truncate pr-2">
+                            <span className="text-xs font-semibold text-text-primary truncate pr-2">
                               {ins.title}
                             </span>
                             <span
@@ -535,7 +535,7 @@ export const ProjectDetailPage: React.FC = () => {
                               {ins.insight_type.replace("_", " ")}
                             </span>
                           </div>
-                          <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                          <p className="text-[11px] text-text-secondary line-clamp-2 leading-relaxed">
                             {ins.content}
                           </p>
                         </div>
@@ -546,17 +546,17 @@ export const ProjectDetailPage: React.FC = () => {
               </div>
 
               {/* Key Concepts List */}
-              <div className="rounded-2xl border border-[#1e293b] bg-slate-900/50 p-5">
-                <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#1e293b]">
+              <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
                   <div className="flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-indigo-400" />
-                    <h3 className="text-sm font-bold text-white tracking-tight">
+                    <Layers className="w-4 h-4 text-accent" />
+                    <h3 className="text-sm font-bold text-text-primary tracking-tight">
                       Key Concepts ({masteryData?.masteries?.length || concepts.length})
                     </h3>
                   </div>
                   <button
                     onClick={() => handleTabChange("growth")}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1"
+                    className="text-xs text-accent hover:text-accent-hover font-medium inline-flex items-center gap-1"
                   >
                     <span>Growth Analysis</span>
                     <ArrowRight className="w-3 h-3" />
@@ -564,7 +564,7 @@ export const ProjectDetailPage: React.FC = () => {
                 </div>
 
                 {(!masteryData || masteryData.masteries.length === 0) && concepts.length === 0 ? (
-                  <div className="py-8 text-center text-slate-500 text-xs">
+                  <div className="py-8 text-center text-text-muted text-xs">
                     No concepts extracted yet. Upload materials in the Materials tab to begin.
                   </div>
                 ) : (
@@ -578,51 +578,51 @@ export const ProjectDetailPage: React.FC = () => {
                       const isNeedsPractice = score !== null && score < 50 && !isLowEvidence;
 
                       let statusLabel = "Not Yet Assessed";
-                      let badgeClass = "bg-slate-800 text-slate-400 border-slate-700";
-                      let barColor = "bg-slate-700";
+                      let badgeClass = "bg-surface-muted text-text-muted border-border";
+                      let barColor = "bg-slate-300 dark:bg-slate-700";
 
                       if (!hasEvidence || score === null) {
                         statusLabel = "Not Yet Assessed";
-                        badgeClass = "bg-slate-800 text-slate-400 border-slate-700";
-                        barColor = "bg-slate-700";
+                        badgeClass = "bg-surface-muted text-text-muted border-border";
+                        barColor = "bg-slate-300 dark:bg-slate-700";
                       } else if (isLowEvidence) {
                         statusLabel = "Early Evidence";
-                        badgeClass = "bg-blue-500/10 text-blue-300 border-blue-500/20";
+                        badgeClass = "bg-blue-500/10 text-blue-600 dark:text-blue-300 border-blue-500/20";
                         barColor = "bg-blue-500";
                       } else if (isNeedsPractice) {
                         statusLabel = "Needs Practice";
-                        badgeClass = "bg-amber-500/10 text-amber-300 border-amber-500/20";
+                        badgeClass = "bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/20";
                         barColor = "bg-amber-500";
                       } else if (isBuilding) {
                         statusLabel = "Building Understanding";
-                        badgeClass = "bg-sky-500/10 text-sky-300 border-sky-500/20";
+                        badgeClass = "bg-sky-500/10 text-sky-600 dark:text-sky-300 border-sky-500/20";
                         barColor = "bg-sky-500";
                       } else if (isMastered) {
                         statusLabel = "Mastered";
-                        badgeClass = "bg-emerald-500/10 text-emerald-300 border-emerald-500/20";
+                        badgeClass = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border-emerald-500/20";
                         barColor = "bg-emerald-500";
                       }
 
                       return (
                         <div
                           key={c.concept_id}
-                          className="p-3 rounded-xl bg-slate-950/60 border border-[#1e293b] space-y-1.5"
+                          className="p-3 rounded-xl bg-surface-muted/60 border border-border space-y-1.5"
                         >
                           <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-white truncate mr-2">
+                            <span className="font-semibold text-text-primary truncate mr-2">
                               {c.concept_name}
                             </span>
                             <div className="flex items-center gap-2">
                               <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${badgeClass}`}>
                                 {statusLabel}
                               </span>
-                              <span className="font-mono text-slate-300 font-bold w-12 text-right">
+                              <span className="font-mono text-text-primary font-bold w-12 text-right">
                                 {score !== null ? `${score}%` : "—"}
                               </span>
                             </div>
                           </div>
 
-                          <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                          <div className="w-full h-1.5 bg-surface-muted rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all duration-500 ${barColor}`}
                               style={{ width: `${score !== null ? score : 0}%` }}
@@ -652,8 +652,8 @@ export const ProjectDetailPage: React.FC = () => {
                 onDrop={handleDrop}
                 className={`rounded-2xl border-2 border-dashed transition-all p-8 text-center flex flex-col items-center justify-center cursor-pointer ${
                   dragOver
-                    ? "border-indigo-500 bg-indigo-500/10"
-                    : "border-[#1e293b] bg-slate-900/30 hover:border-slate-700 hover:bg-slate-900/50"
+                    ? "border-accent bg-accent/10"
+                    : "border-border bg-surface-muted/30 hover:border-accent/50 hover:bg-surface-muted/60"
                 }`}
                 onClick={() => fileInputRef.current?.click()}
               >
@@ -668,24 +668,24 @@ export const ProjectDetailPage: React.FC = () => {
                   accept=".pdf,application/pdf"
                   className="hidden"
                 />
-                <div className="p-3.5 rounded-2xl bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 mb-3">
+                <div className="p-3.5 rounded-2xl bg-accent/10 text-accent border border-accent/20 mb-3">
                   {uploading ? (
-                    <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
+                    <Loader2 className="w-6 h-6 animate-spin text-accent" />
                   ) : (
                     <UploadCloud className="w-6 h-6" />
                   )}
                 </div>
-                <h3 className="text-sm font-semibold text-white">
+                <h3 className="text-sm font-semibold text-text-primary">
                   {uploading ? "Uploading PDF document..." : "Click or drag & drop PDF to upload"}
                 </h3>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                <p className="text-xs text-text-secondary mt-1 max-w-sm">
                   Upload textbook chapters, notes, or lecture slides (PDF up to 20MB).
                   Background OCR, chunking, and pgvector vectorization happen automatically.
                 </p>
               </div>
 
               {uploadError && (
-                <div className="flex items-center gap-2 p-3.5 rounded-xl bg-rose-950/40 border border-rose-800/40 text-rose-300 text-xs">
+                <div className="flex items-center gap-2 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-300 text-xs">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   <span>{uploadError}</span>
                 </div>
@@ -694,26 +694,26 @@ export const ProjectDetailPage: React.FC = () => {
               {/* Materials List */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-white tracking-tight">
+                  <h3 className="text-sm font-semibold text-text-primary tracking-tight">
                     Uploaded Learning Materials
                   </h3>
                   {materials.some((m) => m.status === "queued" || m.status === "processing") && (
-                    <span className="flex items-center gap-1.5 text-[11px] font-mono text-indigo-400">
+                    <span className="flex items-center gap-1.5 text-[11px] font-mono text-accent">
                       <Loader2 className="w-3 h-3 animate-spin" /> Processing document...
                     </span>
                   )}
                 </div>
 
                 {materialsLoading && materials.length === 0 ? (
-                  <div className="flex items-center justify-center py-12 text-slate-500 text-xs">
-                    <Loader2 className="w-5 h-5 animate-spin mr-2 text-indigo-500" />
+                  <div className="flex items-center justify-center py-12 text-text-muted text-xs">
+                    <Loader2 className="w-5 h-5 animate-spin mr-2 text-accent" />
                     Loading materials...
                   </div>
                 ) : materials.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[#1e293b] bg-slate-950/40 p-10 text-center flex flex-col items-center justify-center">
-                    <File className="w-8 h-8 text-slate-600 mb-2" />
-                    <p className="text-xs text-slate-400 font-medium">No materials uploaded yet</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
+                  <div className="rounded-2xl border border-dashed border-border bg-surface-muted/30 p-10 text-center flex flex-col items-center justify-center">
+                    <File className="w-8 h-8 text-text-muted mb-2" />
+                    <p className="text-xs text-text-secondary font-medium">No materials uploaded yet</p>
+                    <p className="text-[11px] text-text-muted mt-0.5">
                       Upload your first PDF above to enable AI tutoring and RAG search.
                     </p>
                   </div>
@@ -722,18 +722,18 @@ export const ProjectDetailPage: React.FC = () => {
                     {materials.map((m) => (
                       <div
                         key={m.id}
-                        className="rounded-xl border border-[#1e293b] bg-slate-900/50 p-4 transition-all hover:border-slate-700"
+                        className="rounded-xl border border-border bg-surface p-4 transition-all hover:border-accent/40 shadow-sm"
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div className="flex items-start sm:items-center gap-3 min-w-0">
-                            <div className="p-2.5 rounded-xl bg-slate-800/60 text-slate-300 flex-shrink-0">
-                              <FileText className="w-5 h-5 text-indigo-400" />
+                            <div className="p-2.5 rounded-xl bg-accent/10 text-accent border border-accent/20 flex-shrink-0">
+                              <FileText className="w-5 h-5 text-accent" />
                             </div>
                             <div className="min-w-0">
-                              <h4 className="text-sm font-semibold text-white truncate">
+                              <h4 className="text-sm font-semibold text-text-primary truncate">
                                 {m.filename}
                               </h4>
-                              <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-0.5">
+                              <div className="flex items-center gap-3 text-[11px] text-text-muted mt-0.5">
                                 <span>
                                   {m.page_count !== null && m.page_count !== undefined
                                     ? `${m.page_count} page${m.page_count === 1 ? "" : "s"}`
@@ -755,36 +755,36 @@ export const ProjectDetailPage: React.FC = () => {
                           {/* Status Badge & Actions */}
                           <div className="flex items-center gap-2 flex-shrink-0">
                             {m.status === "queued" && (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/10 border border-purple-500/20 text-purple-300">
-                                <Clock className="w-3 h-3 text-purple-400" />
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-300">
+                                <Clock className="w-3 h-3 text-purple-500" />
                                 <span>Queued</span>
                               </span>
                             )}
 
                             {m.status === "processing" && (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
-                                <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-accent/10 border border-accent/20 text-accent">
+                                <Loader2 className="w-3 h-3 animate-spin text-accent" />
                                 <span>Processing...</span>
                               </span>
                             )}
 
                             {m.status === "ready" && (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-300">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
                                 <span>Ready</span>
                               </span>
                             )}
 
                             {m.status === "failed" && (
                               <div className="flex items-center gap-2">
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 border border-rose-500/20 text-rose-300">
-                                  <AlertCircle className="w-3 h-3 text-rose-400" />
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-300">
+                                  <AlertCircle className="w-3 h-3 text-rose-500" />
                                   <span>Failed</span>
                                 </span>
                                 <button
                                   onClick={() => handleRetry(m.id)}
                                   disabled={retryingId === m.id}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-colors disabled:opacity-50"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-surface-muted text-text-secondary hover:text-text-primary border border-border transition-colors disabled:opacity-50"
                                 >
                                   <RotateCw
                                     className={`w-3 h-3 ${

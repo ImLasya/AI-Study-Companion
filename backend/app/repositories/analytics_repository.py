@@ -20,7 +20,6 @@ from app.models.mastery import ConceptMastery
 from app.models.project import Project
 from app.models.quiz import Quiz, QuizAttempt
 from app.models.space import Space
-from app.services.concept_validator import is_valid_academic_concept
 from app.schemas.analytics import (
     AIActivitySummary,
     ConceptTrendItem,
@@ -36,6 +35,7 @@ from app.schemas.analytics import (
     TutorInteractionSummary,
     WeakAreaItem,
 )
+from app.services.concept_validator import is_valid_academic_concept
 
 
 class AnalyticsRepository:
@@ -324,12 +324,13 @@ class AnalyticsRepository:
 
         # Global daily activity for streaks and consistency
         stmt_global_days = (
-            select(distinct(func.date_trunc("day", ActivityEvent.created_at).label("d")))
+            select(func.date_trunc("day", ActivityEvent.created_at).label("d"))
             .where(ActivityEvent.user_id == user_id)
+            .distinct()
             .order_by(text("d DESC"))
         )
         res_g_days = await self.session.execute(stmt_global_days)
-        g_day_set = {row.d.strftime("%Y-%m-%d") for row in res_g_days.fetchall() if row.d}
+        g_day_set = {row[0].strftime("%Y-%m-%d") for row in res_g_days.fetchall() if row[0]}
         g_check = datetime.now(UTC).date()
         if g_check.strftime("%Y-%m-%d") not in g_day_set:
             g_check = g_check - timedelta(days=1)

@@ -90,8 +90,7 @@ const MessageBubble: React.FC<{ turn: ChatTurn }> = ({ turn }) => {
     >
       {/* Avatar */}
       {!isUser && (
-        <div className="shrink-0 w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600
-          flex items-center justify-center shadow-lg shadow-indigo-900/40 mt-0.5">
+        <div className="shrink-0 w-7 h-7 rounded-xl bg-accent text-white flex items-center justify-center shadow-md mt-0.5">
           <Bot className="w-3.5 h-3.5 text-white" />
         </div>
       )}
@@ -101,21 +100,21 @@ const MessageBubble: React.FC<{ turn: ChatTurn }> = ({ turn }) => {
         <div
           className={`rounded-2xl px-4 py-3 text-sm leading-relaxed
             ${isUser
-              ? "bg-indigo-600 text-white rounded-tr-sm shadow-lg shadow-indigo-900/30"
-              : "bg-gray-900/80 border border-gray-800 text-gray-100 rounded-tl-sm shadow-lg"
+              ? "bg-accent text-white rounded-tr-sm shadow-md"
+              : "bg-surface border border-border text-text-primary rounded-tl-sm shadow-sm"
             }
             ${isPending ? "opacity-60" : ""}`}
         >
           {isPending && !turn.content ? (
             <span className="inline-flex items-center gap-2">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
-              <span className="text-gray-400 text-xs">Generating response…</span>
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
+              <span className="text-text-muted text-xs">Generating response…</span>
             </span>
           ) : (
             <div>
               <span className="whitespace-pre-wrap break-words">{turn.content}</span>
               {isPending && (
-                <span className="inline-block w-1.5 h-3.5 ml-1 bg-indigo-400 animate-pulse align-middle" />
+                <span className="inline-block w-1.5 h-3.5 ml-1 bg-accent animate-pulse align-middle" />
               )}
             </div>
           )}
@@ -149,15 +148,15 @@ const ConvSidebarItem: React.FC<{
     onClick={onClick}
     className={`w-full text-left px-3 py-2.5 rounded-xl transition-all border
       ${active
-        ? "bg-indigo-600/15 border-indigo-500/30 text-indigo-200"
-        : "border-transparent hover:bg-gray-800/60 text-gray-400 hover:text-gray-200"
+        ? "bg-accent-soft border-accent/30 text-accent font-semibold shadow-sm"
+        : "border-transparent hover:bg-surface-muted text-text-secondary hover:text-text-primary"
       }`}
   >
     <div className="flex items-start gap-2">
-      <MessageCircle className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${active ? "text-indigo-400" : "text-gray-600"}`} />
+      <MessageCircle className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${active ? "text-accent" : "text-text-muted"}`} />
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium truncate leading-snug">{conv.title}</p>
-        <p className="text-[10px] text-gray-600 mt-0.5 flex items-center gap-1">
+        <p className="text-[10px] text-text-muted mt-0.5 flex items-center gap-1">
           <Clock className="w-2.5 h-2.5" />
           {conv.message_count} messages
         </p>
@@ -419,11 +418,11 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
   // ---------------------------------------------------------------------------
   const EmptyState = () => (
     <div className="flex flex-col items-center justify-center flex-1 px-8 py-16 text-center">
-      <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-600/20 to-violet-600/10 border border-indigo-500/20 mb-5">
-        <Sparkles className="w-8 h-8 text-indigo-400" />
+      <div className="p-4 rounded-2xl bg-accent/10 text-accent border border-accent/20 mb-5">
+        <Sparkles className="w-8 h-8 text-accent" />
       </div>
-      <h3 className="text-base font-bold text-white mb-2">Ask your AI Tutor</h3>
-      <p className="text-xs text-gray-400 max-w-xs leading-relaxed">
+      <h3 className="text-base font-bold text-text-primary mb-2">Ask your AI Tutor</h3>
+      <p className="text-xs text-text-secondary max-w-xs leading-relaxed">
         Answers are strictly grounded in your uploaded learning materials.
         Every response cites the exact page and document used.
       </p>
@@ -436,12 +435,12 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
           <button
             key={prompt}
             onClick={() => setQuestion(prompt)}
-            className="w-full text-left px-3 py-2.5 rounded-xl text-xs text-gray-300
-              bg-gray-900/60 border border-gray-800 hover:bg-gray-800/80 hover:border-gray-700
-              hover:text-white transition-all group"
+            className="w-full text-left px-3 py-2.5 rounded-xl text-xs text-text-secondary
+              bg-surface-muted border border-border hover:bg-surface hover:border-accent/40
+              hover:text-text-primary transition-all group"
           >
             <span className="flex items-center gap-2">
-              <ChevronRight className="w-3 h-3 text-indigo-500 group-hover:translate-x-0.5 transition-transform" />
+              <ChevronRight className="w-3 h-3 text-accent group-hover:translate-x-0.5 transition-transform" />
               {prompt}
             </span>
           </button>
@@ -466,13 +465,13 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
           ${sidebarOpen ? "w-52" : "w-0 overflow-hidden"}`}
       >
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 font-mono">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted font-mono">
             Sessions
           </span>
           <button
             onClick={startNewConversation}
-            className="p-1 rounded-lg bg-indigo-600/10 border border-indigo-500/20 text-indigo-400
-              hover:bg-indigo-600/20 transition-colors"
+            className="p-1 rounded-lg bg-accent/10 border border-accent/20 text-accent
+              hover:bg-accent/20 transition-colors"
             title="New conversation"
           >
             <Plus className="w-3 h-3" />
@@ -481,7 +480,7 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
 
         <div className="flex flex-col gap-1 overflow-y-auto flex-1 pr-0.5 scrollbar-thin">
           {conversations.length === 0 ? (
-            <p className="text-[11px] text-slate-600 px-2 py-3">No sessions yet</p>
+            <p className="text-[11px] text-text-muted px-2 py-3">No sessions yet</p>
           ) : (
             conversations.map((conv) => (
               <ConvSidebarItem
@@ -498,28 +497,28 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
       {/* ------------------------------------------------------------------ */}
       {/* Main chat area                                                        */}
       {/* ------------------------------------------------------------------ */}
-      <div className="flex flex-col flex-1 rounded-2xl border border-[#1e293b] bg-slate-950/60 overflow-hidden">
+      <div className="flex flex-col flex-1 rounded-2xl border border-border bg-surface shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e293b]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSidebarOpen((o) => !o)}
-              className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-surface-muted text-text-muted hover:text-text-primary transition-colors"
               title="Toggle sessions sidebar"
             >
               <MessageCircle className="w-4 h-4" />
             </button>
-            <div className="w-px h-4 bg-[#1e293b]" />
-            <Bot className="w-4 h-4 text-indigo-400" />
-            <span className="text-sm font-semibold text-white">AI Tutor</span>
+            <div className="w-px h-4 bg-border" />
+            <Bot className="w-4 h-4 text-accent" />
+            <span className="text-sm font-semibold text-text-primary">AI Tutor</span>
             {activeConvId && (
-              <span className="text-[10px] text-slate-500 font-mono">
+              <span className="text-[10px] text-text-muted font-mono">
                 #{activeConvId.slice(0, 8)}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-            <BookOpen className="w-3 h-3 text-indigo-400" />
+          <div className="flex items-center gap-1.5 text-[10px] text-text-muted">
+            <BookOpen className="w-3 h-3 text-accent" />
             <span>Grounded · pgvector · Gemini</span>
           </div>
         </div>
@@ -528,7 +527,7 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
         <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
           {convLoading ? (
             <div className="flex items-center justify-center flex-1">
-              <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+              <Loader2 className="w-5 h-5 animate-spin text-accent" />
             </div>
           ) : messages.length === 0 ? (
             <EmptyState />
@@ -541,8 +540,8 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
           {/* Error banner */}
           {error && (
             <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl
-              bg-rose-950/30 border border-rose-800/30 text-rose-300 text-xs">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-rose-400" />
+              bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-300 text-xs">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-rose-500" />
               <span>{error}</span>
             </div>
           )}
@@ -551,11 +550,11 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
         </div>
 
         {/* Input area */}
-        <div className="px-4 pb-4 pt-3 border-t border-[#1e293b]">
+        <div className="px-4 pb-4 pt-3 border-t border-border">
           <div className={`flex items-end gap-2.5 rounded-xl border px-3 py-2.5 transition-colors
             ${isOverLimit
-              ? "border-rose-500/40 bg-slate-900/60"
-              : "border-slate-800 bg-slate-900/60 focus-within:border-indigo-500/50"
+              ? "border-rose-500/40 bg-surface-muted"
+              : "border-border bg-surface-muted/60 focus-within:border-accent"
             }`}
           >
             <textarea
@@ -567,13 +566,13 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
               onKeyDown={handleKeyDown}
               placeholder="Ask a question about your learning materials…"
               disabled={submitting}
-              className="flex-1 bg-transparent text-sm text-slate-100 placeholder-slate-500 resize-none
+              className="flex-1 bg-transparent text-sm text-text-primary placeholder-text-muted resize-none
                 outline-none leading-relaxed min-h-[24px] max-h-[160px] disabled:opacity-50"
             />
 
             <div className="flex items-center gap-2 shrink-0 pb-0.5">
               {charCount > 0 && (
-                <span className={`text-[10px] font-mono tabular-nums ${isOverLimit ? "text-rose-400" : "text-slate-500"}`}>
+                <span className={`text-[10px] font-mono tabular-nums ${isOverLimit ? "text-rose-500" : "text-text-muted"}`}>
                   {charCount}/{MAX_QUESTION_LENGTH}
                 </span>
               )}
@@ -581,8 +580,8 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
                 <button
                   id="tutor-cancel-btn"
                   onClick={handleCancel}
-                  className="p-2 rounded-lg bg-rose-600/80 text-white hover:bg-rose-500
-                    transition-all hover:shadow-lg hover:shadow-rose-900/40 active:scale-95"
+                  className="p-2 rounded-lg bg-rose-600 text-white hover:bg-rose-500
+                    transition-all active:scale-95"
                   title="Stop generation"
                 >
                   <Square className="w-3.5 h-3.5 fill-current" />
@@ -592,9 +591,9 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
                   id="tutor-send-btn"
                   onClick={handleSend}
                   disabled={!canSend}
-                  className="p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500
+                  className="p-2 rounded-xl bg-accent text-white hover:bg-accent-hover
                     disabled:opacity-40 disabled:cursor-not-allowed transition-all
-                    hover:shadow-lg hover:shadow-indigo-900/40 active:scale-95"
+                    shadow-sm active:scale-95"
                   title="Send (Ctrl+Enter)"
                 >
                   <Send className="w-3.5 h-3.5" />
@@ -602,9 +601,9 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
               )}
             </div>
           </div>
-          <p className="text-[10px] text-slate-500 mt-1.5 px-1">
-            Press <kbd className="px-1 py-0.5 rounded bg-slate-800 text-slate-400 text-[9px]">Ctrl</kbd>+
-            <kbd className="px-1 py-0.5 rounded bg-slate-800 text-slate-400 text-[9px]">Enter</kbd> to send
+          <p className="text-[10px] text-text-muted mt-1.5 px-1">
+            Press <kbd className="px-1 py-0.5 rounded bg-surface-muted text-text-secondary border border-border text-[9px]">Ctrl</kbd>+
+            <kbd className="px-1 py-0.5 rounded bg-surface-muted text-text-secondary border border-border text-[9px]">Enter</kbd> to send
           </p>
         </div>
       </div>
@@ -613,10 +612,10 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
       {/* Right: Sources Panel (as shown in reference)                        */}
       {/* ------------------------------------------------------------------ */}
       {activeCitations.length > 0 && (
-        <aside className="hidden lg:flex flex-col w-56 shrink-0 rounded-2xl border border-[#1e293b] bg-slate-950/60 p-3 space-y-3 overflow-y-auto">
-          <div className="flex items-center justify-between pb-2 border-b border-[#1e293b]">
-            <span className="text-xs font-bold text-white tracking-tight">Sources</span>
-            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-800/40">
+        <aside className="hidden lg:flex flex-col w-56 shrink-0 rounded-2xl border border-border bg-surface p-3 space-y-3 overflow-y-auto shadow-sm">
+          <div className="flex items-center justify-between pb-2 border-b border-border">
+            <span className="text-xs font-bold text-text-primary tracking-tight">Sources</span>
+            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
               Grounded
             </span>
           </div>
@@ -625,13 +624,13 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
             {activeCitations.map((c, idx) => (
               <div
                 key={c.chunk_id || idx}
-                className="p-2.5 rounded-xl bg-slate-900/80 border border-[#1e293b] text-xs space-y-1"
+                className="p-2.5 rounded-xl bg-surface-muted/60 border border-border text-xs space-y-1"
               >
-                <div className="flex items-center gap-1.5 text-indigo-300 font-semibold truncate">
-                  <FileText className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
+                <div className="flex items-center gap-1.5 text-accent font-semibold truncate">
+                  <FileText className="w-3.5 h-3.5 shrink-0 text-accent" />
                   <span className="truncate">{c.filename}</span>
                 </div>
-                <div className="text-[11px] text-slate-400 font-mono">
+                <div className="text-[11px] text-text-muted font-mono">
                   Page {c.page_number}
                 </div>
               </div>

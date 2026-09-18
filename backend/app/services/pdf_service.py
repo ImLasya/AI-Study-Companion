@@ -407,10 +407,15 @@ class PDFProcessingService:
         return None
 
     def _classify_content_type(self, text: str) -> str:
-        """Classify chunk content into paragraph, heading, list, or code_block."""
+        """Classify chunk content into paragraph, heading, list, code_block, or toc."""
         lines = [line.strip() for line in text.split("\n") if line.strip()]
         if not lines:
             return "paragraph"
+        # Check for Table of Contents pattern
+        if re.search(r"(?:\.\s*){3,}\d+", text) or re.search(r"(\. ?){4,}", text):
+            return "toc"
+        if any(line.lower() in ("contents", "table of contents", "brief contents", "index") for line in lines[:3]):
+            return "toc"
         if len(lines) == 1 and (lines[0].startswith("#") or (len(lines[0]) <= 80 and not lines[0].endswith("."))):
             return "heading"
         if "```" in text or re.search(r"^\s*(def |class |import |for |while |const |let |function )", text, re.MULTILINE):
@@ -419,6 +424,7 @@ class PDFProcessingService:
         if list_lines >= 2 and (list_lines / len(lines)) >= 0.4:
             return "list"
         return "paragraph"
+
 
 
 pdf_service = PDFProcessingService()

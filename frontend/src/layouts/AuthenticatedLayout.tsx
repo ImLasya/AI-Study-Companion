@@ -7,8 +7,9 @@ export const AuthenticatedLayout: React.FC<{ children?: React.ReactNode }> = ({ 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   return (
-    <div className="bg-[#070a13] text-slate-100 antialiased min-h-screen flex">
+    <div className="bg-background text-text-primary antialiased min-h-screen flex transition-colors duration-200">
       {/* Desktop Sidebar (fixed/static on md+) */}
+
       <div className="hidden md:block w-60 flex-shrink-0 h-screen sticky top-0">
         <Sidebar />
       </div>

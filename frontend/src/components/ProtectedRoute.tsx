@@ -9,15 +9,16 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-4" />
-        <p className="text-sm text-gray-400">Verifying authentication session...</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-background text-text-primary">
+        <Loader2 className="w-8 h-8 text-accent animate-spin mb-4" />
+        <p className="text-sm text-text-muted">Verifying authentication session...</p>
       </div>
     );
   }
 
   if (!user) {
-    return <Navigate to="/signin" replace state={{ from: location }} />;
+    const redirectParam = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/signin?redirect=${redirectParam}`} replace state={{ from: location }} />;
   }
 
   return <>{children}</>;

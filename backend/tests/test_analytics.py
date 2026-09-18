@@ -271,3 +271,167 @@ async def test_analytics_empty_project(client: AsyncClient, db_session: AsyncSes
     assert len(data["quiz_performance_trend"]) == 0
     assert data["current_mastery_distribution"]["overall_average"] is None
     assert data["ai_activity"]["total_calls"] == 0
+
+
+@pytest.mark.asyncio
+async def test_global_analytics_quiz_completion_and_streak(
+    client: AsyncClient, db_session: AsyncSession
+):
+    """Regression test: completing a quiz properly increments quiz counts,
+    updates mastery, computes active days and streak, and excludes in-progress quizzes.
+    """
+    uid_str = uuid.uuid4().hex[:8]
+    signup = await client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": f"streak_user_{uid_str}@example.com",
+            "password": "password123",
+            "full_name": "Streak Learner",
+        },
+    )
+    assert signup.status_code == 201
+    user_id = uuid.UUID(signup.json()["user"]["id"])
+
+    # Space & Project
+    space = Space(name=f"Space {uid_str}", user_id=user_id)
+    db_session.add(space)
+    await db_session.flush()
+
+    project = Project(
+        name=f"Project {uid_str}",
+        learning_goal="Master core concepts",
+        space_id=space.id,
+        user_id=user_id,
+    )
+    db_session.add(project)
+    await db_session.flush()
+
+    # Concept & Mastery
+    concept = Concept(
+        name="Attention Mechanism",
+        description="Transformer attention layers",
+        project_id=project.id,
+        user_id=user_id,
+    )
+    db_session.add(concept)
+    await db_session.flush()
+
+    cm = ConceptMastery(
+        project_id=project.id,
+        user_id=user_id,
+        concept_id=concept.id,
+        mastery_score=85.0,
+        confidence=0.8,
+        evidence_count=1,
+        last_updated_at=datetime.now(UTC),
+    )
+    db_session.add(cm)
+
+    # 1. Create Quiz and completed attempt
+    quiz = Quiz(project_id=project.id, user_id=user_id, title="Attention Quiz")
+    db_session.add(quiz)
+    await db_session.flush()
+
+    comp_attempt = QuizAttempt(
+        quiz_id=quiz.id,
+        user_id=user_id,
+        project_id=project.id,
+        status="completed",
+        score=85.0,
+        total_questions=5,
+        correct_answers=4,
+        started_at=datetime.now(UTC),
+        completed_at=datetime.now(UTC),
+    )
+    # Also add an in-progress attempt that should NOT count as completed
+    in_prog_attempt = QuizAttempt(
+        quiz_id=quiz.id,
+        user_id=user_id,
+        project_id=project.id,
+        status="in_progress",
+        score=0.0,
+        total_questions=5,
+        started_at=datetime.now(UTC),
+    )
+    db_session.add_all([comp_attempt, in_prog_attempt])
+
+    # Activity event for today
+    event = ActivityEvent(
+        user_id=user_id,
+        project_id=project.id,
+        event_type="quiz_completed",
+        payload={"score": 85.0},
+        created_at=datetime.now(UTC),
+    )
+    db_session.add(event)
+    await db_session.commit()
+
+    # Query Global Analytics
+    await client.post(
+        "/api/v1/auth/login",
+        json={"email": f"streak_user_{uid_str}@example.com", "password": "password123"},
+    )
+    resp = await client.get("/api/v1/analytics/global")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    activity = data["total_study_activity"]
+    # Verify completed vs total attempts
+    assert activity["total_quizzes_completed"] == 1, "Should count exactly 1 completed quiz"
+    assert activity["total_quiz_attempts"] == 2, "Should count 2 total attempts"
+    assert activity["active_study_days"] == 1, "Should have 1 active study day"
+    assert activity["review_streak_days"] == 1, "Should have 1 streak day"
+    assert activity["mastered_concepts"] == 1, "Concept with 85% mastery should be mastered"
+    assert activity["weak_concepts_count"] == 0, "No weak concepts"
+
+    # Verify project breakdown
+    assert len(data["projects_by_progress"]) == 1
+    proj_item = data["projects_by_progress"][0]
+    assert proj_item["completed_quiz_attempts"] == 1
+    assert proj_item["total_quiz_attempts"] == 2
+    assert proj_item["average_mastery"] == 85.0
+    assert proj_item["assessed_concepts"] == 1
+
+
+@pytest.mark.asyncio
+async def test_growth_engine_trajectories_and_history():
+    """Verify GrowthEngine deterministic behavior:
+    - 1 assessment (no prior history): delta = 0.0 (cannot fabricate trend)
+    - 2+ historical assessments: delta = current - baseline (real trajectory)
+    """
+    from app.services.growth_engine import SnapshotPoint, classify_concept_growth
+
+    c_id = str(uuid.uuid4())
+    t0 = datetime(2026, 9, 1, 10, 0, tzinfo=UTC)
+    t1 = datetime(2026, 9, 10, 10, 0, tzinfo=UTC)
+
+    # 1. Single assessment: no snapshots prior to current
+    res_single = classify_concept_growth(
+        concept_id=c_id,
+        concept_name="Transformer Architecture",
+        current_score=70.0,
+        evidence_count=1,
+        snapshots=[],
+    )
+    assert res_single.delta == 0.0, "Single assessment must not fabricate a delta"
+    assert res_single.status == "stable"
+    assert res_single.baseline_score == 70.0
+
+    # 2. Multiple assessments: historical baseline = 30.0, current = 80.0
+    snapshots = [
+        SnapshotPoint(mastery_score=30.0, recorded_at=t0),
+        SnapshotPoint(mastery_score=55.0, recorded_at=t1),
+    ]
+    res_multi = classify_concept_growth(
+        concept_id=c_id,
+        concept_name="Transformer Architecture",
+        current_score=80.0,
+        evidence_count=5,
+        snapshots=snapshots,
+    )
+    assert res_multi.baseline_score == 30.0
+    assert res_multi.delta == 50.0, "Delta must equal current_score - baseline_score"
+    assert res_multi.status == "improving"
+    assert len(res_multi.history) == 2
+
+

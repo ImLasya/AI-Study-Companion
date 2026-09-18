@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -9,10 +10,30 @@ const config: Config = {
     extend: {
       colors: {
         background: "var(--background)",
-        foreground: "var(--foreground)",
-        border: "var(--border)",
-        card: "var(--card)",
-        "card-foreground": "var(--card-foreground)",
+        surface: {
+          DEFAULT: "var(--surface)",
+          elevated: "var(--surface-elevated)",
+          muted: "var(--surface-muted)",
+        },
+        text: {
+          primary: "var(--text-primary)",
+          secondary: "var(--text-secondary)",
+          muted: "var(--text-muted)",
+        },
+        border: {
+          DEFAULT: "var(--border)",
+          subtle: "var(--border-subtle)",
+        },
+        accent: {
+          DEFAULT: "var(--accent)",
+          hover: "var(--accent-hover)",
+          soft: "var(--accent-soft)",
+        },
+        card: {
+          DEFAULT: "var(--surface)",
+          foreground: "var(--text-primary)",
+        },
+        foreground: "var(--text-primary)",
         navy: {
           950: "#070a13",
           900: "#0b1220",
@@ -32,15 +53,19 @@ const config: Config = {
           foreground: "#ffffff",
         },
         success: {
-          DEFAULT: "#10b981",
+          DEFAULT: "var(--success)",
           foreground: "#ffffff",
         },
         warning: {
-          DEFAULT: "#f59e0b",
+          DEFAULT: "var(--warning)",
           foreground: "#ffffff",
         },
         danger: {
-          DEFAULT: "#ef4444",
+          DEFAULT: "var(--error)",
+          foreground: "#ffffff",
+        },
+        info: {
+          DEFAULT: "var(--info)",
           foreground: "#ffffff",
         },
       },

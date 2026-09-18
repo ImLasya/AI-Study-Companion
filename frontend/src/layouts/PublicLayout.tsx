@@ -5,8 +5,9 @@ import { PublicFooter } from "@/components/PublicFooter";
 
 export const PublicLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   return (
-    <div className="bg-[#090d16] text-slate-100 antialiased min-h-screen flex flex-col">
+    <div className="bg-background text-text-primary antialiased min-h-screen flex flex-col transition-colors duration-200">
       <PublicHeader />
+
       <main className="flex-1">
         {children || <Outlet />}
       </main>

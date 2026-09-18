@@ -51,6 +51,12 @@ from app.schemas.quiz import (
 )
 from app.services.adaptive_engine import AdaptiveEngine
 from app.services.concept_validator import is_valid_academic_concept, normalize_concept_name
+from app.services.question_validator import (
+    is_toc_or_metadata_chunk,
+    validate_quiz_question_quality,
+)
+from app.services.retrieval_service import RetrievalService
+
 
 
 def normalize_question_text(text: str) -> str:
@@ -271,9 +277,11 @@ class QuizService:
                 detail="No processed material chunks found for concept extraction.",
             )
 
-        # Partition into substantive chunks (skipping promotional / front-matter if possible)
+        # Partition into substantive chunks (skipping promotional / front-matter / TOC if possible)
         substantive_chunks = []
         for c in all_chunks:
+            if is_toc_or_metadata_chunk(c["content"]):
+                continue
             text_lower = c["content"].lower()
             if any(
                 marker in text_lower
@@ -286,6 +294,7 @@ class QuizService:
             ):
                 continue
             substantive_chunks.append(c)
+
 
         if not substantive_chunks:
             substantive_chunks = all_chunks
@@ -429,7 +438,7 @@ class QuizService:
             quiz_count=len(existing_quizzes),
         )
 
-        # 4. Collect supporting chunks for selected concepts with rotation
+        # 4. Semantic Evidence Gathering via RetrievalService with strict anti-TOC filtering
         materials = await self.material_repo.list_by_project(user_id, project_id)
         ready_materials = [m for m in materials if m.status == "ready"]
         all_chunks_dict = {}
@@ -444,41 +453,79 @@ class QuizService:
                     "content": c.content,
                 }
 
-        # Select evidence chunks: target concept sources + rotated general chunks
+        retrieval_service = RetrievalService(self.session)
         evidence_chunks = []
         selected_chunk_ids = set()
+
+
+        # For each selected concept in the adaptive plan, retrieve genuine explanatory body chunks
+        for score in plan.selected_concepts:
+            query = f"{score.concept_name}: {score.rationale}"
+            try:
+                ret_result = await retrieval_service.retrieve_relevant_chunks(
+                    user_id=user_id,
+                    project_id=project_id,
+                    question=query,
+                    top_k=4,
+                )
+                for rc in ret_result.accepted_chunks:
+                    cid_str = str(rc.chunk_id)
+                    if cid_str in selected_chunk_ids:
+                        continue
+                    if is_toc_or_metadata_chunk(rc.content):
+                        logger.info(f"Quiz evidence: skipped TOC/metadata chunk {cid_str} on page {rc.page_number}")
+                        continue
+                    if getattr(rc, "content_type", "") in ("toc", "index", "metadata", "bibliography"):
+                        continue
+                    if len(rc.content.strip()) < 100:
+                        continue
+                    selected_chunk_ids.add(cid_str)
+                    evidence_chunks.append({
+                        "chunk_id": cid_str,
+                        "material_id": str(rc.material_id),
+                        "filename": rc.filename,
+                        "page_number": rc.page_number,
+                        "content": rc.content,
+                    })
+            except Exception as err:
+                logger.warning(f"Error retrieving evidence for concept '{score.concept_name}': {err}")
+
+        # Also inspect source_chunk_ids of valid concepts, keeping only non-TOC substantive chunks
         for score in plan.selected_concepts:
             c_obj = next((c for c in valid_concepts if c.id == score.concept_id), None)
             if c_obj and c_obj.source_chunk_ids:
                 for cid in c_obj.source_chunk_ids:
                     if cid in all_chunks_dict and cid not in selected_chunk_ids:
-                        selected_chunk_ids.add(cid)
-                        evidence_chunks.append(all_chunks_dict[cid])
+                        c_data = all_chunks_dict[cid]
+                        if not is_toc_or_metadata_chunk(c_data["content"]) and len(c_data["content"].strip()) >= 100:
+                            selected_chunk_ids.add(cid)
+                            evidence_chunks.append(c_data)
 
-        # Fill with general chunks if needed (rotating by quiz count to vary context)
+        # Fill with substantive general chunks if needed (rotating by quiz count to vary context)
         chunk_items = list(all_chunks_dict.items())
-        if chunk_items:
+        if chunk_items and len(evidence_chunks) < 6:
             chunk_offset = len(existing_quizzes) % len(chunk_items)
             rotated_chunks = chunk_items[chunk_offset:] + chunk_items[:chunk_offset]
             for cid, c_data in rotated_chunks:
                 if len(evidence_chunks) >= 12:
                     break
                 if cid not in selected_chunk_ids:
-                    selected_chunk_ids.add(cid)
-                    evidence_chunks.append(c_data)
+                    if not is_toc_or_metadata_chunk(c_data["content"]) and len(c_data["content"].strip()) >= 150:
+                        selected_chunk_ids.add(cid)
+                        evidence_chunks.append(c_data)
 
         if not evidence_chunks:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No evidence chunks available to generate quiz questions.",
+                detail="No substantive explanatory evidence chunks available to generate quiz questions.",
             )
 
         # 5. Question Generation via Gemini with Anti-Repetition Guidance
         # Allocate: majority MCQ, at least 1 open-ended if count >= 3
         open_ended_count = 1 if count >= 3 else 0
         mcq_count = count - open_ended_count
-        # Request buffer MCQ in case some generated candidates are duplicates
-        mcq_request_count = mcq_count + (1 if mcq_count >= 2 else 0)
+        # Request buffer MCQs in case some candidates are duplicates or fail quality checks
+        mcq_request_count = mcq_count + (2 if mcq_count >= 2 else 1)
 
         concept_payloads = [
             {"name": s.concept_name, "description": s.rationale} for s in plan.selected_concepts
@@ -550,6 +597,12 @@ class QuizService:
             if not q_text or len(mcq.options) != 4:
                 continue
 
+            # Deterministic question quality check (reject chapter/section/TOC questions)
+            is_valid, reason = validate_quiz_question_quality(q_text, options=mcq.options, concept_name=mcq.concept_name)
+            if not is_valid:
+                logger.warning(f"Quiz generation: rejected low-quality/navigation MCQ: '{q_text}' (Reason: {reason})")
+                continue
+
             # Duplicate prevention check
             if is_duplicate_question(q_text, recent_q_texts + accepted_texts):
                 logger.info(f"Quiz generation: rejected duplicate MCQ: '{q_text}'")
@@ -595,6 +648,12 @@ class QuizService:
             if not q_text:
                 continue
 
+            # Deterministic question quality check (reject chapter/section/TOC questions)
+            is_valid, reason = validate_quiz_question_quality(q_text, options=None, concept_name=oeq.concept_name)
+            if not is_valid:
+                logger.warning(f"Quiz generation: rejected low-quality/navigation Open-Ended: '{q_text}' (Reason: {reason})")
+                continue
+
             # Duplicate prevention check
             if is_duplicate_question(q_text, recent_q_texts + accepted_texts):
                 logger.info(f"Quiz generation: rejected duplicate Open-Ended: '{q_text}'")
@@ -621,9 +680,9 @@ class QuizService:
             )
             accepted_texts.append(q_text)
 
-        # 7. Infinite Variety Fallback:
-        # If generated questions fell short due to duplicate rejection or small material pool,
-        # fill from historical project question pool prioritizing reinforcement & unseen concepts.
+        # 7. Safe Reinforcement & Replenishment:
+        # If generated questions fell short due to duplicate or quality rejection,
+        # first check valid historical project questions prioritizing reinforcement & unseen concepts.
         if len(accepted_questions) < count:
             all_project_questions = await self.quiz_repo.get_all_project_questions(
                 user_id=user_id, project_id=project_id
@@ -663,6 +722,11 @@ class QuizService:
             for fallback_q in pool_to_use:
                 if len(accepted_questions) >= count:
                     break
+                # Strictly validate that historical question is substantive, not TOC navigation
+                is_valid, reason = validate_quiz_question_quality(fallback_q.question_text, fallback_q.options)
+                if not is_valid:
+                    logger.info(f"Quiz fallback: rejected historical question '{fallback_q.question_text}' (Reason: {reason})")
+                    continue
                 accepted_questions.append(
                     {
                         "concept_id": fallback_q.concept_id or default_concept_id,
@@ -677,6 +741,61 @@ class QuizService:
                     }
                 )
                 accepted_texts.append(fallback_q.question_text)
+
+        # If still short of count after historical pool, trigger a focused secondary generation pass
+        if len(accepted_questions) < count:
+            needed_mcqs = count - len(accepted_questions)
+            logger.info(f"Quiz generation: performing secondary replenishment pass for {needed_mcqs} questions.")
+            retry_prompt = build_quiz_generation_prompt(
+                target_concepts=concept_payloads,
+                evidence_chunks=evidence_chunks,
+                target_difficulties=plan.recommended_difficulties,
+                mcq_count=needed_mcqs + 1,
+                open_ended_count=0,
+                recent_questions=recent_q_texts + accepted_texts,
+            )
+            try:
+                retry_output, _ = await provider.generate_structured(
+                    system_instruction=QUIZ_GENERATION_SYSTEM_INSTRUCTION,
+                    user_prompt=retry_prompt,
+                    response_schema=QuizQuestionGenerationOutput,
+                    temperature=0.6,
+                    feature="quiz_generation_replenishment",
+                    tags=["quiz", "replenishment"],
+                    metadata={"project_id": str(project_id)},
+                )
+                for mcq in retry_output.mcq_questions:
+                    if len(accepted_questions) >= count:
+                        break
+                    q_text = mcq.question.strip()
+                    if not q_text or len(mcq.options) != 4:
+                        continue
+                    is_valid, _ = validate_quiz_question_quality(q_text, options=mcq.options, concept_name=mcq.concept_name)
+                    if not is_valid or is_duplicate_question(q_text, recent_q_texts + accepted_texts):
+                        continue
+                    matched_opt = next(
+                        (opt for opt in mcq.options if opt.strip().lower() == mcq.correct_answer.strip().lower()),
+                        mcq.options[0],
+                    )
+                    v_ev = [cid for cid in mcq.evidence_chunk_ids if cid in valid_chunk_ids_set]
+                    if not v_ev and evidence_chunks:
+                        v_ev = [str(evidence_chunks[0]["chunk_id"])]
+                    c_id = concept_lookup.get(mcq.concept_name.strip().lower(), default_concept_id)
+                    accepted_questions.append({
+                        "concept_id": c_id,
+                        "question_type": "mcq",
+                        "question_text": q_text,
+                        "options": mcq.options,
+                        "correct_answer": matched_opt,
+                        "explanation": mcq.explanation.strip(),
+                        "rubric": None,
+                        "difficulty": mcq.difficulty,
+                        "source_chunk_ids": v_ev,
+                    })
+                    accepted_texts.append(q_text)
+            except Exception as retry_err:
+                logger.warning(f"Secondary replenishment generation pass failed: {retry_err}")
+
 
         # Absolute safety check: if still empty
         if not accepted_questions:

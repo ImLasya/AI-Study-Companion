@@ -18,27 +18,47 @@ Rules:
 
 
 QUIZ_GENERATION_SYSTEM_INSTRUCTION = """You are an expert educational assessment creator.
-Your goal is to generate rigorous, fair, and high-quality quiz questions grounded exclusively in the provided learning material chunks.
+Your goal is to generate rigorous, fair, and high-quality academic quiz questions testing substantive subject knowledge, grounded exclusively in the provided learning material chunks.
+
+PRIMARY MANDATE — TEST ACADEMIC SUBJECT KNOWLEDGE:
+Every question MUST test the learner's genuine understanding of the academic subject matter:
+- concepts, principles, and definitions
+- mechanisms and processes
+- relationships and distinctions between ideas
+- reasoning and conceptual comparisons
+- calculations, problem solving, and worked applications
+- interpretation and scenarios
+The question MUST require the student to know the SUBJECT, not merely locate text or citations in the document.
+
+STRICTLY FORBIDDEN — DO NOT TEST DOCUMENT NAVIGATION OR STRUCTURE:
+Never generate questions whose answer is primarily:
+- a chapter number, section number, section title, or page number
+- a table-of-contents entry, heading, or subsection name
+- "where is X discussed?", "which section covers X?", "what is the topic of section X?", "on which page is X?", "in chapter X, what is the topic of section Y?", "according to the table of contents..."
+NEVER provide section numbers, chapter numbers, or page references as multiple-choice options (e.g. "Section 4.2", "Section 4.3"). All distractors must be plausible subject-matter concepts or academic misconceptions.
 
 Rules:
-1. All questions MUST be strictly answerable from the provided <retrieved_evidence>.
-2. Every question must cite the valid chunk id(s) from <retrieved_evidence> that contain the evidence.
+1. All questions MUST be strictly supported by the academic subject knowledge taught in <retrieved_evidence>.
+2. Every question must cite valid chunk id(s) from <retrieved_evidence> that contain the explanatory evidence.
 3. For Multiple Choice Questions (MCQ):
-   - Provide exactly 4 options.
+   - Provide exactly 4 options representing conceptual answers, definitions, calculations, or mechanisms.
    - The correct_answer MUST be the exact verbatim text of one of the 4 options.
-   - All distractors (incorrect options) must be plausible misconceptions, not absurd or obviously false answers.
-   - Provide a clear explanation detailing why the correct answer is right and why the distractors are wrong based on the evidence.
+   - All distractors (incorrect options) must be plausible academic misconceptions, not document section titles or numbers.
+   - Provide a clear explanation detailing why the correct answer is right and why the distractors are wrong based on subject concepts.
 4. For Open-Ended Questions:
-   - Provide a clear, comprehensive expected_answer.
-   - Provide a rubric detailing the specific criteria and key points needed to earn full credit.
-   - Provide an explanation linking the concept to the evidence.
-5. Assign appropriate difficulty levels ('easy', 'medium', 'hard') matching the cognitive depth required.
+   - Provide a clear, comprehensive expected_answer explaining the academic concept.
+   - Provide a rubric detailing the specific conceptual criteria and key points needed to earn full credit.
+   - Provide an explanation linking the concept to the underlying theory/evidence.
+5. Question Variety:
+   - Provide a balanced mixture of question types: conceptual understanding, practical application, calculation/problem-solving, comparison/distinction, and scenario reasoning.
+   - Assign appropriate difficulty levels ('easy', 'medium', 'hard') matching cognitive depth.
 6. Do NOT invent concepts, facts, or citations outside <retrieved_evidence>.
-7. Novelty and Variety (Anti-Repetition):
+7. Anti-Repetition:
    - You MUST NOT repeat, duplicate, or trivially rephrase any question listed in <recent_questions_to_avoid>.
-   - Formulate fresh questions exploring different angles, applications, definitions, trade-offs, mechanisms, and edge cases of the target concepts.
+   - Formulate fresh questions exploring different angles, applications, definitions, trade-offs, and edge cases.
    - Vary question wording, options, scenarios, and difficulty levels across quiz sessions.
 """
+
 
 
 OPEN_ENDED_EVALUATION_SYSTEM_INSTRUCTION = """You are an objective academic evaluator.
@@ -126,6 +146,11 @@ def build_quiz_generation_prompt(
     sections.append(
         "- Each question MUST map to one of the target concepts and cite valid chunk IDs from <retrieved_evidence>."
     )
+    sections.append(
+        "- CRITICAL MANDATE: Every question must test subject knowledge (definitions, concepts, mechanisms, calculations, applications, comparisons, problem solving). "
+        "STRICTLY FORBIDDEN: Do NOT ask about chapter numbers, section numbers, section titles, page numbers, or table-of-contents listings. "
+        "Never use section numbers as options."
+    )
     if recent_questions:
         sections.append(
             "- CRITICAL: Ensure all generated questions test different angles or sub-topics than those in <recent_questions_to_avoid>."
@@ -133,6 +158,7 @@ def build_quiz_generation_prompt(
     sections.append("</generation_requirements>")
 
     return "\n".join(sections)
+
 
 
 def build_open_ended_evaluation_prompt(

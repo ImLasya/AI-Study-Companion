@@ -102,8 +102,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
     const active = isCurrent(path);
     return `relative flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
       active
-        ? "bg-indigo-600/15 text-indigo-200 border border-indigo-500/30 font-semibold shadow-sm shadow-indigo-950/40"
-        : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent"
+        ? "bg-accent-soft text-accent border border-accent/30 font-semibold shadow-sm"
+        : "text-text-secondary hover:text-text-primary hover:bg-surface-muted border border-transparent"
     }`;
   };
 
@@ -111,28 +111,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
     const active = isAdminTabActive(tabKey);
     return `relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
       active
-        ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-semibold shadow-sm shadow-indigo-950/40"
-        : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent"
+        ? "bg-accent-soft text-accent border border-accent/30 font-semibold shadow-sm"
+        : "text-text-secondary hover:text-text-primary hover:bg-surface-muted border border-transparent"
     }`;
   };
 
   return (
-    <aside className="w-60 bg-[#070a13] border-r border-[#1e293b] flex flex-col h-full select-none">
+    <aside className="w-60 bg-surface border-r border-border flex flex-col h-full select-none transition-colors">
       {/* Brand Header */}
-      <div className="p-4 border-b border-[#1e293b] flex items-center justify-between">
+      <div className="p-4 border-b border-border flex items-center justify-between">
         <Link
           to={user?.role === "admin" ? "/admin" : "/dashboard"}
           onClick={onCloseMobile}
           className="flex items-center space-x-3 group"
         >
-          <div className="p-2 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl group-hover:scale-105 transition-transform">
+          <div className="p-2 bg-accent/15 text-accent border border-accent/30 rounded-xl group-hover:scale-105 transition-transform">
             <BookOpen className="w-5 h-5" />
           </div>
           <div>
-            <span className="font-bold text-sm text-white tracking-tight block">
+            <span className="font-bold text-sm text-text-primary tracking-tight block">
               AI Study Companion
             </span>
-            <span className="text-[11px] text-slate-400 font-medium">
+            <span className="text-[11px] text-text-muted font-medium">
               {user?.role === "admin" ? "Admin Workspace" : "Academic Learning Workspace"}
             </span>
           </div>
@@ -140,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
         {onCloseMobile && (
           <button
             onClick={onCloseMobile}
-            className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+            className="md:hidden p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-muted transition-colors"
             aria-label="Close sidebar"
           >
             <X className="w-5 h-5" />
@@ -152,7 +152,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
         {user?.role === "admin" ? (
           <div>
-            <div className="px-3 mb-2 text-[10px] font-semibold text-purple-400/80 uppercase tracking-wider font-mono">
+            <div className="px-3 mb-2 text-[10px] font-semibold text-accent uppercase tracking-wider font-mono">
               Admin & Operations
             </div>
             <nav className="space-y-1">
@@ -176,7 +176,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
           <>
             {/* MAIN */}
             <div>
-              <div className="px-3 mb-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider font-mono">
+              <div className="px-3 mb-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider font-mono">
                 Main
               </div>
               <nav className="space-y-1">
@@ -185,7 +185,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
                   onClick={onCloseMobile}
                   className={navLinkClass("/dashboard")}
                 >
-                  <LayoutDashboard className="w-4 h-4 text-indigo-400" />
+                  <LayoutDashboard className="w-4 h-4 text-accent" />
                   <span>Dashboard</span>
                 </Link>
                 <Link
@@ -193,7 +193,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
                   onClick={onCloseMobile}
                   className={navLinkClass("/spaces")}
                 >
-                  <FolderKanban className="w-4 h-4 text-indigo-400" />
+                  <FolderKanban className="w-4 h-4 text-accent" />
                   <span>Spaces</span>
                 </Link>
               </nav>
@@ -201,7 +201,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
 
             {/* ANALYTICS */}
             <div>
-              <div className="px-3 mb-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider font-mono">
+              <div className="px-3 mb-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider font-mono">
                 Analytics
               </div>
               <nav className="space-y-1">
@@ -210,7 +210,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
                   onClick={onCloseMobile}
                   className={navLinkClass("/analytics")}
                 >
-                  <BarChart3 className="w-4 h-4 text-purple-400" />
+                  <BarChart3 className="w-4 h-4 text-accent" />
                   <span>Global Analytics</span>
                 </Link>
               </nav>
@@ -218,7 +218,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
 
             {/* TOOLS */}
             <div>
-              <div className="px-3 mb-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider font-mono">
+              <div className="px-3 mb-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider font-mono">
                 Tools
               </div>
               <nav className="space-y-1">
@@ -227,7 +227,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
                   onClick={onCloseMobile}
                   className={navLinkClass("/status")}
                 >
-                  <Activity className="w-4 h-4 text-emerald-400" />
+                  <Activity className="w-4 h-4 text-emerald-500" />
                   <span>System Status</span>
                 </Link>
               </nav>
@@ -235,7 +235,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
 
             {/* ACCOUNT */}
             <div>
-              <div className="px-3 mb-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider font-mono">
+              <div className="px-3 mb-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider font-mono">
                 Account
               </div>
               <nav className="space-y-1">
@@ -244,7 +244,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
                   onClick={onCloseMobile}
                   className={navLinkClass("/profile")}
                 >
-                  <UserIcon className="w-4 h-4 text-indigo-400" />
+                  <UserIcon className="w-4 h-4 text-accent" />
                   <span>Profile</span>
                 </Link>
               </nav>
@@ -254,18 +254,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
       </div>
 
       {/* User Footer Card */}
-      <div className="p-3 border-t border-[#1e293b] bg-[#070a13]">
-        <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-[#1e293b]/70 hover:border-[#1e293b] transition-all">
+      <div className="p-3 border-t border-border bg-surface transition-colors">
+        <div className="flex items-center justify-between p-2 rounded-xl bg-surface-muted border border-border/70 hover:border-border transition-all">
           {user?.role === "admin" ? (
             <div className="flex items-center space-x-2.5 min-w-0 flex-1">
-              <div className="w-8 h-8 rounded-lg bg-purple-600/20 border border-purple-500/30 text-purple-300 font-bold text-xs flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-accent/20 border border-accent/30 text-accent font-bold text-xs flex items-center justify-center flex-shrink-0">
                 {getInitials()}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold text-slate-200 truncate">
+                <div className="text-xs font-semibold text-text-primary truncate">
                   {user?.full_name || user?.email}
                 </div>
-                <div className="text-[10px] font-mono text-purple-400 uppercase font-semibold">
+                <div className="text-[10px] font-mono text-accent uppercase font-semibold">
                   {user?.role || "admin"}
                 </div>
               </div>
@@ -276,14 +276,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
               onClick={onCloseMobile}
               className="flex items-center space-x-2.5 min-w-0 flex-1 group"
             >
-              <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 font-bold text-xs flex items-center justify-center flex-shrink-0 group-hover:border-indigo-400 transition-colors">
+              <div className="w-8 h-8 rounded-lg bg-accent/20 border border-accent/30 text-accent font-bold text-xs flex items-center justify-center flex-shrink-0 group-hover:border-accent transition-colors">
                 {getInitials()}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold text-slate-200 truncate group-hover:text-white transition-colors">
+                <div className="text-xs font-semibold text-text-primary truncate group-hover:text-accent transition-colors">
                   {user?.full_name || user?.email}
                 </div>
-                <div className="text-[10px] font-mono text-slate-400 uppercase">
+                <div className="text-[10px] font-mono text-text-muted uppercase">
                   {user?.role || "user"}
                 </div>
               </div>
@@ -292,7 +292,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
           <button
             onClick={handleLogout}
             title="Log out"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 transition-colors ml-1"
+            className="p-1.5 rounded-lg text-text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors ml-1"
           >
             <LogOut className="w-4 h-4" />
           </button>
