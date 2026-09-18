@@ -10,7 +10,7 @@ export const RootLayout: React.FC = () => {
         <Outlet />
       </main>
       <footer className="border-t border-gray-900 py-6 text-center text-xs text-gray-500">
-        AI Study Companion &bull; Persistent, Contextual, Measurable Learning
+        EduMind &bull; Intelligent Learning Workspace
       </footer>
     </div>
   );

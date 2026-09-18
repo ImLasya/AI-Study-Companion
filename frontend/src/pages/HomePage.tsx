@@ -157,20 +157,17 @@ export const HomePage: React.FC = () => {
             {/* Pill Badge */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent/10 border border-accent/25 text-accent text-xs font-semibold shadow-sm animate-fade-in-up">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Your AI Learning Companion</span>
+              <span>EduMind • Intelligent Learning Workspace</span>
             </div>
 
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.15] text-text-primary animate-fade-in-up animation-delay-100">
-              Learn smarter. <br />
-              <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 bg-clip-text text-transparent">
-                Grow faster.
-              </span>
+              Turn learning into mastery.
             </h1>
 
             {/* Supporting Description */}
             <p className="text-base sm:text-lg text-text-secondary max-w-xl leading-relaxed animate-fade-in-up animation-delay-200">
-              Turn your study material into personalized learning, practice, and progress with the power of AI.
+              Learn with AI, practice what matters, and track your progress every step of the way.
             </p>
 
             {/* Action Buttons */}
@@ -233,7 +230,7 @@ export const HomePage: React.FC = () => {
             <div className="relative w-full max-w-[500px] rounded-3xl overflow-hidden border border-border bg-surface p-3 sm:p-4 shadow-xl animate-scale-in animation-delay-200">
               <img
                 src="/hero-study-ai.jpg"
-                alt="Student studying with AI Study Companion"
+                alt="Student studying with EduMind"
                 className="w-full h-auto rounded-2xl object-cover"
                 loading="eager"
               />
@@ -336,39 +333,49 @@ export const HomePage: React.FC = () => {
       {/* ==================================================================== */}
       {/* 3. HOW IT WORKS SECTION                                              */}
       {/* ==================================================================== */}
+      {/* ==================================================================== */}
+      {/* 3. HOW IT WORKS SECTION (Open Connected Journey)                     */}
+      {/* ==================================================================== */}
       <section id="how-it-works" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-20">
-        <div className="rounded-3xl border border-border bg-surface p-8 sm:p-12 lg:p-14 shadow-sm">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight">
-              How It Works
-            </h2>
-            <p className="mt-2 text-xs sm:text-sm text-text-secondary">
-              A simple flow to turn your materials into mastery.
-            </p>
+        <div className="text-center max-w-2xl mx-auto mb-14">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-accent/10 text-accent mb-3">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Learning Methodology</span>
           </div>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-text-primary tracking-tight">
+            How It Works
+          </h2>
+          <p className="mt-3 text-sm sm:text-base text-text-secondary leading-relaxed">
+            A continuous 5-step loop designed to transform passive reading into active, permanent mastery.
+          </p>
+        </div>
 
-          {/* Steps Grid: Horizontal on Desktop, Vertical on Mobile */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 relative">
+        {/* 5-Step Connected Progression */}
+        <div className="relative">
+          {/* Horizontal Connecting Track for Desktop */}
+          <div className="hidden md:block absolute top-7 left-12 right-12 h-0.5 bg-gradient-to-r from-indigo-500/20 via-purple-500/30 to-emerald-500/30 z-0" />
+
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-8 md:gap-4 relative z-10">
             {workflowSteps.map((step, idx) => {
               const StepIcon = step.icon;
               return (
                 <div
                   key={idx}
-                  className="relative flex flex-col items-center text-center p-4 rounded-2xl bg-surface-muted/60 border border-border/70 hover:border-accent/30 transition-colors"
+                  className="flex flex-col items-center text-center group"
                 >
-                  {/* Step Number Badge */}
-                  <span className="text-[11px] font-mono font-bold text-accent mb-2">
-                    {step.step}
-                  </span>
-
-                  {/* Icon */}
-                  <div className="w-11 h-11 rounded-xl bg-surface border border-border flex items-center justify-center text-accent mb-3 shadow-sm">
-                    <StepIcon className="w-5 h-5" />
+                  {/* Step Node */}
+                  <div className="w-14 h-14 rounded-2xl bg-surface border-2 border-border/80 shadow-sm flex items-center justify-center text-accent mb-4 group-hover:scale-110 group-hover:border-accent transition-all duration-200">
+                    <StepIcon className="w-6 h-6" />
                   </div>
 
-                  {/* Step Title & Description */}
-                  <h4 className="text-sm font-bold text-text-primary">{step.title}</h4>
-                  <p className="mt-1 text-xs text-text-secondary leading-relaxed">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-accent mb-1">
+                    Step {step.step}
+                  </span>
+
+                  <h4 className="text-sm font-bold text-text-primary tracking-tight">
+                    {step.title}
+                  </h4>
+                  <p className="mt-1.5 text-xs text-text-secondary leading-relaxed max-w-[200px]">
                     {step.desc}
                   </p>
                 </div>
@@ -379,32 +386,32 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* ==================================================================== */}
-      {/* 4. WHY AI STUDY COMPANION SECTION                                    */}
+      {/* 4. WHY EDUMIND SECTION (Open Blocks)                                */}
       {/* ==================================================================== */}
       <section id="why-us" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-20">
         <div className="text-center max-w-2xl mx-auto mb-14">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight">
-            Why AI Study Companion
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-text-primary tracking-tight">
+            Why EduMind
           </h2>
-          <p className="mt-2 text-xs sm:text-sm text-text-secondary">
-            Engineered specifically for academic rigor, source grounding, and continuous progress.
+          <p className="mt-3 text-sm sm:text-base text-text-secondary leading-relaxed">
+            Engineered specifically for academic rigor, source grounding, and genuine conceptual retention.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
           {whyPoints.map((pt, idx) => {
             const Icon = pt.icon;
             return (
               <div
                 key={idx}
-                className="p-6 rounded-2xl border border-border bg-surface flex items-start gap-4 hover:border-accent/30 transition-colors"
+                className="flex items-start gap-4 p-2"
               >
-                <div className="p-2.5 rounded-xl bg-accent/10 text-accent flex-shrink-0 mt-0.5">
+                <div className="p-3 rounded-2xl bg-accent/10 text-accent shrink-0 border border-accent/20">
                   <Icon className="w-5 h-5" />
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-text-primary">{pt.title}</h3>
-                  <p className="mt-1 text-xs sm:text-sm text-text-secondary leading-relaxed">
+                <div className="space-y-1.5">
+                  <h3 className="text-base font-bold text-text-primary tracking-tight">{pt.title}</h3>
+                  <p className="text-xs sm:text-sm text-text-secondary leading-relaxed">
                     {pt.desc}
                   </p>
                 </div>
@@ -421,10 +428,10 @@ export const HomePage: React.FC = () => {
         <div className="relative rounded-3xl overflow-hidden border border-accent/30 bg-gradient-to-br from-indigo-900/20 via-purple-900/10 to-surface p-8 sm:p-12 text-center shadow-lg">
           <div className="max-w-xl mx-auto space-y-4">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-text-primary tracking-tight">
-              Ready to learn smarter?
+              Ready to turn learning into mastery?
             </h2>
             <p className="text-sm sm:text-base text-text-secondary">
-              Turn your study materials into a personalized learning journey.
+              Learn with AI, practice what matters, and track your progress every step of the way.
             </p>
             <div className="pt-4 flex justify-center">
               {user ? (

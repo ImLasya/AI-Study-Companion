@@ -47,73 +47,85 @@ export const SignupPage: React.FC = () => {
   const benefits = [
     {
       icon: Bot,
+      color: "text-indigo-500 bg-indigo-500/10 ring-indigo-500/20",
       title: "Grounded RAG AI Tutor",
       desc: "Answers verified against your exact uploaded notes and slides",
     },
     {
       icon: HelpCircle,
+      color: "text-sky-500 bg-sky-500/10 ring-sky-500/20",
       title: "Adaptive Quizzes",
       desc: "Instant feedback, evaluations, and rubrics on every question",
     },
     {
       icon: TrendingUp,
+      color: "text-emerald-500 bg-emerald-500/10 ring-emerald-500/20",
       title: "Concept Mastery Tracking",
       desc: "Know exactly which topics you've mastered and where to focus",
     },
     {
       icon: Lightbulb,
+      color: "text-amber-500 bg-amber-500/10 ring-amber-500/20",
       title: "Targeted Study Guidance",
       desc: "Personalized study recommendations to accelerate your learning",
     },
   ];
 
   return (
-    <div className="max-w-4xl mx-auto my-8 sm:my-14 px-4 transition-colors">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-        {/* Left: Value Proposition */}
-        <div className="lg:col-span-6 space-y-6">
+    <div className="max-w-5xl mx-auto my-8 sm:my-16 px-4 transition-colors">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+        {/* Left: Open Value Proposition — no rectangular container boxes */}
+        <div className="lg:col-span-6 space-y-7">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-accent/15 text-accent border border-accent/25 rounded-xl">
-              <BookOpen className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-xl bg-accent/15 text-accent flex items-center justify-center font-bold shadow-sm">
+              <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <span className="font-bold text-base text-text-primary tracking-tight block">
-                AI Study Companion
+              <span className="font-bold text-sm tracking-tight text-text-primary block">
+                EduMind
               </span>
-              <span className="text-xs text-text-muted font-medium">
-                Academic Learning Workspace
+              <span className="text-[11px] text-text-muted font-medium">
+                Intelligent Learning Workspace
               </span>
             </div>
           </div>
 
           <div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-text-primary tracking-tight leading-tight">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-text-primary tracking-tight leading-[1.15]">
               Start your journey. <br />
-              <span className="text-accent">Master any subject.</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-purple-400">
+                Master any subject.
+              </span>
             </h1>
-            <p className="text-xs sm:text-sm text-text-secondary mt-2 leading-relaxed">
-              Create an account to organize your spaces, upload textbooks, and start practicing with your grounded AI companion.
+            <p className="text-sm text-text-secondary mt-3 leading-relaxed max-w-md">
+              Create an account to organize your spaces, upload study materials, and turn learning into mastery with EduMind.
             </p>
           </div>
 
-          <div className="space-y-3 pt-2">
+          {/* Open Feature Highlights — Clean rows with semantic icons, zero nested card boxes */}
+          <div className="space-y-4 pt-1">
             {benefits.map((b, idx) => {
               const Icon = b.icon;
               return (
-                <div
-                  key={idx}
-                  className="flex items-start gap-3 p-3 rounded-xl bg-surface-muted/60 border border-border/70 shadow-sm"
-                >
-                  <div className="p-1.5 rounded-lg bg-accent/15 text-accent border border-accent/25 shrink-0 mt-0.5">
-                    <Icon className="w-3.5 h-3.5" />
+                <div key={idx} className="flex items-start gap-3.5 group">
+                  <div className={`p-2 rounded-lg ring-1 shrink-0 mt-0.5 transition-transform group-hover:scale-105 ${b.color}`}>
+                    <Icon className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-semibold text-text-primary">{b.title}</h3>
-                    <p className="text-[11px] text-text-muted mt-0.5 leading-snug">{b.desc}</p>
+                    <h3 className="text-xs sm:text-sm font-semibold text-text-primary tracking-tight">{b.title}</h3>
+                    <p className="text-xs text-text-muted mt-0.5 leading-relaxed">{b.desc}</p>
                   </div>
                 </div>
               );
             })}
+          </div>
+
+          {/* Open trust indicator */}
+          <div className="pt-2 flex items-center gap-3 text-xs text-text-muted">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-muted text-[11px] font-medium text-text-secondary border border-border/50">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Free to get started
+            </span>
+            <span>No credit card required</span>
           </div>
         </div>
 

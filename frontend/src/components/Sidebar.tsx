@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
   BarChart3,
-  BookOpen,
   FolderKanban,
   LayoutDashboard,
   LogOut,
@@ -15,6 +14,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { EduMindLogo } from "@/components/EduMindLogo";
 
 interface SidebarProps {
   onCloseMobile?: () => void;
@@ -126,14 +126,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
           className="flex items-center space-x-3 group"
         >
           <div className="p-2 bg-accent/15 text-accent border border-accent/30 rounded-xl group-hover:scale-105 transition-transform">
-            <BookOpen className="w-5 h-5" />
+            <EduMindLogo className="w-5 h-5" />
           </div>
           <div>
             <span className="font-bold text-sm text-text-primary tracking-tight block">
-              AI Study Companion
+              EduMind
             </span>
             <span className="text-[11px] text-text-muted font-medium">
-              {user?.role === "admin" ? "Admin Workspace" : "Academic Learning Workspace"}
+              {user?.role === "admin" ? "Admin Workspace" : "Intelligent Learning Workspace"}
             </span>
           </div>
         </Link>

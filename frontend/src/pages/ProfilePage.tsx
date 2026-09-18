@@ -68,133 +68,137 @@ export const ProfilePage: React.FC = () => {
         </Link>
       </div>
 
-      {/* Header Profile Summary Card */}
-      <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 font-bold text-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-              {getInitials()}
-            </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                  {user?.full_name || "User Profile"}
-                </h1>
-                <span className="text-[11px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold">
-                  {user?.role || "user"}
-                </span>
-              </div>
-              <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5 text-gray-500" />
-                <span>{user?.email}</span>
-              </p>
-            </div>
+      {/* Open Profile Header Hero */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pb-6 border-b border-border">
+        <div className="flex items-center space-x-4">
+          <div className="w-16 h-16 rounded-2xl bg-accent/15 border border-accent/25 text-accent font-bold text-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+            {getInitials()}
           </div>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
+                {user?.full_name || "User Profile"}
+              </h1>
+              <span className="text-[11px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-accent-soft text-accent border border-accent/20 font-semibold">
+                {user?.role || "user"}
+              </span>
+            </div>
+            <p className="text-xs text-text-muted mt-1.5 flex items-center gap-1.5">
+              <Mail className="w-3.5 h-3.5 text-text-muted" />
+              <span>{user?.email}</span>
+            </p>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-3 self-stretch sm:self-auto justify-end">
-            <button
-              onClick={handleLogout}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-gray-800 bg-gray-950/60 text-xs font-medium text-gray-300 hover:text-rose-400 hover:border-rose-900/40 hover:bg-rose-950/20 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Log out</span>
-            </button>
-          </div>
+        <div className="flex items-center gap-3 self-stretch sm:self-auto justify-end">
+          <button
+            onClick={handleLogout}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-border bg-surface text-xs font-medium text-text-secondary hover:text-rose-500 hover:border-rose-300 dark:hover:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all cursor-pointer"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Log out</span>
+          </button>
         </div>
       </div>
 
       {/* Account Details & Session Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* User Identity Card */}
-        <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-6 space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-gray-800">
-            <UserIcon className="w-4 h-4 text-indigo-400" />
-            <h2 className="text-sm font-semibold text-white">Account Details</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2">
+        {/* User Identity - Open divider list */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 pb-2">
+            <div className="p-1.5 rounded-lg bg-accent/10 text-accent">
+              <UserIcon className="w-4 h-4" />
+            </div>
+            <h2 className="text-sm font-semibold text-text-primary">Account Details</h2>
           </div>
 
-          <div className="space-y-3 text-xs">
-            <div>
-              <label className="text-gray-500 block mb-1">Full Name</label>
-              <div className="text-gray-200 font-medium px-3 py-2 rounded-lg bg-gray-950/60 border border-gray-800/80">
+          <div className="divide-y divide-border/60 text-xs">
+            <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <span className="text-text-muted">Full Name</span>
+              <span className="text-text-primary font-medium">
                 {user?.full_name || "Not specified"}
-              </div>
+              </span>
             </div>
 
-            <div>
-              <label className="text-gray-500 block mb-1">Email Address</label>
-              <div className="text-gray-200 font-medium px-3 py-2 rounded-lg bg-gray-950/60 border border-gray-800/80">
+            <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <span className="text-text-muted">Email Address</span>
+              <span className="text-text-primary font-medium">
                 {user?.email}
-              </div>
+              </span>
             </div>
 
-            <div>
-              <label className="text-gray-500 block mb-1">Account ID</label>
-              <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-950/60 border border-gray-800/80 font-mono text-[11px] text-gray-300">
-                <span className="truncate mr-2">{user?.id || "N/A"}</span>
+            <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <span className="text-text-muted">Account ID</span>
+              <div className="flex items-center gap-2 font-mono text-[11px] text-text-secondary">
+                <span className="truncate max-w-[200px]">{user?.id || "N/A"}</span>
                 <button
                   onClick={copyId}
-                  className="p-1 rounded text-gray-400 hover:text-white transition-colors"
+                  className="p-1 rounded text-text-muted hover:text-text-primary transition-colors cursor-pointer"
                   title="Copy Account ID"
                 >
-                  {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
               </div>
             </div>
 
-            <div>
-              <label className="text-gray-500 block mb-1">Member Since</label>
-              <div className="text-gray-300 px-3 py-2 rounded-lg bg-gray-950/60 border border-gray-800/80 flex items-center gap-2">
-                <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+            <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <span className="text-text-muted">Member Since</span>
+              <div className="text-text-secondary flex items-center gap-1.5 font-medium">
+                <Calendar className="w-3.5 h-3.5 text-accent" />
                 <span>{formatDate(user?.created_at)}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Security & Permissions Card */}
-        <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-6 space-y-4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 pb-3 border-b border-gray-800">
-              <Shield className="w-4 h-4 text-indigo-400" />
-              <h2 className="text-sm font-semibold text-white">Security &amp; Session</h2>
+        {/* Security & Permissions - Open informative rows */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 pb-2">
+            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
+              <Shield className="w-4 h-4" />
             </div>
+            <h2 className="text-sm font-semibold text-text-primary">Security &amp; Session</h2>
+          </div>
 
-            <div className="mt-4 space-y-3 text-xs">
-              <div className="p-3 rounded-lg bg-gray-950/60 border border-gray-800/80 space-y-1">
-                <div className="text-gray-400 flex items-center justify-between">
-                  <span>Session Type</span>
-                  <span className="text-emerald-400 font-medium">Active</span>
-                </div>
-                <div className="text-gray-300 font-mono text-[11px]">
-                  HTTP-Only Secure Cookie Session
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-gray-950/60 border border-gray-800/80 space-y-1">
-                <div className="text-gray-400 flex items-center justify-between">
-                  <span>Role Permissions</span>
-                  <span className="text-indigo-400 font-mono uppercase">{user?.role}</span>
-                </div>
-                <div className="text-gray-400 text-[11px]">
-                  {user?.role === "admin"
-                    ? "Full platform administrative and workspace privileges"
-                    : "Full access to Spaces, Learning Materials, AI Tutor, and Quizzes"}
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-gray-950/60 border border-gray-800/80 flex items-start gap-2 text-gray-400 text-[11px]">
-                <KeyRound className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
-                <span>
-                  Credentials, access tokens, and API keys are managed securely on the server and never exposed in the browser.
+          <div className="space-y-3 text-xs">
+            <div className="p-3.5 rounded-xl bg-surface-muted/60 border-l-2 border-emerald-500 space-y-1">
+              <div className="text-text-secondary flex items-center justify-between">
+                <span className="font-medium text-text-primary">Session Security</span>
+                <span className="text-emerald-500 font-semibold text-[11px] bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                  Active
                 </span>
               </div>
+              <p className="text-text-muted text-[11px]">
+                HTTP-Only Secure Cookie Session with CSRF defense.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-surface-muted/60 border-l-2 border-accent space-y-1">
+              <div className="text-text-secondary flex items-center justify-between">
+                <span className="font-medium text-text-primary">Role Permissions</span>
+                <span className="text-accent font-mono uppercase font-semibold text-[11px]">
+                  {user?.role}
+                </span>
+              </div>
+              <p className="text-text-muted text-[11px]">
+                {user?.role === "admin"
+                  ? "Full platform administrative and workspace privileges."
+                  : "Full access to Spaces, Learning Materials, AI Tutor, and Quizzes."}
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-surface-muted/40 flex items-start gap-2.5 text-text-muted text-[11px]">
+              <KeyRound className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
+              <span>
+                Credentials, access tokens, and API keys are managed securely on the server and never exposed to the client.
+              </span>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-gray-800/80 flex justify-end">
+          <div className="pt-2 flex justify-end">
             <Link
               to="/dashboard"
-              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors"
+              className="px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold shadow-sm transition-all"
             >
               Go to Dashboard
             </Link>

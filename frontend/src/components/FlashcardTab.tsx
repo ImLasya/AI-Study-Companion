@@ -142,28 +142,28 @@ const TodayReviewWidget: React.FC<TodayReviewWidgetProps> = ({
   const readyToStudy = dueCount + newCount;
 
   return (
-    <div className="rounded-2xl p-6 border border-border bg-surface shadow-sm mb-8 relative overflow-hidden">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-4 mb-8 pb-6 border-b border-border/60">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <Calendar className="w-5 h-5 text-accent" />
-            <h3 className="font-semibold text-text-primary text-lg">Today's Review</h3>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/25 font-semibold">
-              Spaced Repetition
+          <div className="flex items-center gap-2 mb-1">
+            <Calendar className="w-4 h-4 text-accent" />
+            <h3 className="font-bold text-text-primary text-base">Today's Review Schedule</h3>
+            <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/25">
+              SM-2 Active
             </span>
           </div>
-          <p className="text-xs text-text-secondary">
-            Lightweight SM-2 scheduler prioritizes overdue items and newly grounded concepts.
+          <p className="text-xs text-text-muted">
+            Prioritizes overdue items and newly grounded concepts for optimal memory retention.
           </p>
         </div>
 
         {/* Action button & concept selector */}
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
           {concepts.length > 0 && (
             <select
               value={selectedConceptId || ""}
               onChange={(e) => onSelectConcept(e.target.value || null)}
-              className="h-10 bg-surface-muted border border-border rounded-xl px-3 text-xs text-text-primary focus:outline-none focus:border-accent"
+              className="h-9 bg-surface-muted border border-border/80 rounded-xl px-3 text-xs text-text-primary focus:outline-none focus:border-accent cursor-pointer"
             >
               <option value="">All Concepts</option>
               {concepts.map((c) => (
@@ -178,37 +178,37 @@ const TodayReviewWidget: React.FC<TodayReviewWidgetProps> = ({
             id="start-spaced-review-btn"
             onClick={onStartReview}
             disabled={readyToStudy === 0 || loadingSummary}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent hover:bg-accent-hover disabled:bg-surface-muted disabled:text-text-muted text-white font-semibold text-sm transition-all shadow-sm disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent hover:bg-accent-hover disabled:bg-surface-muted disabled:text-text-muted text-white font-semibold text-xs transition-all shadow-sm disabled:cursor-not-allowed cursor-pointer"
           >
-            <Play className="w-4 h-4 fill-current" />
+            <Play className="w-3.5 h-3.5 fill-current" />
             <span>
               {readyToStudy > 0
-                ? `Start Review (${readyToStudy} card${readyToStudy !== 1 ? "s" : ""})`
+                ? `Start Study Session (${readyToStudy} card${readyToStudy !== 1 ? "s" : ""})`
                 : "All Caught Up"}
             </span>
           </button>
         </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-3 gap-4 mt-6 pt-5 border-t border-border">
-        <div className="bg-surface-muted/60 border border-border rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-amber-500 dark:text-amber-400 font-mono">
+      {/* Metrics Row (Borderless Open Visual Blocks) */}
+      <div className="grid grid-cols-3 gap-3 pt-1">
+        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
+          <p className="text-xl font-bold text-amber-600 dark:text-amber-400 font-mono">
             {loadingSummary ? "–" : dueCount}
           </p>
-          <p className="text-xs text-text-muted mt-0.5">Due for Review</p>
+          <p className="text-[11px] text-amber-700 dark:text-amber-300 font-medium mt-0.5">Due for Review</p>
         </div>
-        <div className="bg-surface-muted/60 border border-border rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 font-mono">
+        <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-center">
+          <p className="text-xl font-bold text-purple-600 dark:text-purple-400 font-mono">
             {loadingSummary ? "–" : newCount}
           </p>
-          <p className="text-xs text-text-muted mt-0.5">New Cards</p>
+          <p className="text-[11px] text-purple-700 dark:text-purple-300 font-medium mt-0.5">New Cards</p>
         </div>
-        <div className="bg-surface-muted/60 border border-border rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+        <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
             {loadingSummary ? "–" : completedToday}
           </p>
-          <p className="text-xs text-text-muted mt-0.5">Completed Today</p>
+          <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium mt-0.5">Completed Today</p>
         </div>
       </div>
     </div>
@@ -511,33 +511,33 @@ const SessionComplete: React.FC<SessionCompleteProps> = ({
   hasRemainingDue,
 }) => {
   return (
-    <div className="max-w-md mx-auto text-center py-12 px-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-2xl mb-12">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-indigo-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
-        <Award className="w-8 h-8 text-emerald-400" />
+    <div className="max-w-md mx-auto text-center py-12 px-6 rounded-2xl bg-surface border border-border shadow-xl mb-12">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-accent/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
+        <Award className="w-8 h-8 text-emerald-500" />
       </div>
 
-      <h3 className="text-xl font-bold text-white mb-1">Review Complete!</h3>
-      <p className="text-xs text-slate-400 mb-6">
+      <h3 className="text-xl font-bold text-text-primary mb-1">Review Complete!</h3>
+      <p className="text-xs text-text-muted mb-6">
         All cards in this study batch have been scheduled based on your recall.
       </p>
 
       {/* Breakdown Grid */}
       <div className="grid grid-cols-4 gap-2 mb-6">
-        <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/50">
-          <p className="text-lg font-bold text-rose-400">{stats.again}</p>
-          <p className="text-[10px] text-slate-400 uppercase">Again</p>
+        <div className="bg-surface-muted p-2.5 rounded-xl border border-border">
+          <p className="text-lg font-bold text-rose-500">{stats.again}</p>
+          <p className="text-[10px] text-text-muted uppercase font-semibold">Again</p>
         </div>
-        <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/50">
-          <p className="text-lg font-bold text-amber-400">{stats.difficult}</p>
-          <p className="text-[10px] text-slate-400 uppercase">Difficult</p>
+        <div className="bg-surface-muted p-2.5 rounded-xl border border-border">
+          <p className="text-lg font-bold text-amber-500">{stats.difficult}</p>
+          <p className="text-[10px] text-text-muted uppercase font-semibold">Difficult</p>
         </div>
-        <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/50">
-          <p className="text-lg font-bold text-emerald-400">{stats.good}</p>
-          <p className="text-[10px] text-slate-400 uppercase">Good</p>
+        <div className="bg-surface-muted p-2.5 rounded-xl border border-border">
+          <p className="text-lg font-bold text-emerald-500">{stats.good}</p>
+          <p className="text-[10px] text-text-muted uppercase font-semibold">Good</p>
         </div>
-        <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/50">
-          <p className="text-lg font-bold text-blue-400">{stats.easy}</p>
-          <p className="text-[10px] text-slate-400 uppercase">Easy</p>
+        <div className="bg-surface-muted p-2.5 rounded-xl border border-border">
+          <p className="text-lg font-bold text-sky-500">{stats.easy}</p>
+          <p className="text-[10px] text-text-muted uppercase font-semibold">Easy</p>
         </div>
       </div>
 
@@ -545,14 +545,14 @@ const SessionComplete: React.FC<SessionCompleteProps> = ({
         {hasRemainingDue && (
           <button
             onClick={onReviewMore}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors"
+            className="px-4 py-2 rounded-xl bg-accent hover:opacity-90 text-white text-xs font-semibold transition-colors"
           >
             Study Next Due Batch
           </button>
         )}
         <button
           onClick={onReturnToDeck}
-          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium transition-colors"
+          className="px-4 py-2 rounded-xl bg-surface hover:bg-surface-muted border border-border text-text-secondary text-xs font-medium transition-colors"
         >
           Return to Deck
         </button>
@@ -1002,11 +1002,11 @@ export const FlashcardTab: React.FC<FlashcardTabProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-indigo-400" />
+          <h2 className="text-xl font-semibold text-text-primary flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-accent" />
             Flashcards & Spaced Repetition
           </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <p className="text-sm text-text-muted mt-0.5">
             Grounded in your learning materials with SM-2 spaced scheduling
           </p>
         </div>
@@ -1014,7 +1014,7 @@ export const FlashcardTab: React.FC<FlashcardTabProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={fetchAll}
-            className="h-9 w-9 flex items-center justify-center rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition-colors"
+            className="h-9 w-9 flex items-center justify-center rounded-lg bg-surface border border-border text-text-muted hover:text-text-primary hover:bg-surface-muted transition-colors"
             title="Refresh flashcards"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -1070,7 +1070,7 @@ export const FlashcardTab: React.FC<FlashcardTabProps> = ({
       {/* Deck View Controls & Filters */}
       {!sessionActive && cards.length > 0 && (
         <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900 border border-slate-800">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface border border-border shadow-sm">
             {(
               [
                 { id: "all", label: `All (${cards.length})` },
@@ -1085,8 +1085,8 @@ export const FlashcardTab: React.FC<FlashcardTabProps> = ({
                 onClick={() => setDeckFilter(tab.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   deckFilter === tab.id
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "bg-accent text-white shadow-sm"
+                    : "text-text-muted hover:text-text-primary"
                 }`}
               >
                 {tab.label}
@@ -1094,7 +1094,7 @@ export const FlashcardTab: React.FC<FlashcardTabProps> = ({
             ))}
           </div>
 
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-text-muted">
             Showing {filteredCards.length} of {cards.length} card{cards.length !== 1 ? "s" : ""}
           </span>
         </div>
@@ -1111,9 +1111,9 @@ export const FlashcardTab: React.FC<FlashcardTabProps> = ({
 
       {/* Filter Empty State */}
       {!sessionActive && cards.length > 0 && filteredCards.length === 0 && (
-        <div className="text-center py-16 rounded-2xl bg-slate-900/40 border border-slate-800/80">
-          <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
-          <h4 className="text-base font-semibold text-white mb-1">
+        <div className="text-center py-16 rounded-2xl bg-surface border border-border shadow-sm">
+          <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
+          <h4 className="text-base font-semibold text-text-primary mb-1">
             {deckFilter === "due"
               ? "You're all caught up!"
               : deckFilter === "new"
@@ -1122,7 +1122,7 @@ export const FlashcardTab: React.FC<FlashcardTabProps> = ({
               ? "No difficult cards!"
               : "No cards in this filter."}
           </h4>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+          <p className="text-xs text-text-muted max-w-sm mx-auto">
             {deckFilter === "due"
               ? "All scheduled cards have been reviewed. Return later or generate more cards."
               : "Try switching filter tabs to view other flashcards."}

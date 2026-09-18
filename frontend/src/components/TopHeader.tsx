@@ -98,7 +98,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onToggleMobileMenu }) => {
         </div>
       );
     }
-    return <span className="text-sm font-semibold text-text-primary">AI Study Companion</span>;
+    return <span className="text-sm font-semibold text-text-primary">EduMind</span>;
   };
 
   return (

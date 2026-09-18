@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   AlertCircle,
   ArrowUpRight,
   BookOpen,
   Brain,
   CheckCircle2,
-  ChevronDown,
   Compass,
   Flame,
   Lightbulb,
@@ -49,14 +47,13 @@ interface GrowthTabProps {
 
 export const GrowthTab: React.FC<GrowthTabProps> = ({
   projectId,
-  project,
-  spaceName,
+  project: _project,
+  spaceName: _spaceName,
   onNavigateTab,
 }) => {
   const [masteryData, setMasteryData] = useState<MasteryListResponse | null>(null);
   const [growthData, setGrowthData] = useState<GrowthSummary | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [allProjects, setAllProjects] = useState<{ id: string; name: string; spaceName: string }[]>([]);
   const [activeDays, setActiveDays] = useState<Set<number>>(new Set()); // 0=Mon, 6=Sun
   const [streakCount, setStreakCount] = useState<number>(0);
 
@@ -73,13 +70,12 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
   >("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [showProjectSwitcher, setShowProjectSwitcher] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [mRes, gRes, rRes, globRes, actRes, pRes] = await Promise.all([
+      const [mRes, gRes, rRes, _globRes, actRes, pRes] = await Promise.all([
         getProjectMasteryApi(projectId),
         getProjectGrowthApi(projectId),
         getProjectRecommendationsApi(projectId).catch(() => []),
@@ -92,17 +88,6 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
       setGrowthData(gRes);
       setRecommendations(rRes);
       setLearningPlan(pRes);
-
-      // Populate project list for the project switcher dropdown
-      if (globRes?.projects_by_progress) {
-        setAllProjects(
-          globRes.projects_by_progress.map((p) => ({
-            id: p.project_id,
-            name: p.project_name,
-            spaceName: p.space_name,
-          }))
-        );
-      }
 
       // Calculate streak & week days from real activity events
       if (actRes && actRes.length > 0) {
@@ -157,8 +142,6 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
 
   // Derived metrics
   const totalConcepts = masteryData?.total_concepts ?? 0;
-  const assessedCount = masteryData?.assessed_count ?? 0;
-  const assessedPct = totalConcepts > 0 ? Math.round((assessedCount / totalConcepts) * 100) : 0;
   const avgMastery =
     masteryData?.overall_average_mastery !== null && masteryData?.overall_average_mastery !== undefined
       ? Math.round(masteryData.overall_average_mastery)
@@ -166,6 +149,14 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
 
   const strongCount =
     masteryData?.masteries?.filter((m) => (m.mastery_score ?? 0) >= 70).length ?? 0;
+
+  const masteredCount = strongCount;
+  const learningCount =
+    masteryData?.masteries?.filter((m) => m.mastery_score !== null && m.mastery_score >= 50 && m.mastery_score < 70).length ?? 0;
+  const needsReviewCount =
+    masteryData?.masteries?.filter((m) => m.mastery_score !== null && m.mastery_score < 50 && m.evidence_count > 0).length ?? 0;
+  const notStartedCount =
+    masteryData?.masteries?.filter((m) => m.mastery_score === null || m.evidence_count === 0).length ?? 0;
 
   // Flatten all concept growth items
   const allGrowthMap = useMemo(() => {
@@ -288,16 +279,6 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
     }
   };
 
-  const getInitials = (name?: string) => {
-    if (!name) return "P";
-    return name
-      .split(" ")
-      .map((w) => w[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase();
-  };
-
   if (loading) {
     return (
       <div className="min-h-[400px] flex flex-col items-center justify-center gap-3">
@@ -327,95 +308,33 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* ================================================================ */}
-      {/* 1. TOP BREADCRUMB & PROJECT HEADER                               */}
-      {/* ================================================================ */}
-      <div className="space-y-3">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-text-muted">
-          <Link to="/spaces" className="hover:text-text-primary transition-colors">
-            Spaces
-          </Link>
-          <span>&gt;</span>
-          <span className="text-text-secondary">{spaceName || "Knowledge Space"}</span>
-          <span>&gt;</span>
-          <span className="text-accent font-medium">{project?.name || "Project Workspace"}</span>
-        </div>
-
-        {/* Header Bar */}
-        <div className="rounded-2xl border border-border bg-surface p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-          <div className="flex items-start sm:items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center font-bold text-accent text-base tracking-wider shrink-0 shadow-inner">
-              {getInitials(project?.name)}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-text-primary tracking-tight">
-                  {project?.name || "Machine Learning Fundamentals"}
-                </h1>
-              </div>
-              <div className="text-xs text-accent font-medium mt-0.5">
-                Space: {spaceName || "Knowledge Space"}
-              </div>
-              <p className="text-xs text-text-secondary mt-1 max-w-2xl">
-                Track your progress, see how your understanding is improving, and focus on what to learn next.
-              </p>
-            </div>
-          </div>
-
-          {/* Project Switcher Dropdown */}
-          <div className="relative shrink-0">
-            <button
-              onClick={() => setShowProjectSwitcher((prev) => !prev)}
-              className="px-3 py-1.5 rounded-xl bg-surface hover:bg-surface-muted text-text-secondary hover:text-text-primary text-xs font-medium border border-border flex items-center gap-2 transition-colors"
-            >
-              <span>Switch Project</span>
-              <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
-            </button>
-
-            {showProjectSwitcher && allProjects.length > 0 && (
-              <div className="absolute right-0 mt-2 w-64 rounded-xl bg-surface border border-border shadow-2xl p-1.5 z-30">
-                <div className="px-2 py-1 text-[10px] uppercase font-mono font-bold text-text-muted">
-                  Your Projects
-                </div>
-                {allProjects.map((p) => (
-                  <Link
-                    key={p.id}
-                    to={`/projects/${p.id}?tab=growth`}
-                    onClick={() => setShowProjectSwitcher(false)}
-                    className={`block px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      p.id === projectId
-                        ? "bg-accent/10 text-accent font-semibold"
-                        : "text-text-secondary hover:bg-surface-muted hover:text-text-primary"
-                    }`}
-                  >
-                    <div className="truncate">{p.name}</div>
-                    <div className="text-[10px] text-text-muted truncate">{p.spaceName}</div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
+      {/* 1. Header (Open Section) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60">
+        <div>
+          <h2 className="text-xl font-bold text-text-primary tracking-tight">Growth</h2>
+          <p className="text-xs text-text-muted mt-0.5">
+            Track how your understanding changes over time.
+          </p>
         </div>
 
         {/* Sub-Navigation Pills */}
-        <div className="flex items-center gap-2 pt-1 overflow-x-auto pb-1">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           <button
             onClick={() => setActiveSubSection("overview")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
               activeSubSection === "overview"
-                ? "bg-accent text-white shadow-md shadow-indigo-600/20"
-                : "bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-muted border border-border"
+                ? "bg-accent text-white shadow-sm"
+                : "bg-surface-muted text-text-secondary hover:text-text-primary border border-border/70"
             }`}
           >
-            Progress Overview
+            Overview
           </button>
           <button
             onClick={() => setActiveSubSection("plan")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
               activeSubSection === "plan"
-                ? "bg-accent text-white shadow-md shadow-indigo-600/20"
-                : "bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-muted border border-border"
+                ? "bg-accent text-white shadow-sm"
+                : "bg-surface-muted text-text-secondary hover:text-text-primary border border-border/70"
             }`}
           >
             <Compass className="w-3.5 h-3.5" />
@@ -426,10 +345,10 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
               setActiveSubSection("concepts");
               document.getElementById("concept-mastery-section")?.scrollIntoView({ behavior: "smooth" });
             }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
               activeSubSection === "concepts"
-                ? "bg-accent text-white shadow-md shadow-indigo-600/20"
-                : "bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-muted border border-border"
+                ? "bg-accent text-white shadow-sm"
+                : "bg-surface-muted text-text-secondary hover:text-text-primary border border-border/70"
             }`}
           >
             Concept Mastery
@@ -439,26 +358,13 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
               setActiveSubSection("journey");
               document.getElementById("progress-chart-card")?.scrollIntoView({ behavior: "smooth" });
             }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
               activeSubSection === "journey"
-                ? "bg-accent text-white shadow-md shadow-indigo-600/20"
-                : "bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-muted border border-border"
+                ? "bg-accent text-white shadow-sm"
+                : "bg-surface-muted text-text-secondary hover:text-text-primary border border-border/70"
             }`}
           >
             Learning Journey
-          </button>
-          <button
-            onClick={() => {
-              setActiveSubSection("recommendations");
-              document.getElementById("recommended-next-step")?.scrollIntoView({ behavior: "smooth" });
-            }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-              activeSubSection === "recommendations"
-                ? "bg-accent text-white shadow-md shadow-indigo-600/20"
-                : "bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-muted border border-border"
-            }`}
-          >
-            Recommendations
           </button>
         </div>
       </div>
@@ -476,33 +382,112 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
         />
       ) : (
         <>
+          {/* Main Visual: Large Mastery Ring Alongside Status Categories */}
+          <div className="p-6 rounded-3xl bg-surface/80 border border-border/70 shadow-xs flex flex-col md:flex-row items-center justify-between gap-6">
+            {/* Left: Large Mastery Ring */}
+            <div className="flex items-center gap-6">
+              <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
+                <svg className="w-28 h-28 -rotate-90" viewBox="0 0 36 36">
+                  <path
+                    className="text-surface-muted"
+                    strokeWidth="3.2"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <path
+                    className="text-accent transition-all duration-700"
+                    strokeDasharray={`${avgMastery || 0}, 100`}
+                    strokeWidth="3.2"
+                    strokeLinecap="round"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+                <div className="absolute flex flex-col items-center justify-center text-center">
+                  <span className="text-2xl font-extrabold text-text-primary font-mono tracking-tight">
+                    {avgMastery !== null ? `${avgMastery}%` : "0%"}
+                  </span>
+                  <span className="text-[10px] text-text-muted font-medium">Overall Mastery</span>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-text-primary">Bayesian Mastery Engine</h3>
+                <p className="text-xs text-text-muted max-w-xs leading-relaxed">
+                  Confidence-weighted mastery progression across your project's {totalConcepts} extracted concepts.
+                </p>
+              </div>
+            </div>
+
+            {/* Right: 4 Status Breakdowns Alongside */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full md:w-auto">
+              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center min-w-[100px]">
+                <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400 font-mono block">
+                  {masteredCount}
+                </span>
+                <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">
+                  Mastered
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-center min-w-[100px]">
+                <span className="text-xl font-bold text-sky-600 dark:text-sky-400 font-mono block">
+                  {learningCount}
+                </span>
+                <span className="text-[11px] text-sky-700 dark:text-sky-300 font-medium">
+                  Learning
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center min-w-[100px]">
+                <span className="text-xl font-bold text-amber-600 dark:text-amber-400 font-mono block">
+                  {needsReviewCount}
+                </span>
+                <span className="text-[11px] text-amber-700 dark:text-amber-300 font-medium">
+                  Needs Review
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-surface-muted border border-border text-center min-w-[100px]">
+                <span className="text-xl font-bold text-text-muted font-mono block">
+                  {notStartedCount}
+                </span>
+                <span className="text-[11px] text-text-secondary font-medium">
+                  Not Started
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Overview Roadmap Hero Widget */}
           {learningPlan && (
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0d1222] via-[#0f172a] to-[#1e1b4b]/30 border border-indigo-900/40 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="p-4 rounded-2xl bg-surface border border-border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600/15 border border-indigo-500/25 text-accent flex items-center justify-center shrink-0">
                   <Compass className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white tracking-tight">
+                    <span className="text-xs font-bold text-text-primary tracking-tight">
                       {learningPlan.title}
                     </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/15 text-accent border border-indigo-500/25">
                       {learningPlan.progress.completed_count}/{learningPlan.progress.total_concepts} Concepts ({learningPlan.progress.progress_percentage}%)
                     </span>
                   </div>
-                  <div className="text-[11px] text-gray-400 mt-0.5">
+                  <div className="text-[11px] text-text-muted mt-0.5">
                     {learningPlan.next_recommended_concept ? (
                       <span>
                         Next Milestone:{" "}
-                        <strong className="text-white">
+                        <strong className="text-text-primary">
                           #{learningPlan.next_recommended_concept.position + 1} {learningPlan.next_recommended_concept.concept_name}
                         </strong>{" "}
                         ({learningPlan.next_recommended_concept.recommended_action || "Study"})
                       </span>
                     ) : (
-                      <span className="text-emerald-400 font-medium">All curriculum milestones completed!</span>
+                      <span className="text-emerald-500 font-medium">All curriculum milestones completed!</span>
                     )}
                   </div>
                 </div>
@@ -511,7 +496,7 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => setActiveSubSection("plan")}
-                  className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all hover:scale-[1.02]"
+                  className="px-3.5 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold shadow-md shadow-accent/25 transition-all hover:scale-[1.02] cursor-pointer"
                 >
                   View Full Roadmap &rarr;
                 </button>
@@ -520,120 +505,26 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
           )}
 
       {/* ================================================================ */}
-      {/* 2. TOP 4 SUMMARY CARDS                                           */}
-      {/* ================================================================ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Overall Mastery */}
-        <div className="p-5 rounded-2xl bg-[#0d1222] border border-gray-800 flex items-center justify-between shadow-sm">
-          <div>
-            <div className="text-xs font-medium text-gray-400">Overall Mastery</div>
-            <div className="text-2xl font-bold text-white tracking-tight mt-2">
-              {avgMastery !== null ? `${avgMastery}%` : "Not assessed"}
-            </div>
-            <div className="text-[11px] text-gray-500 mt-1">Across assessed concepts</div>
-          </div>
-          {/* Circular Progress Indicator */}
-          <div className="relative w-12 h-12 flex items-center justify-center shrink-0">
-            <svg className="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
-              <path
-                className="text-gray-800"
-                strokeWidth="3.5"
-                stroke="currentColor"
-                fill="none"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-              />
-              <path
-                className="text-indigo-500 transition-all duration-700"
-                strokeDasharray={`${avgMastery || 0}, 100`}
-                strokeWidth="3.5"
-                strokeLinecap="round"
-                stroke="currentColor"
-                fill="none"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-              />
-            </svg>
-            <span className="absolute text-[10px] font-bold text-indigo-300">
-              {avgMastery !== null ? `${avgMastery}%` : "—"}
-            </span>
-          </div>
-        </div>
-
-        {/* Card 2: Assessed Concepts */}
-        <div className="p-5 rounded-2xl bg-[#0d1222] border border-gray-800 flex flex-col justify-between shadow-sm">
-          <div>
-            <div className="text-xs font-medium text-gray-400">Assessed Concepts</div>
-            <div className="text-2xl font-bold text-white tracking-tight mt-2">
-              {assessedCount} <span className="text-base font-normal text-gray-400">of {totalConcepts}</span>
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-              <div
-                className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-                style={{ width: `${assessedPct}%` }}
-              />
-            </div>
-            <div className="text-[11px] text-gray-500 mt-1">{assessedPct}% assessed</div>
-          </div>
-        </div>
-
-        {/* Card 3: Recent Growth */}
-        <div className="p-5 rounded-2xl bg-[#0d1222] border border-gray-800 flex flex-col justify-between shadow-sm">
-          <div>
-            <div className="text-xs font-medium text-gray-400">Recent Growth</div>
-            <div className="mt-2">
-              {recentGrowthDelta !== null ? (
-                <div
-                  className={`text-2xl font-bold tracking-tight flex items-center gap-1.5 ${
-                    recentGrowthDelta >= 0 ? "text-emerald-400" : "text-rose-400"
-                  }`}
-                >
-                  {recentGrowthDelta >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-                  {recentGrowthDelta >= 0 ? `+${recentGrowthDelta.toFixed(1)}%` : `${recentGrowthDelta.toFixed(1)}%`}
-                </div>
-              ) : (
-                <div className="text-base font-semibold text-gray-300">Not enough history</div>
-              )}
-            </div>
-          </div>
-          <div className="text-[11px] text-gray-500 mt-1">
-            {recentGrowthDelta !== null
-              ? "Since previous assessment period"
-              : "Complete more assessments to see trend"}
-          </div>
-        </div>
-
-        {/* Card 4: Strong Concepts */}
-        <div className="p-5 rounded-2xl bg-[#0d1222] border border-gray-800 flex flex-col justify-between shadow-sm">
-          <div>
-            <div className="text-xs font-medium text-gray-400">Strong Concepts</div>
-            <div className="text-2xl font-bold text-white tracking-tight mt-2">{strongCount}</div>
-          </div>
-          <div className="text-[11px] text-gray-500 mt-1">Mastered concepts (&ge;70%)</div>
-        </div>
-      </div>
-
-      {/* ================================================================ */}
       {/* 3. MAIN GROWTH CHART & LEARNING INSIGHTS (2 COLUMNS)             */}
       {/* ================================================================ */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left: Your Learning Progress Chart (8 cols) */}
         <div
           id="progress-chart-card"
-          className="lg:col-span-8 p-6 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm"
+          className="lg:col-span-8 p-6 rounded-2xl bg-surface border border-border shadow-sm"
         >
-          <div className="flex items-center justify-between pb-4 border-b border-gray-800/80 mb-4">
+          <div className="flex items-center justify-between pb-4 border-b border-border mb-4">
             <div>
-              <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
-                <LineChart className="w-4 h-4 text-indigo-400" />
+              <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+                <LineChart className="w-4 h-4 text-emerald-500" />
                 Your Learning Progress
               </h3>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-text-muted mt-0.5">
                 How your understanding has changed over time
               </p>
             </div>
             {trajectoryPoints.length >= 2 && (
-              <span className="text-[11px] font-mono text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
+              <span className="text-[11px] font-mono text-accent bg-accent/10 px-2 py-0.5 rounded-full border border-accent/20 font-bold">
                 {trajectoryPoints.length} snapshots
               </span>
             )}
@@ -731,7 +622,7 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
                 </svg>
 
                 {/* X-axis Date labels */}
-                <div className="flex justify-between pl-8 pr-2 pt-2 text-[10px] text-gray-500 font-mono">
+                <div className="flex justify-between pl-8 pr-2 pt-2 text-[10px] text-text-muted font-mono">
                   {trajectoryPoints.map((p, idx) => (
                     <span key={idx}>{p.date}</span>
                   ))}
@@ -740,17 +631,17 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
             </div>
           ) : (
             <div className="py-12 flex flex-col items-center justify-center text-center px-4">
-              <div className="w-12 h-12 rounded-2xl bg-gray-800/60 border border-gray-700/60 flex items-center justify-center text-gray-400 mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-surface-muted border border-border flex items-center justify-center text-text-muted mb-3">
                 <LineChart className="w-6 h-6" />
               </div>
-              <h4 className="text-sm font-bold text-white">Your progress trend will appear here</h4>
-              <p className="text-xs text-gray-400 mt-1 max-w-sm">
+              <h4 className="text-sm font-bold text-text-primary">Your progress trend will appear here</h4>
+              <p className="text-xs text-text-muted mt-1 max-w-sm">
                 Complete a few more assessments to see how your understanding changes over time.
               </p>
               {onNavigateTab && (
                 <button
                   onClick={() => onNavigateTab("quiz")}
-                  className="mt-4 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all"
+                  className="mt-4 px-4 py-2 rounded-xl bg-accent hover:opacity-90 text-white text-xs font-semibold shadow-md shadow-accent/20 transition-all"
                 >
                   Take an Adaptive Quiz
                 </button>
@@ -760,30 +651,30 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
         </div>
 
         {/* Right: Learning Insights (4 cols) */}
-        <div className="lg:col-span-4 p-6 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm space-y-4">
-          <div className="pb-3 border-b border-gray-800/80">
-            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-400" />
+        <div className="lg:col-span-4 p-6 rounded-2xl bg-surface border border-border shadow-sm space-y-4">
+          <div className="pb-3 border-b border-border">
+            <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500" />
               Learning Insights
             </h3>
-            <p className="text-xs text-gray-400 mt-0.5">Key takeaways from your recent study</p>
+            <p className="text-xs text-text-muted mt-0.5">Key takeaways from your recent study</p>
           </div>
 
           <div className="space-y-3">
             {/* Insight 1: Progress */}
-            <div className="p-3.5 rounded-xl bg-gray-900/50 border border-gray-800/80 flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+            <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
                 <TrendingUp className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-xs font-bold text-white">
+                <div className="text-xs font-bold text-text-primary">
                   {recentGrowthDelta !== null && recentGrowthDelta > 0
                     ? "You're improving!"
                     : strongCount > 0
                     ? "Solid foundation!"
                     : "Ready to accelerate"}
                 </div>
-                <div className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">
+                <div className="text-[11px] text-text-muted mt-0.5 leading-relaxed">
                   {recentGrowthDelta !== null && recentGrowthDelta > 0
                     ? `Your mastery has increased by ${recentGrowthDelta.toFixed(1)}% across assessment periods.`
                     : strongCount > 0
@@ -794,13 +685,13 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
             </div>
 
             {/* Insight 2: Focus areas */}
-            <div className="p-3.5 rounded-xl bg-gray-900/50 border border-gray-800/80 flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 shrink-0">
+            <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
                 <Brain className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-xs font-bold text-white">Keep going</div>
-                <div className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">
+                <div className="text-xs font-bold text-text-primary">Keep going</div>
+                <div className="text-[11px] text-text-muted mt-0.5 leading-relaxed">
                   {growthData?.needs_attention && growthData.needs_attention.length > 0
                     ? `${growthData.needs_attention.length} ${
                         growthData.needs_attention.length === 1 ? "topic needs" : "topics need"
@@ -811,13 +702,13 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
             </div>
 
             {/* Insight 3: Consistency */}
-            <div className="p-3.5 rounded-xl bg-gray-900/50 border border-gray-800/80 flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20 shrink-0">
+            <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 shrink-0">
                 <CheckCircle2 className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-xs font-bold text-white">Stay consistent</div>
-                <div className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">
+                <div className="text-xs font-bold text-text-primary">Stay consistent</div>
+                <div className="text-[11px] text-text-muted mt-0.5 leading-relaxed">
                   Consistent practice sessions with the AI Tutor and Adaptive Quizzes reinforce retention.
                 </div>
               </div>
@@ -831,15 +722,15 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
       {/* ================================================================ */}
       <div
         id="concept-mastery-section"
-        className="p-6 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm space-y-4"
+        className="p-6 rounded-2xl bg-surface border border-border shadow-sm space-y-4"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-gray-800/80">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-border">
           <div>
-            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-indigo-400" />
+            <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-accent" />
               Concept Mastery
             </h3>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-text-muted mt-0.5">
               Progress for each concept in this project
             </p>
           </div>
@@ -847,20 +738,20 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
           {/* Search & Filter Controls */}
           <div className="flex items-center gap-2.5">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search concepts..."
-                className="pl-8 pr-3 py-1.5 rounded-xl bg-gray-900/80 border border-gray-700/60 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 w-40 sm:w-48 transition-colors"
+                className="pl-8 pr-3 py-1.5 rounded-xl bg-surface border border-border text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent w-40 sm:w-48 transition-colors"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-2.5 py-1.5 rounded-xl bg-gray-900/80 border border-gray-700/60 text-xs text-gray-300 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="px-2.5 py-1.5 rounded-xl bg-surface border border-border text-xs text-text-secondary focus:outline-none focus:border-accent transition-colors"
             >
               <option value="all">All Concepts</option>
               <option value="mastered">Mastered (&ge;70%)</option>
@@ -882,18 +773,18 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
               return (
                 <div
                   key={m.concept_id}
-                  className="p-4 rounded-xl bg-gray-900/40 border border-gray-800/80 hover:border-gray-700 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs"
+                  className="p-4 rounded-xl bg-surface-muted/40 border border-border hover:border-accent/40 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs"
                 >
                   {/* Concept Name & Progress Bar */}
                   <div className="min-w-[200px] md:max-w-xs flex-1">
-                    <div className="font-semibold text-white text-sm truncate">
+                    <div className="font-semibold text-text-primary text-sm truncate">
                       {m.concept_name}
                     </div>
                     <div className="mt-2 flex items-center gap-3">
-                      <span className="font-mono text-gray-300 font-bold shrink-0">
+                      <span className="font-mono text-text-secondary font-bold shrink-0">
                         {m.mastery_score !== null ? `${Math.round(m.mastery_score)}%` : "—"}
                       </span>
-                      <div className="flex-1 max-w-[160px] bg-gray-800 h-1.5 rounded-full overflow-hidden">
+                      <div className="flex-1 max-w-[160px] bg-surface-muted border border-border/50 h-1.5 rounded-full overflow-hidden">
                         {m.mastery_score !== null ? (
                           <div
                             className={`h-full rounded-full ${
@@ -911,8 +802,8 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
                   </div>
 
                   {/* Confidence Pill */}
-                  <div className="shrink-0 text-gray-400 text-[11px]">
-                    <span className="px-2 py-0.5 rounded-md bg-gray-800/60 border border-gray-700/50">
+                  <div className="shrink-0 text-text-muted text-[11px]">
+                    <span className="px-2 py-0.5 rounded-md bg-surface border border-border">
                       {confPill}
                     </span>
                   </div>
@@ -920,19 +811,19 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
                   {/* Trend Indicator */}
                   <div className="shrink-0 w-24 flex items-center gap-1 font-mono text-[11px]">
                     {growth?.status === "improving" ? (
-                      <span className="text-emerald-400 flex items-center gap-1 font-semibold">
+                      <span className="text-emerald-500 flex items-center gap-1 font-semibold">
                         <ArrowUpRight className="w-3.5 h-3.5" /> Improving
                       </span>
                     ) : growth?.status === "needs_attention" ? (
-                      <span className="text-amber-400 flex items-center gap-1 font-semibold">
+                      <span className="text-amber-500 flex items-center gap-1 font-semibold">
                         <TrendingDown className="w-3.5 h-3.5" /> Practice
                       </span>
                     ) : growth?.status === "stable" ? (
-                      <span className="text-gray-400 flex items-center gap-1">
+                      <span className="text-text-muted flex items-center gap-1">
                         <Minus className="w-3.5 h-3.5" /> Stable
                       </span>
                     ) : (
-                      <span className="text-gray-500">—</span>
+                      <span className="text-text-muted">—</span>
                     )}
                   </div>
 
@@ -951,7 +842,7 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
                     {onNavigateTab && (
                       <button
                         onClick={() => onNavigateTab("quiz")}
-                        className="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-indigo-600/30 text-gray-200 hover:text-indigo-200 border border-gray-700 hover:border-indigo-500/40 text-xs font-semibold transition-all flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-lg bg-surface hover:bg-accent/10 text-text-secondary hover:text-accent border border-border hover:border-accent/40 text-xs font-semibold transition-all flex items-center gap-1"
                       >
                         Practice &rarr;
                       </button>
@@ -962,7 +853,7 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
             })}
           </div>
         ) : (
-          <div className="py-8 text-center text-xs text-gray-500">
+          <div className="py-8 text-center text-xs text-text-muted">
             No concepts matched your search.
           </div>
         )}
@@ -975,27 +866,27 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
         {/* Left: What to Do Next (8 cols) */}
         <div
           id="recommended-next-step"
-          className="lg:col-span-8 p-6 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm space-y-3"
+          className="lg:col-span-8 p-6 rounded-2xl bg-surface border border-border shadow-sm space-y-3"
         >
-          <div className="pb-2 border-b border-gray-800/80 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
-              <Lightbulb className="w-4 h-4 text-amber-400" />
+          <div className="pb-2 border-b border-border flex items-center justify-between">
+            <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+              <Lightbulb className="w-4 h-4 text-amber-500" />
               What to Do Next
             </h3>
-            <span className="text-[11px] text-gray-500">Targeted study recommendations</span>
+            <span className="text-[11px] text-text-muted">Targeted study recommendations</span>
           </div>
 
           {recommendations.length > 0 ? (
-            <div className="p-4 rounded-xl bg-gray-900/60 border border-gray-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="p-4 rounded-xl bg-surface-muted/60 border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
-                <div className="text-xs font-mono font-semibold uppercase text-indigo-400 flex items-center gap-1.5">
+                <div className="text-xs font-mono font-semibold uppercase text-accent flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" />
                   Recommended Next Step
                 </div>
-                <h4 className="text-sm font-bold text-white">
+                <h4 className="text-sm font-bold text-text-primary">
                   {recommendations[0].title}
                 </h4>
-                <p className="text-xs text-gray-400 leading-relaxed max-w-xl">
+                <p className="text-xs text-text-muted leading-relaxed max-w-xl">
                   {recommendations[0].reasoning || recommendations[0].body}
                 </p>
               </div>
@@ -1003,22 +894,22 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
               {onNavigateTab && (
                 <button
                   onClick={() => onNavigateTab("quiz")}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 shrink-0 transition-all"
+                  className="px-4 py-2 rounded-xl bg-accent hover:opacity-90 text-white text-xs font-semibold shadow-md shadow-accent/20 shrink-0 transition-all"
                 >
                   Start Practice &rarr;
                 </button>
               )}
             </div>
           ) : (
-            <div className="p-4 rounded-xl bg-gray-900/30 border border-gray-800/60 text-center py-6">
-              <h4 className="text-xs font-bold text-gray-300">Keep learning</h4>
-              <p className="text-[11px] text-gray-500 mt-1 max-w-md mx-auto">
+            <div className="p-4 rounded-xl bg-surface-muted/30 border border-border text-center py-6">
+              <h4 className="text-xs font-bold text-text-secondary">Keep learning</h4>
+              <p className="text-[11px] text-text-muted mt-1 max-w-md mx-auto">
                 Complete another assessment to receive a personalized next step recommendation.
               </p>
               {onNavigateTab && (
                 <button
                   onClick={() => onNavigateTab("quiz")}
-                  className="mt-3 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium border border-gray-700/60 transition-colors"
+                  className="mt-3 px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-muted text-text-secondary text-xs font-medium border border-border transition-colors"
                 >
                   Take a Practice Quiz
                 </button>
@@ -1028,24 +919,24 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
         </div>
 
         {/* Right: Study Streak (4 cols) */}
-        <div className="lg:col-span-4 p-6 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm space-y-4">
-          <div className="pb-2 border-b border-gray-800/80">
-            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
-              <Flame className="w-4 h-4 text-orange-400" />
+        <div className="lg:col-span-4 p-6 rounded-2xl bg-surface border border-border shadow-sm space-y-4">
+          <div className="pb-2 border-b border-border">
+            <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+              <Flame className="w-4 h-4 text-orange-500" />
               Study Streak
             </h3>
-            <p className="text-xs text-gray-400 mt-0.5">Your study habit consistency</p>
+            <p className="text-xs text-text-muted mt-0.5">Your study habit consistency</p>
           </div>
 
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center text-xl shrink-0">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-500 flex items-center justify-center text-xl shrink-0">
               🔥
             </div>
             <div>
-              <div className="text-xl font-bold text-white">
+              <div className="text-xl font-bold text-text-primary">
                 {streakCount > 0 ? `${streakCount} days` : "0 days"}
               </div>
-              <div className="text-[11px] text-gray-400">
+              <div className="text-[11px] text-text-muted">
                 {streakCount > 0 ? "Keep it up!" : "No study activity yet"}
               </div>
             </div>
@@ -1058,14 +949,14 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
                 const isActive = activeDays.has(idx);
                 return (
                   <div key={idx} className="flex flex-col items-center gap-1.5">
-                    <span className="text-[10px] font-mono text-gray-500 font-semibold">
+                    <span className="text-[10px] font-mono text-text-muted font-semibold">
                       {dayName}
                     </span>
                     <div
                       className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] transition-all ${
                         isActive
-                          ? "bg-indigo-600 text-white font-bold shadow-sm shadow-indigo-600/40"
-                          : "bg-gray-800/60 text-gray-600 border border-gray-700/40"
+                          ? "bg-accent text-white font-bold shadow-sm shadow-accent/30"
+                          : "bg-surface-muted text-text-muted border border-border"
                       }`}
                     >
                       {isActive ? "●" : "○"}
@@ -1081,7 +972,7 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
       )}
 
       {/* Footer Quote */}
-      <div className="text-center pt-4 pb-2 text-xs text-gray-500 italic">
+      <div className="text-center pt-4 pb-2 text-xs text-text-muted italic">
         &ldquo;Progress, not perfection, leads to mastery.&rdquo;
       </div>
     </div>

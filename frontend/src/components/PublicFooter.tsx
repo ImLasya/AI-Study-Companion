@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { BookOpen } from "lucide-react";
+import { EduMindLogo } from "@/components/EduMindLogo";
 
 export const PublicFooter: React.FC = () => {
   return (
@@ -9,11 +9,11 @@ export const PublicFooter: React.FC = () => {
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-accent/15 text-accent border border-accent/25 rounded-xl">
-              <BookOpen className="w-4 h-4" />
+              <EduMindLogo className="w-4 h-4" />
             </div>
             <div>
-              <span className="font-bold text-sm text-text-primary tracking-tight">AI Study Companion</span>
-              <p className="text-xs text-text-muted">Academic Learning Workspace</p>
+              <span className="font-bold text-sm text-text-primary tracking-tight">EduMind</span>
+              <p className="text-xs text-text-muted">Intelligent Learning Workspace</p>
             </div>
           </div>
 
@@ -43,7 +43,7 @@ export const PublicFooter: React.FC = () => {
         </div>
 
         <div className="mt-8 pt-6 border-t border-border/80 text-center text-xs text-text-muted">
-          &copy; {new Date().getFullYear()} AI Study Companion. Academic Learning Workspace. All rights reserved.
+          &copy; {new Date().getFullYear()} EduMind. Intelligent Learning Workspace. All rights reserved.
         </div>
       </div>
     </footer>

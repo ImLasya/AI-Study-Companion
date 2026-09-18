@@ -34,13 +34,15 @@ const StatusRoute: React.FC = () => {
   );
 };
 
+import { PageTitleUpdater } from "@/components/PageTitle";
+
 export const App: React.FC = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
-
-        <Routes>
+          <PageTitleUpdater />
+          <Routes>
           {/* Public Landing & Authentication Views */}
           <Route element={<PublicLayout />}>
             <Route path="/" element={<HomePage />} />

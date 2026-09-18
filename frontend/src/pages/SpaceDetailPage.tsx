@@ -104,106 +104,105 @@ export const SpaceDetailPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Navigation Breadcrumb & Header */}
-      <div>
+      {/* Navigation Breadcrumb & Header (Open layout) */}
+      <div className="space-y-4">
         <Link
           to="/spaces"
-          className="inline-flex items-center gap-2 text-xs text-text-muted hover:text-text-primary transition-colors mb-4"
+          className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Spaces</span>
         </Link>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-2xl bg-accent/10 text-accent border border-accent/20 mt-1">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/40">
+          <div className="flex items-start gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
               <Folder className="w-6 h-6" />
             </div>
             <div>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-accent font-bold">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-accent font-bold">
                 Learning Space
-              </span>
-              <h1 className="text-2xl font-bold text-text-primary tracking-tight mt-0.5">
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight mt-0.5">
                 {space.name}
               </h1>
-              <p className="text-xs text-text-secondary mt-1">
-                {space.description || "No description provided."}
+              <p className="text-xs sm:text-sm text-text-muted mt-1 max-w-2xl leading-relaxed">
+                {space.description?.trim() || "Domain workspace organizing dedicated study projects and course materials."}
               </p>
             </div>
           </div>
 
           <button
             onClick={() => setShowModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-semibold transition-colors shadow-sm self-start sm:self-auto"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold transition-all hover-lift shadow-sm self-start sm:self-auto cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            Create Project
+            <span>Create Project</span>
           </button>
         </div>
       </div>
 
       {/* Projects List */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-accent" />
-            <h2 className="text-base font-semibold text-text-primary">Projects in this Space</h2>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+              Projects in this Space ({projects.length})
+            </h2>
           </div>
-          <span className="text-xs text-text-muted font-mono">
-            {projects.length} {projects.length === 1 ? "project" : "projects"}
-          </span>
         </div>
 
         {projects.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-surface-muted/40 p-12 text-center max-w-lg mx-auto my-6">
-            <div className="inline-flex p-4 bg-accent/10 text-accent border border-accent/20 rounded-2xl mb-4">
-              <FolderPlus className="w-10 h-10" />
+          <div className="rounded-3xl border border-dashed border-border/80 bg-surface-muted/30 p-12 text-center max-w-md mx-auto my-6">
+            <div className="inline-flex p-4 bg-accent/10 text-accent rounded-2xl mb-4">
+              <FolderPlus className="w-8 h-8" />
             </div>
-            <h3 className="text-base font-semibold text-text-primary">No projects yet</h3>
-            <p className="text-xs text-text-secondary mt-2 leading-relaxed">
-              A Project represents a focused learning journey with materials, an AI tutor, and adaptive quizzes.
+            <h3 className="text-base font-bold text-text-primary">No study projects yet</h3>
+            <p className="text-xs text-text-muted mt-2 leading-relaxed">
+              A Project represents a focused study journey with textbook materials, AI tutoring, and adaptive tests.
             </p>
             <button
               onClick={() => setShowModal(true)}
-              className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold transition-colors"
+              className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold transition-all hover-lift shadow-sm cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              Create First Project
+              <span>Create First Project</span>
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {projects.map((project) => (
               <Link
                 key={project.id}
                 to={`/projects/${project.id}`}
-                className="group rounded-2xl border border-border bg-surface p-6 hover:border-accent/50 hover:shadow-md transition-all flex flex-col justify-between"
+                className="group p-5 rounded-2xl bg-surface border border-border/60 hover:border-accent/40 shadow-xs hover-lift transition-all flex flex-col justify-between"
               >
-                <div>
+                <div className="space-y-3">
                   <h3 className="text-base font-bold text-text-primary group-hover:text-accent transition-colors">
                     {project.name}
                   </h3>
                   {project.description && (
-                    <p className="text-xs text-text-secondary mt-1 line-clamp-2">
+                    <p className="text-xs text-text-muted line-clamp-2 leading-relaxed">
                       {project.description}
                     </p>
                   )}
 
                   {/* Learning Goal pill */}
-                  <div className="mt-4 p-3 rounded-xl bg-surface-muted border border-border">
-                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-accent mb-1">
-                      <Target className="w-3.5 h-3.5" />
-                      Learning Goal
+                  <div className="p-3 rounded-xl bg-surface-muted/60 border border-border/50">
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase font-bold text-accent mb-1">
+                      <Target className="w-3 h-3" />
+                      <span>Learning Goal</span>
                     </div>
-                    <p className="text-xs text-text-secondary line-clamp-2 italic">
+                    <p className="text-xs text-text-secondary line-clamp-2 italic leading-relaxed">
                       "{project.learning_goal}"
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-border flex items-center justify-between text-xs text-accent font-medium">
+                <div className="mt-5 pt-3 border-t border-border/40 flex items-center justify-between text-xs text-accent font-semibold">
                   <span>Enter workspace</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                 </div>
               </Link>
             ))}

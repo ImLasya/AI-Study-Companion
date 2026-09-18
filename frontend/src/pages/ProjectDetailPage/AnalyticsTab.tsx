@@ -222,21 +222,21 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
         </div>
 
         {/* Header Bar */}
-        <div className="rounded-2xl border border-gray-800 bg-[#0d1222] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-surface p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
           <div className="flex items-start sm:items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center font-bold text-white text-base tracking-wider shrink-0 shadow-inner">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-600/15 border border-indigo-500/25 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 text-base tracking-wider shrink-0 shadow-inner">
               {getInitials(project?.name)}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-white tracking-tight">
+                <h1 className="text-xl font-bold text-text-primary tracking-tight">
                   {project?.name || "Machine Learning Fundamentals"}
                 </h1>
               </div>
-              <div className="text-xs text-indigo-400 font-medium mt-0.5">
+              <div className="text-xs text-accent font-medium mt-0.5">
                 Space: {spaceName || "Knowledge Space"}
               </div>
-              <p className="text-xs text-gray-400 mt-1 max-w-2xl">
+              <p className="text-xs text-text-muted mt-1 max-w-2xl">
                 Detailed insights into your learning activity, quiz performance, and concept understanding.
               </p>
             </div>
@@ -246,15 +246,15 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           <div className="relative shrink-0">
             <button
               onClick={() => setShowProjectSwitcher((prev) => !prev)}
-              className="px-3 py-1.5 rounded-xl bg-gray-900/80 hover:bg-gray-800 text-gray-200 text-xs font-medium border border-gray-700/60 flex items-center gap-2 transition-colors"
+              className="px-3 py-1.5 rounded-xl bg-surface-muted hover:bg-surface text-text-primary text-xs font-medium border border-border flex items-center gap-2 transition-colors cursor-pointer"
             >
               <span>Switch Project</span>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+              <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
             </button>
 
             {showProjectSwitcher && allProjects.length > 0 && (
-              <div className="absolute right-0 mt-2 w-64 rounded-xl bg-gray-900 border border-gray-800 shadow-2xl p-1.5 z-30">
-                <div className="px-2 py-1 text-[10px] uppercase font-mono font-bold text-gray-500">
+              <div className="absolute right-0 mt-2 w-64 rounded-xl bg-surface border border-border shadow-2xl p-1.5 z-30">
+                <div className="px-2 py-1 text-[10px] uppercase font-mono font-bold text-text-muted">
                   Your Projects
                 </div>
                 {allProjects.map((p) => (
@@ -264,12 +264,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                     onClick={() => setShowProjectSwitcher(false)}
                     className={`block px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       p.id === projectId
-                        ? "bg-indigo-600/20 text-indigo-300 font-semibold"
-                        : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                        ? "bg-accent/15 text-accent font-semibold"
+                        : "text-text-secondary hover:bg-surface-muted hover:text-text-primary"
                     }`}
                   >
                     <div className="truncate">{p.name}</div>
-                    <div className="text-[10px] text-gray-500 truncate">{p.spaceName}</div>
+                    <div className="text-[10px] text-text-muted truncate">{p.spaceName}</div>
                   </Link>
                 ))}
               </div>
@@ -281,10 +281,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
         <div className="flex items-center gap-2 pt-1 overflow-x-auto pb-1">
           <button
             onClick={() => setActiveSubSection("overview")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
               activeSubSection === "overview"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "bg-gray-900/40 text-gray-400 hover:text-gray-200 hover:bg-gray-800/60 border border-gray-800/80"
+                ? "bg-accent text-white shadow-md shadow-accent/25"
+                : "bg-surface-muted text-text-secondary hover:text-text-primary hover:bg-surface border border-border"
             }`}
           >
             Overview
@@ -294,36 +294,36 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
               setActiveSubSection("quiz");
               document.getElementById("quiz-performance-section")?.scrollIntoView({ behavior: "smooth" });
             }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
               activeSubSection === "quiz"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "bg-gray-900/40 text-gray-400 hover:text-gray-200 hover:bg-gray-800/60 border border-gray-800/80"
+                ? "bg-accent text-white shadow-md shadow-accent/25"
+                : "bg-surface-muted text-text-secondary hover:text-text-primary hover:bg-surface border border-border"
             }`}
           >
-            Quiz Analytics
+            Quiz Scores
           </button>
           <button
             onClick={() => {
               setActiveSubSection("concepts");
-              document.getElementById("topic-mastery-section")?.scrollIntoView({ behavior: "smooth" });
+              document.getElementById("concept-mastery-section")?.scrollIntoView({ behavior: "smooth" });
             }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
               activeSubSection === "concepts"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "bg-gray-900/40 text-gray-400 hover:text-gray-200 hover:bg-gray-800/60 border border-gray-800/80"
+                ? "bg-accent text-white shadow-md shadow-accent/25"
+                : "bg-surface-muted text-text-secondary hover:text-text-primary hover:bg-surface border border-border"
             }`}
           >
-            Concept Insights
+            Concept Mastery
           </button>
           <button
             onClick={() => {
               setActiveSubSection("activity");
               document.getElementById("study-activity-section")?.scrollIntoView({ behavior: "smooth" });
             }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
               activeSubSection === "activity"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "bg-gray-900/40 text-gray-400 hover:text-gray-200 hover:bg-gray-800/60 border border-gray-800/80"
+                ? "bg-accent text-white shadow-md shadow-accent/25"
+                : "bg-surface-muted text-text-secondary hover:text-text-primary hover:bg-surface border border-border"
             }`}
           >
             Activity &amp; Engagement
@@ -336,55 +336,55 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
       {/* ================================================================ */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Study Days */}
-        <div className="p-5 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm flex items-center justify-between">
+        <div className="p-5 rounded-2xl bg-surface border border-border shadow-sm flex items-center justify-between">
           <div>
-            <div className="text-xs font-medium text-gray-400">Study Days</div>
-            <div className="text-2xl font-bold text-white tracking-tight mt-2">{activeStudyDays}</div>
-            <div className="text-[11px] text-gray-500 mt-1">Active in last 30 days</div>
+            <div className="text-xs font-medium text-text-muted">Study Days</div>
+            <div className="text-2xl font-bold text-text-primary tracking-tight mt-2 font-mono">{activeStudyDays}</div>
+            <div className="text-[11px] text-text-muted mt-1">Active in last 30 days</div>
           </div>
-          <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/20 shrink-0">
+          <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
             <Calendar className="w-5 h-5" />
           </div>
         </div>
 
         {/* Card 2: Materials Studied */}
-        <div className="p-5 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm flex items-center justify-between">
+        <div className="p-5 rounded-2xl bg-surface border border-border shadow-sm flex items-center justify-between">
           <div>
-            <div className="text-xs font-medium text-gray-400">Materials Studied</div>
-            <div className="text-2xl font-bold text-white tracking-tight mt-2">{materialsCount}</div>
-            <div className="text-[11px] text-gray-500 mt-1">PDF documents</div>
+            <div className="text-xs font-medium text-text-muted">Materials Studied</div>
+            <div className="text-2xl font-bold text-text-primary tracking-tight mt-2 font-mono">{materialsCount}</div>
+            <div className="text-[11px] text-text-muted mt-1">PDF documents</div>
           </div>
-          <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+          <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
             <FileText className="w-5 h-5" />
           </div>
         </div>
 
         {/* Card 3: Quizzes Completed */}
-        <div className="p-5 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm flex items-center justify-between">
+        <div className="p-5 rounded-2xl bg-surface border border-border shadow-sm flex items-center justify-between">
           <div>
-            <div className="text-xs font-medium text-gray-400">Quizzes Completed</div>
-            <div className="text-2xl font-bold text-white tracking-tight mt-2">{quizzesCompletedCount}</div>
-            <div className="text-[11px] text-gray-500 mt-1">
+            <div className="text-xs font-medium text-text-muted">Quizzes Completed</div>
+            <div className="text-2xl font-bold text-text-primary tracking-tight mt-2 font-mono">{quizzesCompletedCount}</div>
+            <div className="text-[11px] text-text-muted mt-1">
               {avgScore !== null ? `Average score: ${avgScore}%` : "No attempts yet"}
             </div>
           </div>
-          <div className="p-3 rounded-2xl bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">
+          <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
             <CheckCircle2 className="w-5 h-5" />
           </div>
         </div>
 
         {/* Card 4: AI Tutor Sessions */}
-        <div className="p-5 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm flex items-center justify-between">
+        <div className="p-5 rounded-2xl bg-surface border border-border shadow-sm flex items-center justify-between">
           <div>
-            <div className="text-xs font-medium text-gray-400">AI Tutor Sessions</div>
-            <div className="text-2xl font-bold text-white tracking-tight mt-2">
+            <div className="text-xs font-medium text-text-muted">AI Tutor Sessions</div>
+            <div className="text-2xl font-bold text-text-primary tracking-tight mt-2 font-mono">
               {tutor_interaction_counts.total_conversations}
             </div>
-            <div className="text-[11px] text-gray-500 mt-1">
+            <div className="text-[11px] text-text-muted mt-1">
               {tutor_interaction_counts.total_messages} questions asked
             </div>
           </div>
-          <div className="p-3 rounded-2xl bg-sky-500/10 text-sky-400 border border-sky-500/20 shrink-0">
+          <div className="p-3 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0">
             <MessageSquare className="w-5 h-5" />
           </div>
         </div>
@@ -395,27 +395,27 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
       {/* ================================================================ */}
       <div id="study-activity-section" className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left: Your Study Activity (8 cols) */}
-        <div className="lg:col-span-8 p-6 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-gray-800/80">
+        <div className="lg:col-span-8 p-6 rounded-2xl bg-surface border border-border shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-border">
             <div>
-              <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
-                <Activity className="w-4 h-4 text-indigo-400" />
+              <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+                <Activity className="w-4 h-4 text-accent" />
                 Your Study Activity
               </h3>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-text-muted mt-0.5">
                 Learning activity across the last 30 days
               </p>
             </div>
 
             {/* Legend */}
             <div className="flex items-center gap-3 text-[11px]">
-              <span className="flex items-center gap-1.5 text-violet-400">
-                <span className="w-2 h-2 rounded-full bg-violet-500" /> Quiz Attempts
+              <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                <span className="w-2 h-2 rounded-full bg-blue-500" /> Quiz Attempts
               </span>
-              <span className="flex items-center gap-1.5 text-indigo-400">
+              <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
                 <span className="w-2 h-2 rounded-full bg-indigo-500" /> AI Tutor
               </span>
-              <span className="flex items-center gap-1.5 text-emerald-400">
+              <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" /> Materials
               </span>
             </div>
@@ -448,9 +448,9 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                   return (
                     <div key={idx} className="flex-1 flex flex-col items-center justify-end h-full group relative">
                       {/* Tooltip */}
-                      <div className="absolute -top-10 hidden group-hover:flex flex-col items-center px-2 py-1 rounded bg-gray-900 border border-gray-700 text-[10px] text-gray-200 z-20 whitespace-nowrap shadow-xl">
-                        <span className="font-bold text-white">{shortDate}</span>
-                        <span>{bucket.event_count} actions</span>
+                      <div className="absolute -top-10 hidden group-hover:flex flex-col items-center px-2 py-1 rounded bg-surface border border-border text-[10px] text-text-primary z-20 whitespace-nowrap shadow-xl">
+                        <span className="font-bold text-text-primary">{shortDate}</span>
+                        <span className="text-text-muted">{bucket.event_count} actions</span>
                       </div>
 
                       {/* Stacked bar segments */}
@@ -460,7 +460,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                       >
                         {quizCount > 0 && (
                           <div
-                            className="w-full bg-violet-500"
+                            className="w-full bg-blue-500"
                             style={{ height: `${(quizCount / totalBucket) * 100}%` }}
                           />
                         )}
@@ -477,12 +477,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                           />
                         )}
                         {quizCount === 0 && tutorCount === 0 && materialCount === 0 && (
-                          <div className="w-full bg-indigo-600 h-full" />
+                          <div className="w-full bg-accent h-full" />
                         )}
                       </div>
 
                       {/* Day label */}
-                      <span className="text-[9px] font-mono text-gray-500 mt-2 truncate w-full text-center">
+                      <span className="text-[9px] font-mono text-text-muted mt-2 truncate w-full text-center">
                         {shortDate.split(" ")[1]}
                       </span>
                     </div>
@@ -491,17 +491,17 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
               </div>
             </div>
           ) : (
-            <div className="py-12 text-center text-xs text-gray-500">
+            <div className="py-12 text-center text-xs text-text-muted">
               Your study activity will appear here as you learn.
             </div>
           )}
         </div>
 
         {/* Right: Time Distribution Donut (4 cols) */}
-        <div className="lg:col-span-4 p-6 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm space-y-4">
-          <div className="pb-3 border-b border-gray-800/80">
-            <h3 className="text-sm font-bold text-white tracking-tight">Time Distribution</h3>
-            <p className="text-xs text-gray-400 mt-0.5">How you spend your study time</p>
+        <div className="lg:col-span-4 p-6 rounded-2xl bg-surface border border-border shadow-sm space-y-4">
+          <div className="pb-3 border-b border-border">
+            <h3 className="text-sm font-bold text-text-primary tracking-tight">Time Distribution</h3>
+            <p className="text-xs text-text-muted mt-0.5">How you spend your study time</p>
           </div>
 
           {activityDistribution ? (
@@ -511,15 +511,15 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                 <svg className="w-36 h-36 -rotate-90" viewBox="0 0 36 36">
                   {/* Background track */}
                   <path
-                    className="text-gray-800/80"
+                    className="text-surface-muted"
                     strokeWidth="4"
                     stroke="currentColor"
                     fill="none"
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   />
-                  {/* Segment 1: Quizzes (violet) */}
+                  {/* Segment 1: Quizzes (blue) */}
                   <path
-                    className="text-violet-500"
+                    className="text-blue-500"
                     strokeDasharray={`${activityDistribution.quizPct}, 100`}
                     strokeWidth="4"
                     stroke="currentColor"
@@ -530,7 +530,6 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                   <path
                     className="text-indigo-500"
                     strokeDasharray={`${activityDistribution.tutorPct}, 100`}
-                    strokeDashoffset={`-${activityDistribution.quizPct}`}
                     strokeWidth="4"
                     stroke="currentColor"
                     fill="none"
@@ -540,7 +539,6 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                   <path
                     className="text-emerald-500"
                     strokeDasharray={`${activityDistribution.materialPct}, 100`}
-                    strokeDashoffset={`-${activityDistribution.quizPct + activityDistribution.tutorPct}`}
                     strokeWidth="4"
                     stroke="currentColor"
                     fill="none"
@@ -548,45 +546,45 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                   />
                 </svg>
                 <div className="absolute text-center">
-                  <div className="text-base font-extrabold text-white tracking-tight">
+                  <div className="text-base font-extrabold text-text-primary tracking-tight font-mono">
                     {totalEvents}
                   </div>
-                  <div className="text-[10px] text-gray-400 font-medium">Actions</div>
+                  <div className="text-[10px] text-text-muted font-medium">Actions</div>
                 </div>
               </div>
 
               {/* Breakdown Legend */}
               <div className="w-full space-y-2 mt-5 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-gray-300">
-                    <span className="w-2.5 h-2.5 rounded-full bg-violet-500" /> Quizzes
+                  <span className="flex items-center gap-2 text-text-secondary">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Quizzes
                   </span>
-                  <span className="font-mono font-bold text-white">{activityDistribution.quizPct}%</span>
+                  <span className="font-mono font-bold text-text-primary">{activityDistribution.quizPct}%</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-gray-300">
+                  <span className="flex items-center gap-2 text-text-secondary">
                     <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> AI Tutor
                   </span>
-                  <span className="font-mono font-bold text-white">{activityDistribution.tutorPct}%</span>
+                  <span className="font-mono font-bold text-text-primary">{activityDistribution.tutorPct}%</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-gray-300">
+                  <span className="flex items-center gap-2 text-text-secondary">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Materials
                   </span>
-                  <span className="font-mono font-bold text-white">{activityDistribution.materialPct}%</span>
+                  <span className="font-mono font-bold text-text-primary">{activityDistribution.materialPct}%</span>
                 </div>
                 {activityDistribution.otherPct > 0 && (
                   <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-gray-400">
-                      <span className="w-2.5 h-2.5 rounded-full bg-gray-600" /> Other
+                    <span className="flex items-center gap-2 text-text-muted">
+                      <span className="w-2.5 h-2.5 rounded-full bg-slate-400" /> Other
                     </span>
-                    <span className="font-mono text-gray-400">{activityDistribution.otherPct}%</span>
+                    <span className="font-mono text-text-muted">{activityDistribution.otherPct}%</span>
                   </div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="py-12 text-center text-xs text-gray-500">
+            <div className="py-12 text-center text-xs text-text-muted">
               Study-time breakdown will appear as you use the different learning activities.
             </div>
           )}
@@ -598,16 +596,16 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
       {/* ================================================================ */}
       <div id="quiz-performance-section" className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left: Quiz Performance Chart (8 cols) */}
-        <div className="lg:col-span-8 p-6 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-800/80">
+        <div className="lg:col-span-8 p-6 rounded-2xl bg-surface border border-border shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-border">
             <div>
-              <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
-                <LineChart className="w-4 h-4 text-violet-400" />
+              <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+                <LineChart className="w-4 h-4 text-blue-500" />
                 Quiz Performance
               </h3>
-              <p className="text-xs text-gray-400 mt-0.5">Your quiz scores over time</p>
+              <p className="text-xs text-text-muted mt-0.5">Your quiz scores over time</p>
             </div>
-            <span className="text-[11px] font-mono text-gray-500 bg-gray-800 px-2 py-0.5 rounded-md">
+            <span className="text-[11px] font-mono text-text-muted bg-surface-muted px-2 py-0.5 rounded-md border border-border">
               Recent Attempts
             </span>
           </div>
@@ -626,11 +624,11 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                           y1={y}
                           x2="490"
                           y2={y}
-                          stroke="#1e293b"
+                          className="stroke-border"
                           strokeDasharray={level === 70 ? "4 4" : "2 2"}
                           strokeWidth="1"
                         />
-                        <text x="5" y={y + 3} fill="#64748b" fontSize="9" fontFamily="monospace">
+                        <text x="5" y={y + 3} className="fill-text-muted" fontSize="9" fontFamily="monospace">
                           {level}
                         </text>
                       </g>
@@ -664,7 +662,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                         <path
                           d={lineD}
                           fill="none"
-                          stroke="#a78bfa"
+                          stroke="#3b82f6"
                           strokeWidth="2.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -675,16 +673,16 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                               cx={c.x}
                               cy={c.y}
                               r="4"
-                              fill="#8b5cf6"
-                              stroke="#ffffff"
+                              fill="#2563eb"
+                              stroke="currentColor"
+                              className="stroke-surface group-hover:r-6 transition-all"
                               strokeWidth="1.5"
-                              className="group-hover:r-6 transition-all"
                             />
                             <text
                               x={c.x}
                               y={c.y - 8}
                               textAnchor="middle"
-                              fill="#e2e8f0"
+                              className="fill-text-primary"
                               fontSize="10"
                               fontWeight="bold"
                               fontFamily="sans-serif"
@@ -699,7 +697,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                 </svg>
 
                 {/* X-axis labels */}
-                <div className="flex justify-between pl-8 pr-2 pt-2 text-[10px] text-gray-500 font-mono">
+                <div className="flex justify-between pl-8 pr-2 pt-2 text-[10px] text-text-muted font-mono">
                   {quiz_performance_trend.slice(-10).map((q, idx) => (
                     <span key={idx}>
                       {q.completed_at
@@ -715,15 +713,15 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </div>
           ) : (
             <div className="py-10 text-center flex flex-col items-center">
-              <HelpCircle className="w-8 h-8 text-gray-600 mb-2" />
-              <div className="text-xs font-bold text-gray-300">No quiz results yet</div>
-              <p className="text-[11px] text-gray-500 mt-1 max-w-sm">
+              <HelpCircle className="w-8 h-8 text-text-muted mb-2" />
+              <div className="text-xs font-bold text-text-primary">No quiz results yet</div>
+              <p className="text-[11px] text-text-muted mt-1 max-w-sm">
                 Complete your first quiz to see your performance.
               </p>
               {onNavigateTab && (
                 <button
                   onClick={() => onNavigateTab("quiz")}
-                  className="mt-3 px-3.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold transition-colors"
+                  className="mt-3 px-3.5 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold transition-colors cursor-pointer"
                 >
                   Start Quiz
                 </button>
@@ -733,59 +731,59 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
         </div>
 
         {/* Right: Performance Summary Tiles (4 cols) */}
-        <div className="lg:col-span-4 p-6 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm space-y-3">
-          <div className="pb-3 border-b border-gray-800/80">
-            <h3 className="text-sm font-bold text-white tracking-tight">Performance Summary</h3>
-            <p className="text-xs text-gray-400 mt-0.5">High-level quiz benchmarks</p>
+        <div className="lg:col-span-4 p-6 rounded-2xl bg-surface border border-border shadow-sm space-y-3">
+          <div className="pb-3 border-b border-border">
+            <h3 className="text-sm font-bold text-text-primary tracking-tight">Performance Summary</h3>
+            <p className="text-xs text-text-muted mt-0.5">High-level quiz benchmarks</p>
           </div>
 
           <div className="space-y-2.5">
             {/* Average Score */}
-            <div className="p-3 rounded-xl bg-gray-900/50 border border-gray-800/80 flex items-center justify-between">
+            <div className="p-3 rounded-xl bg-surface-muted border border-border flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/20">
                   <Trophy className="w-4 h-4" />
                 </div>
-                <span className="text-xs text-gray-300 font-medium">Average Score</span>
+                <span className="text-xs text-text-secondary font-medium">Average Score</span>
               </div>
-              <span className="font-mono font-bold text-white text-sm">
+              <span className="font-mono font-bold text-text-primary text-sm">
                 {avgScore !== null ? `${avgScore}%` : "—"}
               </span>
             </div>
 
             {/* Completed Attempts */}
-            <div className="p-3 rounded-xl bg-gray-900/50 border border-gray-800/80 flex items-center justify-between">
+            <div className="p-3 rounded-xl bg-surface-muted border border-border flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
-                <span className="text-xs text-gray-300 font-medium">Completed Attempts</span>
+                <span className="text-xs text-text-secondary font-medium">Completed Attempts</span>
               </div>
-              <span className="font-mono font-bold text-white text-sm">{quizzesCompletedCount}</span>
+              <span className="font-mono font-bold text-text-primary text-sm">{quizzesCompletedCount}</span>
             </div>
 
             {/* Highest Score */}
-            <div className="p-3 rounded-xl bg-gray-900/50 border border-gray-800/80 flex items-center justify-between">
+            <div className="p-3 rounded-xl bg-surface-muted border border-border flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 border border-blue-500/20">
                   <ArrowUpRight className="w-4 h-4" />
                 </div>
-                <span className="text-xs text-gray-300 font-medium">Highest Score</span>
+                <span className="text-xs text-text-secondary font-medium">Highest Score</span>
               </div>
-              <span className="font-mono font-bold text-emerald-400 text-sm">
+              <span className="font-mono font-bold text-emerald-500 text-sm">
                 {highestScore !== null ? `${highestScore}%` : "—"}
               </span>
             </div>
 
             {/* Lowest Score */}
-            <div className="p-3 rounded-xl bg-gray-900/50 border border-gray-800/80 flex items-center justify-between">
+            <div className="p-3 rounded-xl bg-surface-muted border border-border flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                <div className="p-2 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20">
                   <ArrowDownRight className="w-4 h-4" />
                 </div>
-                <span className="text-xs text-gray-300 font-medium">Lowest Score</span>
+                <span className="text-xs text-text-secondary font-medium">Lowest Score</span>
               </div>
-              <span className="font-mono font-bold text-gray-300 text-sm">
+              <span className="font-mono font-bold text-text-secondary text-sm">
                 {lowestScore !== null ? `${lowestScore}%` : "—"}
               </span>
             </div>
@@ -798,13 +796,13 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
       {/* ================================================================ */}
       <div id="topic-mastery-section" className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left: Topic Mastery Distribution (6 cols) */}
-        <div className="lg:col-span-6 p-6 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm space-y-4">
-          <div className="pb-3 border-b border-gray-800/80">
-            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
-              <Award className="w-4 h-4 text-indigo-400" />
+        <div className="lg:col-span-6 p-6 rounded-2xl bg-surface border border-border shadow-sm space-y-4">
+          <div className="pb-3 border-b border-border">
+            <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+              <Award className="w-4 h-4 text-emerald-500" />
               Topic Mastery Distribution
             </h3>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-text-muted mt-0.5">
               Distribution of concepts by mastery level
             </p>
           </div>
@@ -813,12 +811,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             {/* Mastered */}
             <div>
               <div className="flex justify-between text-xs mb-1.5">
-                <span className="text-gray-300 font-medium">Mastered (&ge;70%)</span>
-                <span className="text-emerald-400 font-mono font-bold">
+                <span className="text-text-secondary font-medium">Mastered (&ge;70%)</span>
+                <span className="text-emerald-500 font-mono font-bold">
                   {masteredCount} ({masteredPct}%)
                 </span>
               </div>
-              <div className="w-full bg-gray-800/80 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-surface-muted h-2 rounded-full overflow-hidden border border-border">
                 <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${masteredPct}%` }} />
               </div>
             </div>
@@ -826,12 +824,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             {/* Building */}
             <div>
               <div className="flex justify-between text-xs mb-1.5">
-                <span className="text-gray-300 font-medium">Building (50&ndash;69%)</span>
-                <span className="text-sky-400 font-mono font-bold">
+                <span className="text-text-secondary font-medium">Building (50&ndash;69%)</span>
+                <span className="text-sky-500 font-mono font-bold">
                   {stableCount} ({stablePct}%)
                 </span>
               </div>
-              <div className="w-full bg-gray-800/80 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-surface-muted h-2 rounded-full overflow-hidden border border-border">
                 <div className="bg-sky-500 h-full rounded-full" style={{ width: `${stablePct}%` }} />
               </div>
             </div>
@@ -839,12 +837,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             {/* Needs Practice */}
             <div>
               <div className="flex justify-between text-xs mb-1.5">
-                <span className="text-gray-300 font-medium">Needs Practice (&lt;50%)</span>
-                <span className="text-amber-400 font-mono font-bold">
+                <span className="text-text-secondary font-medium">Needs Practice (&lt;50%)</span>
+                <span className="text-amber-500 font-mono font-bold">
                   {needsAttentionCount} ({needsAttentionPct}%)
                 </span>
               </div>
-              <div className="w-full bg-gray-800/80 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-surface-muted h-2 rounded-full overflow-hidden border border-border">
                 <div className="bg-amber-500 h-full rounded-full" style={{ width: `${needsAttentionPct}%` }} />
               </div>
             </div>
@@ -852,30 +850,30 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             {/* Not Assessed */}
             <div>
               <div className="flex justify-between text-xs mb-1.5">
-                <span className="text-gray-400 font-medium">Not Yet Assessed</span>
-                <span className="text-gray-500 font-mono font-bold">
+                <span className="text-text-muted font-medium">Not Yet Assessed</span>
+                <span className="text-text-muted font-mono font-bold">
                   {unassessedCount} ({unassessedPct}%)
                 </span>
               </div>
-              <div className="w-full bg-gray-800/80 h-2 rounded-full overflow-hidden">
-                <div className="bg-gray-700 h-full rounded-full" style={{ width: `${unassessedPct}%` }} />
+              <div className="w-full bg-surface-muted h-2 rounded-full overflow-hidden border border-border">
+                <div className="bg-slate-400 h-full rounded-full" style={{ width: `${unassessedPct}%` }} />
               </div>
             </div>
           </div>
         </div>
 
         {/* Right: Topics That Need More Practice (6 cols) */}
-        <div className="lg:col-span-6 p-6 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-800/80">
+        <div className="lg:col-span-6 p-6 rounded-2xl bg-surface border border-border shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-border">
             <div>
-              <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-400" />
+              <h3 className="text-sm font-bold text-text-primary tracking-tight flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-500" />
                 Topics That Need More Practice
               </h3>
-              <p className="text-xs text-gray-400 mt-0.5">Topics that need more attention</p>
+              <p className="text-xs text-text-muted mt-0.5">Topics that need more attention</p>
             </div>
             {weakTopics.length > 0 && (
-              <span className="text-[11px] font-mono text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+              <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                 {weakTopics.length} topics
               </span>
             )}
@@ -886,23 +884,23 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
               {weakTopics.map((c) => (
                 <div
                   key={c.concept_id}
-                  className="p-3 rounded-xl bg-gray-900/50 border border-gray-800/80 flex items-center justify-between gap-3 text-xs"
+                  className="p-3 rounded-xl bg-surface-muted border border-border flex items-center justify-between gap-3 text-xs"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-white truncate">{c.concept_name}</div>
-                    <div className="text-[10px] text-amber-400/90 font-medium mt-0.5">
+                    <div className="font-semibold text-text-primary truncate">{c.concept_name}</div>
+                    <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">
                       Needs Practice &bull; {c.latest_score !== null ? `${Math.round(c.latest_score)}% mastery` : "Unassessed"}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2.5 shrink-0">
-                    <span className="font-mono font-bold text-amber-400 text-xs">
+                    <span className="font-mono font-bold text-amber-500 text-xs">
                       {c.latest_score !== null ? `${Math.round(c.latest_score)}%` : "—"}
                     </span>
                     {onNavigateTab && (
                       <button
                         onClick={() => onNavigateTab("quiz")}
-                        className="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-amber-500/20 text-gray-300 hover:text-amber-200 border border-gray-700 text-[11px] font-semibold transition-colors"
+                        className="px-2.5 py-1 rounded-lg bg-surface hover:bg-amber-500/15 text-text-secondary hover:text-amber-600 dark:hover:text-amber-400 border border-border text-[11px] font-semibold transition-colors cursor-pointer"
                       >
                         Practice &rarr;
                       </button>
@@ -912,9 +910,9 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
               ))}
             </div>
           ) : (
-            <div className="py-12 text-center text-xs text-gray-500">
-              <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-              <div className="font-semibold text-gray-300">Great job!</div>
+            <div className="py-12 text-center text-xs text-text-muted">
+              <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+              <div className="font-semibold text-text-primary">Great job!</div>
               <p className="mt-1">No topics currently below 50% mastery.</p>
             </div>
           )}
@@ -926,49 +924,49 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
       {/* ================================================================ */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
         {/* Left: AI Tutor Usage (8 cols) */}
-        <div className="lg:col-span-8 p-5 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="lg:col-span-8 p-5 rounded-2xl bg-surface border border-border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-indigo-600/15 text-accent border border-indigo-500/25 flex items-center justify-center shrink-0">
               <MessageSquare className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white">AI Tutor Usage</h4>
-              <p className="text-xs text-gray-400 mt-0.5">Interaction and grounding telemetry</p>
+              <h4 className="text-sm font-bold text-text-primary">AI Tutor Usage</h4>
+              <p className="text-xs text-text-muted mt-0.5">Interaction and grounding telemetry</p>
             </div>
           </div>
 
           <div className="flex items-center gap-6 text-xs">
             <div>
-              <div className="text-lg font-bold text-white font-mono">
+              <div className="text-lg font-bold text-text-primary font-mono">
                 {tutor_interaction_counts.total_messages}
               </div>
-              <div className="text-[10px] text-gray-500">Total questions</div>
+              <div className="text-[10px] text-text-muted">Total questions</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-emerald-400 font-mono">{groundedPct}%</div>
-              <div className="text-[10px] text-gray-500">Grounded answers</div>
+              <div className="text-lg font-bold text-emerald-500 font-mono">{groundedPct}%</div>
+              <div className="text-[10px] text-text-muted">Grounded answers</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-indigo-300 font-mono">
+              <div className="text-lg font-bold text-accent font-mono">
                 {tutor_interaction_counts.total_conversations}
               </div>
-              <div className="text-[10px] text-gray-500">Study sessions</div>
+              <div className="text-[10px] text-text-muted">Study sessions</div>
             </div>
           </div>
         </div>
 
         {/* Right: Keep Asking! (4 cols) */}
-        <div className="lg:col-span-4 p-5 rounded-2xl bg-[#0d1222] border border-gray-800 shadow-sm flex flex-col justify-between gap-3">
+        <div className="lg:col-span-4 p-5 rounded-2xl bg-surface border border-border shadow-sm flex flex-col justify-between gap-3">
           <div>
-            <h4 className="text-xs font-bold text-white">Keep Asking!</h4>
-            <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
+            <h4 className="text-xs font-bold text-text-primary">Keep Asking!</h4>
+            <p className="text-[11px] text-text-muted mt-1 leading-relaxed">
               The AI Tutor is here to help you understand difficult concepts.
             </p>
           </div>
           {onNavigateTab && (
             <button
               onClick={() => onNavigateTab("tutor")}
-              className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5 transition-all"
+              className="px-3.5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold shadow-md shadow-accent/25 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
             >
               Ask a Question &rarr;
             </button>
@@ -977,7 +975,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
       </div>
 
       {/* Footer Quote */}
-      <div className="text-center pt-4 pb-2 text-xs text-gray-500 italic">
+      <div className="text-center pt-4 pb-2 text-xs text-text-muted italic">
         &ldquo;Data turns effort into insight, and insight into progress.&rdquo;
       </div>
     </div>

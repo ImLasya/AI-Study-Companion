@@ -1,6 +1,6 @@
-# AI Study Companion - Frontend
+# EduMind - Frontend
 
-React + Vite + TypeScript frontend web workspace for the **AI Study Companion** platform.
+React + Vite + TypeScript frontend web workspace for the **EduMind** platform.
 
 ## Architecture
 

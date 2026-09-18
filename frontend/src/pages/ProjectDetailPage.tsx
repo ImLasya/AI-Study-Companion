@@ -285,191 +285,187 @@ export const ProjectDetailPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* ==================================================================== */}
-      {/* 1. PROJECT HEADER                                                    */}
+      {/* 1. OPEN PROJECT WORKSPACE HEADER (NO GIANT CARD)                     */}
       {/* ==================================================================== */}
-      <div>
-        <Link
-          to={`/spaces/${project.space_id}`}
-          className="inline-flex items-center gap-2 text-xs text-text-muted hover:text-text-primary transition-colors mb-3"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Space</span>
-        </Link>
+      <div className="space-y-3 pb-2 border-b border-border/40">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-xs text-text-muted">
+          <Link to="/spaces" className="hover:text-text-primary transition-colors">
+            Spaces
+          </Link>
+          <span>/</span>
+          {space && (
+            <>
+              <Link to={`/spaces/${space.id}`} className="hover:text-text-primary transition-colors">
+                {space.name}
+              </Link>
+              <span>/</span>
+            </>
+          )}
+          <span className="text-text-primary font-medium">{project.name}</span>
+        </div>
 
-        <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start sm:items-center gap-3.5">
-              <div className="p-2.5 rounded-xl bg-accent/10 text-accent border border-accent/20 flex-shrink-0">
-                <Target className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-accent font-bold">
-                    Project Workspace
-                  </span>
-                  <span className="text-text-muted">•</span>
-                  <span className="text-[11px] text-text-muted font-mono">
-                    {averageMastery !== null ? `${averageMastery}% Mastery` : "Unassessed"}
-                  </span>
-                </div>
-                <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight mt-0.5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-accent/15 text-accent flex items-center justify-center shrink-0 mt-0.5">
+              <Target className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight">
                   {project.name}
                 </h1>
-                {project.description && (
-                  <p className="text-xs text-text-secondary mt-1">{project.description}</p>
+                {averageMastery !== null ? (
+                  <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-accent/10 text-accent">
+                    {averageMastery}% Mastery
+                  </span>
+                ) : (
+                  <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-surface-muted text-text-muted">
+                    Unassessed
+                  </span>
                 )}
               </div>
-            </div>
-
-            {/* Quick action button */}
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <button
-                onClick={() => handleTabChange("tutor")}
-                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold transition-colors shadow-sm"
-              >
-                <Bot className="w-3.5 h-3.5" />
-                <span>Ask AI Tutor</span>
-              </button>
+              {project.learning_goal && (
+                <p className="text-xs text-text-muted mt-1 max-w-2xl leading-relaxed">
+                  <span className="font-semibold text-text-secondary">Goal:</span> "{project.learning_goal}"
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Learning Goal Banner */}
-          {project.learning_goal && (
-            <div className="mt-4 pt-3.5 border-t border-border flex items-start gap-2.5 text-xs">
-              <Sparkles className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-              <div>
-                <span className="font-semibold text-text-primary">Learning Goal: </span>
-                <span className="text-text-secondary italic">"{project.learning_goal}"</span>
-              </div>
-            </div>
-          )}
+          <div className="flex items-center gap-2.5 self-start md:self-auto">
+            <button
+              onClick={() => handleTabChange("tutor")}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold transition-all hover-lift shadow-sm cursor-pointer"
+            >
+              <Bot className="w-4 h-4" />
+              <span>Ask AI Tutor</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ==================================================================== */}
-      {/* 2. SPLIT WORKSPACE: LEFT SUB-SIDEBAR + MAIN CONTENT                  */}
+      {/* 2. SLEEK HORIZONTAL PROJECT NAVIGATION BAR (NOT IN A CARD)           */}
       {/* ==================================================================== */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-        {/* Left Sub-Sidebar (3 cols on md / ~220px) */}
-        <div className="md:col-span-3 lg:col-span-3 rounded-2xl border border-border bg-surface p-2.5 space-y-1 shadow-sm">
-          <div className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-text-muted">
-            Workspace Nav
-          </div>
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-border/40">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.key;
+          return (
+            <button
+              key={item.key}
+              onClick={() => handleTabChange(item.key)}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
+                isActive
+                  ? "bg-accent text-white font-bold shadow-sm shadow-accent/20"
+                  : "text-text-secondary hover:text-text-primary hover:bg-surface-muted"
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{item.label}</span>
+              {item.key === "materials" && materials.length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${isActive ? "bg-white/20 text-white" : "bg-surface-muted text-text-muted"}`}>
+                  {materials.length}
+                </span>
+              )}
+              {item.key === "quiz" && quizzes.length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${isActive ? "bg-white/20 text-white" : "bg-purple-500/15 text-purple-400"}`}>
+                  {quizzes.length}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.key;
-            return (
-              <button
-                key={item.key}
-                onClick={() => handleTabChange(item.key)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
-                  isActive
-                    ? "bg-accent-soft text-accent border border-accent/30 font-semibold shadow-sm"
-                    : "text-text-secondary hover:text-text-primary hover:bg-surface-muted border border-transparent"
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Icon
-                    className={`w-4 h-4 ${
-                      isActive ? "text-accent" : "text-text-muted"
-                    }`}
-                  />
-                  <span>{item.label}</span>
-                </div>
-
-                {item.key === "materials" && materials.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-accent/15 text-accent border border-accent/25">
-                    {materials.length}
-                  </span>
-                )}
-                {item.key === "quiz" && quizzes.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/25">
-                    {quizzes.length}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Right Main Content Pane (9 cols on md) */}
-        <div className="md:col-span-9 lg:col-span-9 space-y-6">
+      {/* ==================================================================== */}
+      {/* 3. MAIN TAB CONTENT AREA                                             */}
+      {/* ==================================================================== */}
+      <div className="space-y-6">
           {/* ================================================================ */}
           {/* TAB 1: OVERVIEW                                                  */}
           {/* ================================================================ */}
           {activeTab === "overview" && (
             <div className="space-y-6">
-              {/* Row 1: Project Overview KPIs */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Row 1: Project Overview Compact Visual Stats */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 {/* Overall Mastery */}
-                <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                  <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider font-mono">
-                    Overall Mastery
-                  </span>
-                  <div className="mt-2 text-2xl font-bold text-text-primary font-mono">
-                    {averageMastery !== null ? `${averageMastery}%` : "—"}
+                <div className="p-4 rounded-2xl bg-indigo-500/[0.04] dark:bg-indigo-500/[0.07] border border-indigo-500/10 flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                    <Target className="w-5 h-5" />
                   </div>
-                  <p className="text-[11px] text-text-muted mt-0.5">Assessed progress</p>
+                  <div>
+                    <div className="text-2xl font-bold font-mono text-text-primary">
+                      {averageMastery !== null ? `${averageMastery}%` : "—"}
+                    </div>
+                    <div className="text-xs font-medium text-text-muted">Overall Mastery</div>
+                  </div>
                 </div>
 
                 {/* Total Concepts */}
-                <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                  <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider font-mono">
-                    Total Concepts
-                  </span>
-                  <div className="mt-2 text-2xl font-bold text-accent font-mono">
-                    {totalConceptsCount}
+                <div className="p-4 rounded-2xl bg-sky-500/[0.04] dark:bg-sky-500/[0.07] border border-sky-500/10 flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center shrink-0">
+                    <BookOpen className="w-5 h-5" />
                   </div>
-                  <p className="text-[11px] text-text-muted mt-0.5">Extracted from notes</p>
+                  <div>
+                    <div className="text-2xl font-bold font-mono text-text-primary">
+                      {totalConceptsCount}
+                    </div>
+                    <div className="text-xs font-medium text-text-muted">Total Concepts</div>
+                  </div>
                 </div>
 
                 {/* Completed Concepts */}
-                <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                  <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider font-mono">
-                    Completed
-                  </span>
-                  <div className="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                    {completedConceptsCount}
+                <div className="p-4 rounded-2xl bg-emerald-500/[0.04] dark:bg-emerald-500/[0.07] border border-emerald-500/10 flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-5 h-5" />
                   </div>
-                  <p className="text-[11px] text-text-muted mt-0.5">Mastery &ge; 70%</p>
+                  <div>
+                    <div className="text-2xl font-bold font-mono text-text-primary">
+                      {completedConceptsCount}
+                    </div>
+                    <div className="text-xs font-medium text-text-muted">Completed (≥70%)</div>
+                  </div>
                 </div>
 
                 {/* Weak Topics */}
-                <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                  <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider font-mono">
-                    Weak Topics
-                  </span>
-                  <div className="mt-2 text-2xl font-bold text-amber-500 dark:text-amber-400 font-mono">
-                    {weakTopicsCount}
+                <div className="p-4 rounded-2xl bg-amber-500/[0.04] dark:bg-amber-500/[0.07] border border-amber-500/10 flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                    <AlertCircle className="w-5 h-5" />
                   </div>
-                  <p className="text-[11px] text-text-muted mt-0.5">Needs practice</p>
+                  <div>
+                    <div className="text-2xl font-bold font-mono text-amber-500">
+                      {weakTopicsCount}
+                    </div>
+                    <div className="text-xs font-medium text-text-muted">Needs Practice</div>
+                  </div>
                 </div>
               </div>
 
-              {/* Continue Learning Action Card */}
+              {/* Featured Continue Learning Module */}
               {recommendations.length > 0 && (
-                <div className="p-4 rounded-xl border border-accent/25 bg-accent-soft/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-accent/15 text-accent border border-accent/25">
-                      <Sparkles className="w-4 h-4" />
+                <div className="relative overflow-hidden p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-accent/15 via-purple-500/10 to-surface border border-accent/25 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+                  <div className="flex items-start gap-3.5">
+                    <div className="p-2.5 rounded-xl bg-accent text-white shadow-sm mt-0.5 shrink-0">
+                      <Sparkles className="w-5 h-5" />
                     </div>
-                    <div>
-                      <span className="text-[10px] font-mono text-accent uppercase font-bold tracking-wider">
-                        Continue Learning
-                      </span>
-                      <h4 className="text-xs sm:text-sm font-semibold text-text-primary mt-0.5">
-                        Your next recommended action: Review {recommendations[0].target_concept_name || recommendations[0].title}
+                    <div className="space-y-1">
+                      <div className="inline-flex items-center gap-1.5 text-[10px] font-mono text-accent uppercase font-bold tracking-wider">
+                        Next Recommended Step
+                      </div>
+                      <h4 className="text-sm sm:text-base font-bold text-text-primary">
+                        Review {recommendations[0].target_concept_name || recommendations[0].title}
                       </h4>
-                      <p className="text-[11px] text-text-secondary mt-0.5">
-                        {recommendations[0].reasoning || recommendations[0].body || "Based on your latest assessment"}
+                      <p className="text-xs text-text-muted max-w-xl leading-relaxed">
+                        {recommendations[0].reasoning || recommendations[0].body || "Targeted practice step calibrated to reinforce your understanding."}
                       </p>
                     </div>
                   </div>
 
                   <button
                     onClick={() => handleTabChange("quiz")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold self-start sm:self-auto transition-colors shadow-sm"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold transition-all hover-lift shadow-sm self-start sm:self-auto shrink-0 cursor-pointer"
                   >
                     <span>Start Practice</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -477,10 +473,10 @@ export const ProjectDetailPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Advisory Learning Insights (Background Intelligence) */}
-              <div className="p-4 rounded-xl border border-border bg-surface space-y-3 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+              {/* Advisory Learning Insights (Open Section) */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                  <div className="flex items-center gap-2.5">
                     <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/20">
                       <Lightbulb className="w-4 h-4" />
                     </div>
@@ -497,7 +493,7 @@ export const ProjectDetailPage: React.FC = () => {
                   <button
                     onClick={handleRefreshInsights}
                     disabled={refreshingInsights}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-surface-muted hover:bg-surface text-text-secondary hover:text-text-primary border border-border transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-muted hover:bg-surface text-text-secondary hover:text-text-primary border border-border transition-colors disabled:opacity-50 cursor-pointer"
                   >
                     <RotateCw className={`w-3 h-3 ${refreshingInsights ? "animate-spin" : ""}`} />
                     <span>Refresh</span>
@@ -505,32 +501,36 @@ export const ProjectDetailPage: React.FC = () => {
                 </div>
 
                 {insights.length === 0 ? (
-                  <div className="py-4 text-center text-text-muted text-xs">
+                  <div className="py-6 text-center text-text-muted text-xs">
                     No learning insights generated yet. Complete quizzes or ask the AI Tutor to generate personalized study patterns!
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                     {insights.slice(0, 4).map((ins) => {
                       let badgeColor = "bg-accent/10 text-accent border-accent/20";
+                      let borderAccent = "border-l-accent";
                       if (ins.insight_type === "repeated_mistake") {
                         badgeColor = "bg-rose-500/10 text-rose-600 dark:text-rose-300 border-rose-500/20";
+                        borderAccent = "border-l-rose-500";
                       } else if (ins.insight_type === "weak_concept") {
                         badgeColor = "bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/20";
+                        borderAccent = "border-l-amber-500";
                       } else if (ins.insight_type === "improving_concept") {
                         badgeColor = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border-emerald-500/20";
+                        borderAccent = "border-l-emerald-500";
                       }
 
                       return (
                         <div
                           key={ins.id}
-                          className="p-3 rounded-xl bg-surface-muted/60 border border-border space-y-1.5"
+                          className={`p-3.5 rounded-xl bg-surface-muted/40 border-l-3 ${borderAccent} space-y-1.5 transition-colors hover:bg-surface-muted/70`}
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-semibold text-text-primary truncate pr-2">
                               {ins.title}
                             </span>
                             <span
-                              className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded-full border ${badgeColor}`}
+                              className={`text-[9px] font-mono uppercase px-2 py-0.5 rounded-full border ${badgeColor}`}
                             >
                               {ins.insight_type.replace("_", " ")}
                             </span>
@@ -545,9 +545,9 @@ export const ProjectDetailPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Key Concepts List */}
-              <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
+              {/* Key Concepts List (Open Section) */}
+              <div className="space-y-3 pt-4">
+                <div className="flex items-center justify-between pb-2 border-b border-border/60">
                   <div className="flex items-center gap-2">
                     <Layers className="w-4 h-4 text-accent" />
                     <h3 className="text-sm font-bold text-text-primary tracking-tight">
@@ -556,7 +556,7 @@ export const ProjectDetailPage: React.FC = () => {
                   </div>
                   <button
                     onClick={() => handleTabChange("growth")}
-                    className="text-xs text-accent hover:text-accent-hover font-medium inline-flex items-center gap-1"
+                    className="text-xs text-accent hover:text-accent-hover font-medium inline-flex items-center gap-1 cursor-pointer"
                   >
                     <span>Growth Analysis</span>
                     <ArrowRight className="w-3 h-3" />
@@ -568,7 +568,7 @@ export const ProjectDetailPage: React.FC = () => {
                     No concepts extracted yet. Upload materials in the Materials tab to begin.
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="divide-y divide-border/50">
                     {(masteryData?.masteries || []).slice(0, 6).map((c) => {
                       const score = c.mastery_score !== null ? Math.round(c.mastery_score) : null;
                       const hasEvidence = c.evidence_count > 0;
@@ -606,28 +606,28 @@ export const ProjectDetailPage: React.FC = () => {
                       return (
                         <div
                           key={c.concept_id}
-                          className="p-3 rounded-xl bg-surface-muted/60 border border-border space-y-1.5"
+                          className="py-3 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-surface-muted/30 transition-colors rounded-lg"
                         >
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-text-primary truncate mr-2">
-                              {c.concept_name}
-                            </span>
+                          <div className="flex-1 min-w-0 pr-4">
                             <div className="flex items-center gap-2">
-                              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${badgeClass}`}>
+                              <span className="font-semibold text-text-primary text-xs truncate">
+                                {c.concept_name}
+                              </span>
+                              <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full border shrink-0 ${badgeClass}`}>
                                 {statusLabel}
                               </span>
-                              <span className="font-mono text-text-primary font-bold w-12 text-right">
-                                {score !== null ? `${score}%` : "—"}
-                              </span>
+                            </div>
+                            <div className="w-full max-w-md h-1.5 bg-surface-muted rounded-full overflow-hidden mt-1.5">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                                style={{ width: `${score !== null ? score : 0}%` }}
+                              />
                             </div>
                           </div>
 
-                          <div className="w-full h-1.5 bg-surface-muted rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-                              style={{ width: `${score !== null ? score : 0}%` }}
-                            />
-                          </div>
+                          <span className="font-mono text-text-primary font-bold text-xs shrink-0 self-end sm:self-auto">
+                            {score !== null ? `${score}%` : "—"}
+                          </span>
                         </div>
                       );
                     })}
@@ -638,10 +638,27 @@ export const ProjectDetailPage: React.FC = () => {
           )}
 
           {/* ================================================================ */}
-          {/* TAB 2: MATERIALS                                                 */}
+          {/* TAB 2: MATERIALS (Document Library)                              */}
           {/* ================================================================ */}
           {activeTab === "materials" && (
             <div className="space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/60">
+                <div>
+                  <h3 className="text-base font-bold text-text-primary tracking-tight">
+                    Document Library
+                  </h3>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Upload textbooks, notes, and lecture slides (PDF). OCR and pgvector embeddings are generated automatically.
+                  </p>
+                </div>
+                {materials.some((m) => m.status === "queued" || m.status === "processing") && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono text-accent bg-accent/10 border border-accent/20 shrink-0">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing document...
+                  </span>
+                )}
+              </div>
+
               {/* Upload Dropzone */}
               <div
                 onDragOver={(e) => {
@@ -650,10 +667,10 @@ export const ProjectDetailPage: React.FC = () => {
                 }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleDrop}
-                className={`rounded-2xl border-2 border-dashed transition-all p-8 text-center flex flex-col items-center justify-center cursor-pointer ${
+                className={`rounded-2xl border-2 border-dashed transition-all p-7 text-center flex flex-col items-center justify-center cursor-pointer ${
                   dragOver
                     ? "border-accent bg-accent/10"
-                    : "border-border bg-surface-muted/30 hover:border-accent/50 hover:bg-surface-muted/60"
+                    : "border-border/80 bg-surface-muted/25 hover:border-accent/50 hover:bg-surface-muted/50"
                 }`}
                 onClick={() => fileInputRef.current?.click()}
               >
@@ -668,19 +685,18 @@ export const ProjectDetailPage: React.FC = () => {
                   accept=".pdf,application/pdf"
                   className="hidden"
                 />
-                <div className="p-3.5 rounded-2xl bg-accent/10 text-accent border border-accent/20 mb-3">
+                <div className="p-3 rounded-2xl bg-accent/10 text-accent border border-accent/20 mb-2.5">
                   {uploading ? (
-                    <Loader2 className="w-6 h-6 animate-spin text-accent" />
+                    <Loader2 className="w-5 h-5 animate-spin text-accent" />
                   ) : (
-                    <UploadCloud className="w-6 h-6" />
+                    <UploadCloud className="w-5 h-5" />
                   )}
                 </div>
-                <h3 className="text-sm font-semibold text-text-primary">
-                  {uploading ? "Uploading PDF document..." : "Click or drag & drop PDF to upload"}
-                </h3>
-                <p className="text-xs text-text-secondary mt-1 max-w-sm">
-                  Upload textbook chapters, notes, or lecture slides (PDF up to 20MB).
-                  Background OCR, chunking, and pgvector vectorization happen automatically.
+                <h4 className="text-xs font-semibold text-text-primary">
+                  {uploading ? "Uploading & vectorizing PDF..." : "Click or drag & drop PDF here"}
+                </h4>
+                <p className="text-[11px] text-text-muted mt-1 max-w-sm">
+                  PDF up to 20MB. Automatic OCR, chunking, and pgvector embeddings.
                 </p>
               </div>
 
@@ -691,111 +707,107 @@ export const ProjectDetailPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Materials List */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-text-primary tracking-tight">
-                    Uploaded Learning Materials
-                  </h3>
-                  {materials.some((m) => m.status === "queued" || m.status === "processing") && (
-                    <span className="flex items-center gap-1.5 text-[11px] font-mono text-accent">
-                      <Loader2 className="w-3 h-3 animate-spin" /> Processing document...
-                    </span>
-                  )}
+              {/* Materials List as Modern Document Library Table / Rows */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-1 text-xs text-text-muted font-medium">
+                  <span>{materials.length} Document{materials.length === 1 ? "" : "s"}</span>
+                  <span className="font-mono text-[11px]">RAG Vector Store</span>
                 </div>
 
                 {materialsLoading && materials.length === 0 ? (
                   <div className="flex items-center justify-center py-12 text-text-muted text-xs">
                     <Loader2 className="w-5 h-5 animate-spin mr-2 text-accent" />
-                    Loading materials...
+                    Loading document library...
                   </div>
                 ) : materials.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border bg-surface-muted/30 p-10 text-center flex flex-col items-center justify-center">
-                    <File className="w-8 h-8 text-text-muted mb-2" />
+                  <div className="py-12 text-center flex flex-col items-center justify-center">
+                    <File className="w-8 h-8 text-text-muted/60 mb-2" />
                     <p className="text-xs text-text-secondary font-medium">No materials uploaded yet</p>
                     <p className="text-[11px] text-text-muted mt-0.5">
                       Upload your first PDF above to enable AI tutoring and RAG search.
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-3">
+                  <div className="divide-y divide-border/60 rounded-xl border border-border/60 bg-surface/50 overflow-hidden">
                     {materials.map((m) => (
                       <div
                         key={m.id}
-                        className="rounded-xl border border-border bg-surface p-4 transition-all hover:border-accent/40 shadow-sm"
+                        className="p-3.5 sm:p-4 transition-colors hover:bg-surface-muted/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                       >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-start sm:items-center gap-3 min-w-0">
-                            <div className="p-2.5 rounded-xl bg-accent/10 text-accent border border-accent/20 flex-shrink-0">
-                              <FileText className="w-5 h-5 text-accent" />
-                            </div>
-                            <div className="min-w-0">
-                              <h4 className="text-sm font-semibold text-text-primary truncate">
-                                {m.filename}
-                              </h4>
-                              <div className="flex items-center gap-3 text-[11px] text-text-muted mt-0.5">
-                                <span>
-                                  {m.page_count !== null && m.page_count !== undefined
-                                    ? `${m.page_count} page${m.page_count === 1 ? "" : "s"}`
-                                    : "Calculating pages..."}
-                                </span>
-                                <span>•</span>
-                                <span>
-                                  {new Date(m.created_at).toLocaleDateString(undefined, {
-                                    month: "short",
-                                    day: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </span>
-                              </div>
+                        {/* Left: PDF Icon + Info */}
+                        <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                          <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shrink-0">
+                            <FileText className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-xs sm:text-sm font-semibold text-text-primary truncate">
+                              {m.filename}
+                            </h4>
+                            <div className="flex items-center gap-2 text-[11px] text-text-muted mt-0.5">
+                              <span className="font-medium text-text-secondary">
+                                {m.status === "ready" ? "Ready" : m.status}
+                              </span>
+                              <span>·</span>
+                              <span>
+                                {m.page_count !== null && m.page_count !== undefined
+                                  ? `${m.page_count} page${m.page_count === 1 ? "" : "s"}`
+                                  : "Calculating pages..."}
+                              </span>
+                              <span>·</span>
+                              <span>
+                                {new Date(m.created_at).toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
+                              </span>
                             </div>
                           </div>
+                        </div>
 
-                          {/* Status Badge & Actions */}
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {m.status === "queued" && (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-300">
-                                <Clock className="w-3 h-3 text-purple-500" />
-                                <span>Queued</span>
+                        {/* Right: Status Pill & Actions */}
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                          {m.status === "queued" && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-300">
+                              <Clock className="w-3 h-3 text-purple-500" />
+                              <span>Queued</span>
+                            </span>
+                          )}
+
+                          {m.status === "processing" && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-accent/10 border border-accent/20 text-accent">
+                              <Loader2 className="w-3 h-3 animate-spin text-accent" />
+                              <span>Processing...</span>
+                            </span>
+                          )}
+
+                          {m.status === "ready" && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-300">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                              <span>Indexed</span>
+                            </span>
+                          )}
+
+                          {m.status === "failed" && (
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-300">
+                                <AlertCircle className="w-3 h-3 text-rose-500" />
+                                <span>Failed</span>
                               </span>
-                            )}
-
-                            {m.status === "processing" && (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-accent/10 border border-accent/20 text-accent">
-                                <Loader2 className="w-3 h-3 animate-spin text-accent" />
-                                <span>Processing...</span>
-                              </span>
-                            )}
-
-                            {m.status === "ready" && (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-300">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                                <span>Ready</span>
-                              </span>
-                            )}
-
-                            {m.status === "failed" && (
-                              <div className="flex items-center gap-2">
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-300">
-                                  <AlertCircle className="w-3 h-3 text-rose-500" />
-                                  <span>Failed</span>
-                                </span>
-                                <button
-                                  onClick={() => handleRetry(m.id)}
-                                  disabled={retryingId === m.id}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-surface-muted text-text-secondary hover:text-text-primary border border-border transition-colors disabled:opacity-50"
-                                >
-                                  <RotateCw
-                                    className={`w-3 h-3 ${
-                                      retryingId === m.id ? "animate-spin" : ""
-                                    }`}
-                                  />
-                                  <span>Retry</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                              <button
+                                onClick={() => handleRetry(m.id)}
+                                disabled={retryingId === m.id}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-surface-muted text-text-secondary hover:text-text-primary border border-border transition-colors disabled:opacity-50 cursor-pointer"
+                              >
+                                <RotateCw
+                                  className={`w-3 h-3 ${
+                                    retryingId === m.id ? "animate-spin" : ""
+                                  }`}
+                                />
+                                <span>Retry</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -813,7 +825,13 @@ export const ProjectDetailPage: React.FC = () => {
           {/* ================================================================ */}
           {/* TAB 4: ADAPTIVE QUIZ                                             */}
           {/* ================================================================ */}
-          {activeTab === "quiz" && projectId && <QuizTab projectId={projectId} />}
+          {activeTab === "quiz" && projectId && (
+            <QuizTab
+              projectId={projectId}
+              projectMastery={masteryData?.overall_average_mastery ?? undefined}
+              onNavigateTab={(tab) => setActiveTab(tab as TabKey)}
+            />
+          )}
 
           {/* ================================================================ */}
           {/* TAB 5: GROWTH                                                    */}
@@ -850,6 +868,5 @@ export const ProjectDetailPage: React.FC = () => {
           )}
         </div>
       </div>
-    </div>
   );
 };

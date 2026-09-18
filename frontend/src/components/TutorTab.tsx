@@ -13,7 +13,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
-  BookOpen,
   Bot,
   ChevronRight,
   Clock,
@@ -90,25 +89,25 @@ const MessageBubble: React.FC<{ turn: ChatTurn }> = ({ turn }) => {
     >
       {/* Avatar */}
       {!isUser && (
-        <div className="shrink-0 w-7 h-7 rounded-xl bg-accent text-white flex items-center justify-center shadow-md mt-0.5">
-          <Bot className="w-3.5 h-3.5 text-white" />
+        <div className="shrink-0 w-8 h-8 rounded-xl bg-accent text-white flex items-center justify-center shadow-md shadow-accent/20 mt-0.5">
+          <Bot className="w-4 h-4 text-white" />
         </div>
       )}
 
-      <div className={`flex flex-col gap-1.5 max-w-[80%] ${isUser ? "items-end" : "items-start"}`}>
+      <div className={`flex flex-col gap-1.5 max-w-[82%] ${isUser ? "items-end" : "items-start"}`}>
         {/* Bubble */}
         <div
-          className={`rounded-2xl px-4 py-3 text-sm leading-relaxed
+          className={`rounded-2xl px-4.5 py-3.5 text-sm leading-relaxed
             ${isUser
-              ? "bg-accent text-white rounded-tr-sm shadow-md"
-              : "bg-surface border border-border text-text-primary rounded-tl-sm shadow-sm"
+              ? "bg-accent text-white rounded-tr-sm shadow-md shadow-accent/15"
+              : "bg-surface-muted/50 dark:bg-slate-800/40 border border-border/40 text-text-primary rounded-tl-sm"
             }
-            ${isPending ? "opacity-60" : ""}`}
+            ${isPending ? "opacity-70" : ""}`}
         >
           {isPending && !turn.content ? (
             <span className="inline-flex items-center gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
-              <span className="text-text-muted text-xs">Generating response…</span>
+              <span className="text-text-muted text-xs">Consulting learning materials…</span>
             </span>
           ) : (
             <div>
@@ -122,7 +121,7 @@ const MessageBubble: React.FC<{ turn: ChatTurn }> = ({ turn }) => {
 
         {/* Metadata badges — only for assistant responses */}
         {!isUser && !isPending && (
-          <div className="flex flex-wrap items-center gap-1.5 px-1">
+          <div className="flex flex-wrap items-center gap-1.5 px-1 pt-0.5">
             {turn.grounded && <GroundedBadge />}
             {turn.insufficient_evidence && <InsufficientEvidenceBadge />}
             {turn.citations.map((c, i) => (
@@ -417,31 +416,44 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
   // Empty state
   // ---------------------------------------------------------------------------
   const EmptyState = () => (
-    <div className="flex flex-col items-center justify-center flex-1 px-8 py-16 text-center">
-      <div className="p-4 rounded-2xl bg-accent/10 text-accent border border-accent/20 mb-5">
-        <Sparkles className="w-8 h-8 text-accent" />
+    <div className="flex flex-col items-center justify-center flex-1 px-8 py-12 text-center max-w-md mx-auto">
+      {/* Educational AI Illustration Badge */}
+      <div className="relative mb-5">
+        <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-accent/20 via-purple-500/15 to-transparent flex items-center justify-center text-accent border border-accent/25 shadow-md shadow-accent/10">
+          <Bot className="w-8 h-8 text-accent" />
+        </div>
+        <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-surface border border-border text-emerald-500 shadow-xs">
+          <Sparkles className="w-3.5 h-3.5 fill-emerald-500/20" />
+        </div>
       </div>
-      <h3 className="text-base font-bold text-text-primary mb-2">Ask your AI Tutor</h3>
-      <p className="text-xs text-text-secondary max-w-xs leading-relaxed">
-        Answers are strictly grounded in your uploaded learning materials.
-        Every response cites the exact page and document used.
+
+      <h3 className="text-base font-bold text-text-primary tracking-tight mb-1.5">
+        AI Tutor Workspace
+      </h3>
+      <p className="text-xs text-text-secondary max-w-sm leading-relaxed mb-6">
+        Strictly grounded in your uploaded materials. Every response cites exact page numbers and passages with zero hallucinations.
       </p>
-      <div className="mt-6 grid grid-cols-1 gap-2 w-full max-w-xs">
+
+      {/* Suggested Prompt Chips */}
+      <div className="w-full space-y-2">
+        <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider font-mono block text-left px-1">
+          Suggested Questions
+        </span>
         {[
-          "Summarize the key concepts from the materials",
-          "What is the main algorithm explained on page 2?",
-          "How does self-attention work?",
+          "Summarize the core concepts from the materials",
+          "What is the key algorithm explained on page 2?",
+          "Can you explain the main theoretical framework step-by-step?",
         ].map((prompt) => (
           <button
             key={prompt}
             onClick={() => setQuestion(prompt)}
-            className="w-full text-left px-3 py-2.5 rounded-xl text-xs text-text-secondary
-              bg-surface-muted border border-border hover:bg-surface hover:border-accent/40
-              hover:text-text-primary transition-all group"
+            className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs text-text-secondary
+              bg-surface-muted/60 border border-border/70 hover:bg-surface hover:border-accent/40
+              hover:text-text-primary transition-all group cursor-pointer shadow-xs"
           >
             <span className="flex items-center gap-2">
-              <ChevronRight className="w-3 h-3 text-accent group-hover:translate-x-0.5 transition-transform" />
-              {prompt}
+              <ChevronRight className="w-3.5 h-3.5 text-accent shrink-0 group-hover:translate-x-0.5 transition-transform" />
+              <span className="truncate">{prompt}</span>
             </span>
           </button>
         ))}
@@ -471,7 +483,7 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
           <button
             onClick={startNewConversation}
             className="p-1 rounded-lg bg-accent/10 border border-accent/20 text-accent
-              hover:bg-accent/20 transition-colors"
+              hover:bg-accent/20 transition-colors cursor-pointer"
             title="New conversation"
           >
             <Plus className="w-3 h-3" />
@@ -499,27 +511,32 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
       {/* ------------------------------------------------------------------ */}
       <div className="flex flex-col flex-1 rounded-2xl border border-border bg-surface shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/70 bg-surface">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen((o) => !o)}
-              className="p-1.5 rounded-lg hover:bg-surface-muted text-text-muted hover:text-text-primary transition-colors"
+              className="p-1.5 rounded-lg hover:bg-surface-muted text-text-muted hover:text-text-primary transition-colors cursor-pointer"
               title="Toggle sessions sidebar"
             >
               <MessageCircle className="w-4 h-4" />
             </button>
-            <div className="w-px h-4 bg-border" />
-            <Bot className="w-4 h-4 text-accent" />
-            <span className="text-sm font-semibold text-text-primary">AI Tutor</span>
-            {activeConvId && (
-              <span className="text-[10px] text-text-muted font-mono">
-                #{activeConvId.slice(0, 8)}
-              </span>
-            )}
+            <div className="w-px h-5 bg-border" />
+            <div>
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-accent" />
+                <span className="text-sm font-bold text-text-primary">AI Tutor</span>
+                {activeConvId && (
+                  <span className="text-[10px] text-text-muted font-mono bg-surface-muted px-1.5 py-0.5 rounded">
+                    #{activeConvId.slice(0, 8)}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-text-muted">Grounded in your learning materials</p>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-text-muted">
-            <BookOpen className="w-3 h-3 text-accent" />
-            <span>Grounded · pgvector · Gemini</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+            <ShieldCheck className="w-3 h-3 text-emerald-500" />
+            <span>Grounded Retrieval</span>
           </div>
         </div>
 
@@ -549,12 +566,12 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
           <div ref={bottomRef} />
         </div>
 
-        {/* Input area */}
-        <div className="px-4 pb-4 pt-3 border-t border-border">
-          <div className={`flex items-end gap-2.5 rounded-xl border px-3 py-2.5 transition-colors
+        {/* Visually Prominent Composer */}
+        <div className="px-5 pb-5 pt-3 border-t border-border/60 bg-surface">
+          <div className={`flex items-end gap-3 rounded-2xl border px-4 py-3 transition-all shadow-sm
             ${isOverLimit
               ? "border-rose-500/40 bg-surface-muted"
-              : "border-border bg-surface-muted/60 focus-within:border-accent"
+              : "border-border bg-surface-muted/40 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15 focus-within:bg-surface"
             }`}
           >
             <textarea
@@ -564,7 +581,7 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
               value={question}
               onChange={handleQuestionChange}
               onKeyDown={handleKeyDown}
-              placeholder="Ask a question about your learning materials…"
+              placeholder="Ask a question grounded in your study materials…"
               disabled={submitting}
               className="flex-1 bg-transparent text-sm text-text-primary placeholder-text-muted resize-none
                 outline-none leading-relaxed min-h-[24px] max-h-[160px] disabled:opacity-50"
@@ -580,8 +597,8 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
                 <button
                   id="tutor-cancel-btn"
                   onClick={handleCancel}
-                  className="p-2 rounded-lg bg-rose-600 text-white hover:bg-rose-500
-                    transition-all active:scale-95"
+                  className="p-2 rounded-xl bg-rose-600 text-white hover:bg-rose-500
+                    transition-all active:scale-95 cursor-pointer shadow-sm"
                   title="Stop generation"
                 >
                   <Square className="w-3.5 h-3.5 fill-current" />
@@ -591,9 +608,9 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
                   id="tutor-send-btn"
                   onClick={handleSend}
                   disabled={!canSend}
-                  className="p-2 rounded-xl bg-accent text-white hover:bg-accent-hover
+                  className="p-2.5 rounded-xl bg-accent text-white hover:bg-accent-hover
                     disabled:opacity-40 disabled:cursor-not-allowed transition-all
-                    shadow-sm active:scale-95"
+                    shadow-sm shadow-accent/20 active:scale-95 cursor-pointer"
                   title="Send (Ctrl+Enter)"
                 >
                   <Send className="w-3.5 h-3.5" />
@@ -601,10 +618,12 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
               )}
             </div>
           </div>
-          <p className="text-[10px] text-text-muted mt-1.5 px-1">
-            Press <kbd className="px-1 py-0.5 rounded bg-surface-muted text-text-secondary border border-border text-[9px]">Ctrl</kbd>+
-            <kbd className="px-1 py-0.5 rounded bg-surface-muted text-text-secondary border border-border text-[9px]">Enter</kbd> to send
-          </p>
+          <div className="flex items-center justify-between text-[10px] text-text-muted mt-2 px-1">
+            <span>
+              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-muted text-text-secondary border border-border text-[9px] font-mono">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-surface-muted text-text-secondary border border-border text-[9px] font-mono">Enter</kbd> to send
+            </span>
+            <span className="font-mono">RAG Citations Active</span>
+          </div>
         </div>
       </div>
 

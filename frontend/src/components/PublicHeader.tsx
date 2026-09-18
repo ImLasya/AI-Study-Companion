@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { BookOpen, LayoutDashboard, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, LogOut, Menu, X } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/lib/auth-context";
+
+import { EduMindLogo } from "@/components/EduMindLogo";
 
 export const PublicHeader: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -13,20 +15,17 @@ export const PublicHeader: React.FC = () => {
   const isHome = location.pathname === "/";
 
   const handleLogout = async () => {
-    setMobileMenuOpen(false);
     await logout();
     navigate("/");
   };
 
   const handleNavClick = (hash: string) => {
     setMobileMenuOpen(false);
-    if (location.pathname !== "/") {
-      navigate(`/${hash}`);
+    if (!isHome) {
+      navigate("/" + hash);
     } else {
       const el = document.querySelector(hash);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth" });
-      }
+      if (el) el.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -36,14 +35,14 @@ export const PublicHeader: React.FC = () => {
         {/* Brand Logo & Name */}
         <Link to="/" className="flex items-center space-x-3 group">
           <div className="p-2 bg-accent/15 text-accent border border-accent/25 rounded-xl group-hover:scale-105 transition-transform">
-            <BookOpen className="w-5 h-5" />
+            <EduMindLogo className="w-5 h-5" />
           </div>
           <div>
             <span className="font-bold text-base sm:text-lg text-text-primary tracking-tight block">
-              AI Study Companion
+              EduMind
             </span>
             <p className="text-[11px] text-text-muted hidden sm:block">
-              Academic Learning Workspace
+              Intelligent Learning Workspace
             </p>
           </div>
         </Link>

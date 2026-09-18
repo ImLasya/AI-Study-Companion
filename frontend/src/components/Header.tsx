@@ -1,7 +1,9 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { BookOpen, LogOut, Shield, Sparkles, User as UserIcon } from "lucide-react";
+import { LogOut, Shield, Sparkles, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+
+import { EduMindLogo } from "@/components/EduMindLogo";
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuth();
@@ -18,13 +20,13 @@ export const Header: React.FC = () => {
         {/* Brand Logo & Name */}
         <Link to={user ? "/dashboard" : "/"} className="flex items-center space-x-3 group">
           <div className="p-2 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl group-hover:scale-105 transition-transform">
-            <BookOpen className="w-5 h-5" />
+            <EduMindLogo className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-lg text-white tracking-tight">AI Study Companion</span>
+              <span className="font-bold text-lg text-white tracking-tight">EduMind</span>
             </div>
-            <p className="text-xs text-gray-400">Persistent, contextual, measurable learning</p>
+            <p className="text-xs text-gray-400">Intelligent Learning Workspace</p>
           </div>
         </Link>
 

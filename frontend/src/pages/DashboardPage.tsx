@@ -1,16 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Activity,
-  AlertTriangle,
   ArrowRight,
   Award,
   BookOpen,
   Bot,
-  Calendar,
   CheckCircle2,
   ChevronDown,
-  ChevronRight,
   FileText,
   Filter,
   Folder,
@@ -18,16 +15,17 @@ import {
   Layers,
   Lightbulb,
   Loader2,
+  Plus,
   Sparkles,
   Target,
   TrendingUp,
+  Trophy,
 } from "lucide-react";
 import {
   getGlobalAnalyticsApi,
   getGlobalRecommendationsApi,
   getProjectGrowthApi,
   getRecentActivityApi,
-  listSpacesApi,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -36,7 +34,6 @@ import {
   GrowthSummary,
   ProjectProgressItem,
   RecentActivityItem,
-  Space,
 } from "@/types";
 
 function formatRelativeTime(dateString: string): string {
@@ -64,9 +61,8 @@ export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
 
   // Core Data State
-  const [spaces, setSpaces] = useState<Space[]>([]);
   const [analytics, setAnalytics] = useState<GlobalAnalyticsResponse | null>(null);
-  const [growthSummary, setGrowthSummary] = useState<GrowthSummary | null>(null);
+  const [, setGrowthSummary] = useState<GrowthSummary | null>(null);
   const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>([]);
   const [recommendations, setRecommendations] = useState<GlobalRecommendationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,14 +74,13 @@ export const DashboardPage: React.FC = () => {
 
   const navigate = useNavigate();
 
-  // 1. Initial Load: Spaces, Global Analytics, Recent Activity, and Global Recommendations
+  // 1. Initial Load: Global Analytics, Recent Activity, and Global Recommendations
   const loadDashboardData = async (filterProjId: string | null) => {
     try {
       setLoading(true);
       setError(null);
 
-      const [spacesData, analyticsData, activityData, recsData] = await Promise.all([
-        listSpacesApi().catch(() => []),
+      const [analyticsData, activityData, recsData] = await Promise.all([
         getGlobalAnalyticsApi().catch(() => null),
         getRecentActivityApi({
           projectId: filterProjId || undefined,
@@ -103,7 +98,6 @@ export const DashboardPage: React.FC = () => {
         growthData = await getProjectGrowthApi(targetProjId).catch(() => null);
       }
 
-      setSpaces(spacesData);
       setAnalytics(analyticsData);
       setGrowthSummary(growthData);
       setRecentActivity(activityData);
@@ -136,33 +130,15 @@ export const DashboardPage: React.FC = () => {
     : analytics?.total_study_activity?.total_concepts ??
       allProjects.reduce((acc, p) => acc + p.total_concepts, 0);
 
-  const assessedConcepts = selectedProject
-    ? selectedProject.assessed_concepts
-    : allProjects.reduce((acc, p) => acc + p.assessed_concepts, 0);
-
   const masteredCount = selectedProject
     ? selectedProject.mastered_concepts
     : analytics?.total_study_activity?.mastered_concepts ??
       allProjects.reduce((acc, p) => acc + p.mastered_concepts, 0);
 
-  const weakCount = selectedProject
-    ? selectedProject.weak_concepts
-    : analytics?.total_study_activity?.weak_concepts_count ??
-      analytics?.weakest_areas?.length ??
-      0;
-
   // Authoritative completed quiz attempts
   const completedQuizzesCount = selectedProject
     ? selectedProject.completed_quiz_attempts
     : analytics?.total_study_activity?.total_quizzes_completed ?? 0;
-
-  const totalQuizAttemptsCount = selectedProject
-    ? selectedProject.total_quiz_attempts
-    : analytics?.total_study_activity?.total_quiz_attempts ?? 0;
-
-  const totalAvailableQuizzesCount = selectedProject
-    ? selectedProject.total_quiz_definitions
-    : analytics?.total_study_activity?.total_quiz_definitions ?? 0;
 
   // Overall average mastery percentage
   const projectsWithMastery = allProjects.filter((p) => p.average_mastery !== null);
@@ -176,62 +152,6 @@ export const DashboardPage: React.FC = () => {
           projectsWithMastery.length
       )
     : null;
-
-  // Growth trajectory points across history snapshots
-  const growthTrajectoryPoints = useMemo(() => {
-    if (!growthSummary) return [];
-    const allItems = [
-      ...growthSummary.improving,
-      ...growthSummary.stable,
-      ...growthSummary.needs_attention,
-      ...growthSummary.unassessed,
-    ];
-    const pts: { date: string; score: number }[] = [];
-    allItems.forEach((g) => {
-      g.history.forEach((h) => {
-        pts.push({
-          date: new Date(h.recorded_at).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-          }),
-          score: h.score,
-        });
-      });
-    });
-
-    if (pts.length === 0) return [];
-
-    const dateMap = new Map<string, { total: number; count: number }>();
-    pts.forEach((p) => {
-      const entry = dateMap.get(p.date) || { total: 0, count: 0 };
-      entry.total += p.score;
-      entry.count += 1;
-      dateMap.set(p.date, entry);
-    });
-
-    return Array.from(dateMap.entries()).map(([date, val]) => ({
-      date,
-      score: Math.round(val.total / val.count),
-    }));
-  }, [growthSummary]);
-
-  // Growth delta calculation: requires at least 2 distinct historical points
-  const growthDelta = useMemo(() => {
-    if (growthTrajectoryPoints.length >= 2) {
-      const first = growthTrajectoryPoints[0].score;
-      const last = growthTrajectoryPoints[growthTrajectoryPoints.length - 1].score;
-      return last - first;
-    }
-    return null;
-  }, [growthTrajectoryPoints]);
-
-  // Weak areas list for Row 4
-  const weakAreasList = selectedProject
-    ? analytics?.weakest_areas.filter((w) => w.project_id === selectedProject.project_id) ?? []
-    : analytics?.weakest_areas ?? [];
-
-  // Active study streak
-  const studyStreakDays = analytics?.total_study_activity?.active_study_days ?? 0;
 
   // Latest active project for quick action navigation
   const latestProject = selectedProject || allProjects[0] || null;
@@ -248,12 +168,12 @@ export const DashboardPage: React.FC = () => {
     switch (priority.toLowerCase()) {
       case "high":
       case "p1":
-        return "bg-rose-500/10 text-rose-300 border-rose-500/20";
+        return "text-rose-500 bg-rose-500/10";
       case "medium":
       case "p2":
-        return "bg-amber-500/10 text-amber-300 border-amber-500/20";
+        return "text-amber-500 bg-amber-500/10";
       default:
-        return "bg-slate-800 text-slate-300 border-slate-700";
+        return "text-slate-400 bg-slate-500/10";
     }
   };
 
@@ -262,16 +182,16 @@ export const DashboardPage: React.FC = () => {
       case "quiz_completed":
       case "quiz_started":
       case "quiz_created":
-        return <Award className="w-4 h-4 text-purple-400" />;
+        return <Award className="w-3.5 h-3.5 text-purple-400" />;
       case "material_uploaded":
-        return <FileText className="w-4 h-4 text-sky-400" />;
+        return <FileText className="w-3.5 h-3.5 text-sky-400" />;
       case "tutor_turn":
       case "tutor_conversation_started":
-        return <Bot className="w-4 h-4 text-indigo-400" />;
+        return <Bot className="w-3.5 h-3.5 text-indigo-400" />;
       case "mastery_updated":
-        return <TrendingUp className="w-4 h-4 text-emerald-400" />;
+        return <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />;
       default:
-        return <Activity className="w-4 h-4 text-slate-400" />;
+        return <Activity className="w-3.5 h-3.5 text-slate-400" />;
     }
   };
 
@@ -287,661 +207,474 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* ==================================================================== */}
-      {/* 1. GLOBAL DASHBOARD HEADER & LEARNING SCOPE FILTER                   */}
+      {/* 1. GREETING & HEADER (OPEN, BORDERLESS)                              */}
       {/* ==================================================================== */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-1 border-b border-border">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1 pb-2">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
-            Learning Dashboard
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight">
+            {getUserGreeting()}
           </h1>
-          <p className="text-xs text-text-muted mt-1">
-            {getUserGreeting()} Track your progress across all your learning spaces and projects.
+          <p className="text-xs sm:text-sm text-text-muted mt-1">
+            Continue your learning journey.
           </p>
         </div>
 
-        {/* Global Scope Selector Filter */}
-        <div className="relative self-start md:self-auto">
-          <button
-            onClick={() => setFilterDropdownOpen((prev) => !prev)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface border border-border hover:border-accent/40 text-xs font-medium text-text-secondary hover:text-text-primary transition-all shadow-sm cursor-pointer"
-            aria-label="Filter learning scope"
-          >
-            <Filter className="w-3.5 h-3.5 text-accent" />
-            <span className="text-text-muted">Scope:</span>
-            <span className="font-semibold text-text-primary max-w-[180px] truncate">
-              {selectedProject ? selectedProject.project_name : "All Projects"}
-            </span>
-            <ChevronDown className="w-3.5 h-3.5 text-text-muted ml-1" />
-          </button>
+        <div className="flex items-center gap-2.5 self-start md:self-auto">
+          {/* Scope Selector */}
+          <div className="relative">
+            <button
+              onClick={() => setFilterDropdownOpen((prev) => !prev)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-muted/70 hover:bg-surface-muted text-xs font-medium text-text-secondary hover:text-text-primary transition-all cursor-pointer border border-border/40"
+              aria-label="Filter learning scope"
+            >
+              <Filter className="w-3.5 h-3.5 text-accent" />
+              <span className="text-text-muted">Scope:</span>
+              <span className="font-semibold text-text-primary max-w-[140px] truncate">
+                {selectedProject ? selectedProject.project_name : "All Projects"}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-text-muted ml-0.5" />
+            </button>
 
-          {/* Scope Dropdown Menu */}
-          {filterDropdownOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-30"
-                onClick={() => setFilterDropdownOpen(false)}
-              />
-              <div className="absolute right-0 mt-2 w-72 rounded-xl bg-surface border border-border shadow-2xl py-2 z-40 text-xs animate-in fade-in zoom-in-95">
-                <div className="px-3 py-1.5 border-b border-border text-[11px] font-mono text-text-muted uppercase tracking-wider">
-                  Filter by Project
-                </div>
-
-                <button
-                  onClick={() => {
-                    setSelectedProjectId(null);
-                    setFilterDropdownOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2 text-left transition-colors cursor-pointer ${
-                    selectedProjectId === null
-                      ? "bg-accent-soft text-accent font-semibold"
-                      : "text-text-secondary hover:bg-surface-muted hover:text-text-primary"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-3.5 h-3.5 text-accent" />
-                    <span>All Projects (Global Workspace)</span>
+            {filterDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setFilterDropdownOpen(false)} />
+                <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-surface border border-border/80 shadow-2xl py-2 z-40 text-xs animate-in fade-in zoom-in-95">
+                  <div className="px-3.5 py-1.5 border-b border-border/50 text-[10px] font-mono text-text-muted uppercase tracking-wider">
+                    Filter by Project
                   </div>
-                  {selectedProjectId === null && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                  )}
-                </button>
-
-                <div className="my-1 border-t border-border" />
-
-                {allProjects.map((p) => (
                   <button
-                    key={p.project_id}
                     onClick={() => {
-                      setSelectedProjectId(p.project_id);
+                      setSelectedProjectId(null);
                       setFilterDropdownOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-left transition-colors cursor-pointer ${
-                      selectedProjectId === p.project_id
-                        ? "bg-accent-soft text-accent font-semibold"
+                    className={`w-full flex items-center justify-between px-3.5 py-2 text-left transition-colors cursor-pointer ${
+                      selectedProjectId === null
+                        ? "bg-accent/10 text-accent font-semibold"
                         : "text-text-secondary hover:bg-surface-muted hover:text-text-primary"
                     }`}
                   >
-                    <div className="min-w-0 pr-2">
-                      <div className="truncate font-medium">{p.project_name}</div>
-                      <div className="text-[10px] text-text-muted truncate">Space: {p.space_name}</div>
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-3.5 h-3.5 text-accent" />
+                      <span>All Projects (Global)</span>
                     </div>
-                    {selectedProjectId === p.project_id && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" />
-                    )}
+                    {selectedProjectId === null && <span className="w-1.5 h-1.5 rounded-full bg-accent" />}
                   </button>
-                ))}
-              </div>
-            </>
-          )}
+                  <div className="my-1 border-t border-border/40" />
+                  {allProjects.map((p) => (
+                    <button
+                      key={p.project_id}
+                      onClick={() => {
+                        setSelectedProjectId(p.project_id);
+                        setFilterDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-2 text-left transition-colors cursor-pointer ${
+                        selectedProjectId === p.project_id
+                          ? "bg-accent/10 text-accent font-semibold"
+                          : "text-text-secondary hover:bg-surface-muted hover:text-text-primary"
+                      }`}
+                    >
+                      <div className="min-w-0 pr-2">
+                        <div className="truncate font-medium">{p.project_name}</div>
+                        <div className="text-[10px] text-text-muted truncate">Space: {p.space_name}</div>
+                      </div>
+                      {selectedProjectId === p.project_id && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          <Link
+            to="/spaces"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-semibold shadow-sm transition-all hover-lift cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Project</span>
+          </Link>
         </div>
       </div>
 
       {error && (
         <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-center justify-between">
           <span>{error}</span>
-          <button
-            onClick={() => loadDashboardData(selectedProjectId)}
-            className="underline hover:text-text-primary"
-          >
+          <button onClick={() => loadDashboardData(selectedProjectId)} className="underline hover:text-text-primary">
             Retry
           </button>
         </div>
       )}
 
       {/* ==================================================================== */}
-      {/* 2. ROW 1: 4 COMPACT KPI CARDS                                        */}
+      {/* 2. LEARNING OVERVIEW: COMPACT BORDERLESS STATS                       */}
       {/* ==================================================================== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* KPI 1: Total Concepts */}
-        <div className="rounded-2xl border border-border bg-surface p-4 relative group hover:border-border/80 shadow-sm transition-all">
-          <div className="flex items-center justify-between text-xs text-text-muted">
-            <span className="font-medium">Total Concepts</span>
-            <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-              <Layers className="w-4 h-4" />
-            </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Stat 1: Concepts */}
+        <div className="p-4 rounded-2xl bg-indigo-500/[0.04] dark:bg-indigo-500/[0.07] border border-indigo-500/10 flex items-center gap-3.5 transition-all">
+          <div className="w-11 h-11 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+            <BookOpen className="w-5 h-5" />
           </div>
-          <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-bold text-text-primary font-mono">
-              {totalConcepts}
-            </span>
-          </div>
-          <p className="text-[11px] text-text-muted mt-1">
-            {selectedProject ? `In ${selectedProject.project_name}` : "Across all projects"}
-          </p>
-        </div>
-
-        {/* KPI 2: Mastered */}
-        <div className="rounded-2xl border border-border bg-surface p-4 relative group hover:border-border/80 shadow-sm transition-all">
-          <div className="flex items-center justify-between text-xs text-text-muted">
-            <span className="font-medium">Mastered</span>
-            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-bold text-text-primary font-mono">
-              {masteredCount}
-            </span>
-          </div>
-          <p className="text-[11px] text-text-muted mt-1">
-            {assessedConcepts > 0
-              ? `${Math.round((masteredCount / assessedConcepts) * 100)}% of assessed concepts`
-              : "No concepts assessed yet"}
-          </p>
-        </div>
-
-        {/* KPI 3: Weak Areas */}
-        <div className="rounded-2xl border border-border bg-surface p-4 relative group hover:border-border/80 shadow-sm transition-all">
-          <div className="flex items-center justify-between text-xs text-text-muted">
-            <span className="font-medium">Weak Areas</span>
-            <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-bold text-text-primary font-mono">
-              {weakCount}
-            </span>
-          </div>
-          <p className="text-[11px] text-text-muted mt-1">
-            {weakCount === 0 ? "All concepts on track" : "Need focused review"}
-          </p>
-        </div>
-
-        {/* KPI 4: Quizzes Taken (Strictly Completed Quiz Attempts) */}
-        <div className="rounded-2xl border border-border bg-surface p-4 relative group hover:border-border/80 shadow-sm transition-all">
-          <div className="flex items-center justify-between text-xs text-text-muted">
-            <span className="font-medium">Quizzes Taken</span>
-            <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-              <Award className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <span className="text-2xl sm:text-3xl font-bold text-text-primary font-mono">
-              {completedQuizzesCount}
-            </span>
-          </div>
-          <p className="text-[11px] text-text-muted mt-1">
-            Completed attempts • {totalQuizAttemptsCount} attempts started
-          </p>
-        </div>
-      </div>
-
-      {/* ==================================================================== */}
-      {/* 3. ROW 2: 3 EQUAL QUICK ACTION CARDS                                 */}
-      {/* ==================================================================== */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Action 1: Continue Learning */}
-        <Link
-          to={latestProject ? `/projects/${latestProject.project_id}` : "/spaces"}
-          className="p-4 rounded-2xl border border-border bg-surface hover:bg-surface-muted/60 hover:border-indigo-500/40 transition-all flex items-center justify-between group shadow-sm"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 group-hover:scale-105 transition-transform">
-              <BookOpen className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-xs font-bold text-text-primary group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors">
-                Continue Learning
-              </h3>
-              <p className="text-[11px] text-text-muted mt-0.5">
-                {latestProject
-                  ? `Resume: ${latestProject.project_name}`
-                  : "Explore your learning spaces"}
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-text-primary group-hover:translate-x-0.5 transition-transform" />
-        </Link>
-
-        {/* Action 2: Take a Practice Quiz */}
-        <Link
-          to={latestProject ? `/projects/${latestProject.project_id}?tab=quiz` : "/spaces"}
-          className="p-4 rounded-2xl border border-border bg-surface hover:bg-surface-muted/60 hover:border-emerald-500/40 transition-all flex items-center justify-between group shadow-sm"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 group-hover:scale-105 transition-transform">
-              <HelpCircle className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-xs font-bold text-text-primary group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors">
-                Take a Practice Quiz
-              </h3>
-              <p className="text-[11px] text-text-muted mt-0.5">
-                {totalAvailableQuizzesCount > 0
-                  ? `${totalAvailableQuizzesCount} available quizzes ready`
-                  : "Adaptive questions calibrated to mastery"}
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-text-primary group-hover:translate-x-0.5 transition-transform" />
-        </Link>
-
-        {/* Action 3: Ask AI Tutor */}
-        <Link
-          to={latestProject ? `/projects/${latestProject.project_id}?tab=tutor` : "/spaces"}
-          className="p-4 rounded-2xl border border-border bg-surface hover:bg-surface-muted/60 hover:border-purple-500/40 transition-all flex items-center justify-between group shadow-sm"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 group-hover:scale-105 transition-transform">
-              <Bot className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-xs font-bold text-text-primary group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">
-                Ask AI Tutor
-              </h3>
-              <p className="text-[11px] text-text-muted mt-0.5">
-                Grounded Q&amp;A citing your course materials
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-text-primary group-hover:translate-x-0.5 transition-transform" />
-        </Link>
-      </div>
-
-      {/* ==================================================================== */}
-      {/* 4. ROW 3: RECENT ACTIVITY (LEFT ~60%) + RECOMMENDATIONS (RIGHT ~40%)  */}
-      {/* ==================================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left (7 cols / ~60%): Real Recent Activity Stream */}
-        <div className="lg:col-span-7 rounded-2xl border border-border bg-surface p-5 flex flex-col justify-between shadow-sm">
           <div>
-            <div className="flex items-center justify-between mb-4 pb-2.5 border-b border-border">
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-accent" />
-                <h2 className="text-sm font-bold text-text-primary tracking-tight">Recent Activity</h2>
+            <div className="text-2xl font-bold font-mono text-text-primary tracking-tight">
+              {totalConcepts}
+            </div>
+            <div className="text-xs font-medium text-text-muted">
+              Concepts
+            </div>
+          </div>
+        </div>
+
+        {/* Stat 2: Projects */}
+        <div className="p-4 rounded-2xl bg-purple-500/[0.04] dark:bg-purple-500/[0.07] border border-purple-500/10 flex items-center gap-3.5 transition-all">
+          <div className="w-11 h-11 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <Folder className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold font-mono text-text-primary tracking-tight">
+              {allProjects.length}
+            </div>
+            <div className="text-xs font-medium text-text-muted">
+              Projects
+            </div>
+          </div>
+        </div>
+
+        {/* Stat 3: Quizzes */}
+        <div className="p-4 rounded-2xl bg-sky-500/[0.04] dark:bg-sky-500/[0.07] border border-sky-500/10 flex items-center gap-3.5 transition-all">
+          <div className="w-11 h-11 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold font-mono text-text-primary tracking-tight">
+              {completedQuizzesCount}
+            </div>
+            <div className="text-xs font-medium text-text-muted">
+              Quizzes Taken
+            </div>
+          </div>
+        </div>
+
+        {/* Stat 4: Mastered */}
+        <div className="p-4 rounded-2xl bg-emerald-500/[0.04] dark:bg-emerald-500/[0.07] border border-emerald-500/10 flex items-center gap-3.5 transition-all">
+          <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <Trophy className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold font-mono text-text-primary tracking-tight">
+              {masteredCount}
+            </div>
+            <div className="text-xs font-medium text-text-muted">
+              Mastered
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ==================================================================== */}
+      {/* 3. MAIN VISUAL FOCUS: CONTINUE LEARNING HERO (FEATURED MODULE)       */}
+      {/* ==================================================================== */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900/40 via-purple-900/20 to-surface border border-indigo-500/25 p-6 sm:p-8 shadow-sm">
+        {/* Subtle background glow */}
+        <div className="absolute -right-16 -top-16 w-72 h-72 rounded-full bg-accent/15 blur-3xl pointer-events-none" />
+        <div className="absolute -left-16 -bottom-16 w-72 h-72 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+          <div className="md:col-span-8 space-y-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/15 border border-accent/30 text-accent text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Continue Learning</span>
+            </div>
+
+            <div>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-text-primary tracking-tight">
+                {latestProject ? latestProject.project_name : "Machine Learning Fundamentals"}
+              </h2>
+              <p className="text-xs sm:text-sm text-text-secondary mt-1.5 line-clamp-2 max-w-xl leading-relaxed">
+                {latestProject?.space_name
+                  ? `Domain: ${latestProject.space_name} • Master core concepts and practice with grounded AI tutor.`
+                  : "Build a strong conceptual foundation with adaptive quizzes and interactive spaced repetition."}
+              </p>
+            </div>
+
+            {/* Mastery / Progress Bar */}
+            <div className="max-w-md space-y-1.5 pt-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-muted font-medium">Concept Mastery</span>
+                <span className="font-mono font-bold text-accent">
+                  {latestProject?.average_mastery !== null && latestProject?.average_mastery !== undefined
+                    ? `${Math.round(latestProject.average_mastery)}%`
+                    : masteryPercent !== null
+                    ? `${masteryPercent}%`
+                    : "65%"}
+                </span>
               </div>
+              <div className="w-full h-2 rounded-full bg-surface-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-accent to-purple-400 transition-all duration-500"
+                  style={{
+                    width: `${
+                      latestProject?.average_mastery !== null && latestProject?.average_mastery !== undefined
+                        ? Math.max(8, Math.round(latestProject.average_mastery))
+                        : masteryPercent !== null
+                        ? Math.max(8, masteryPercent)
+                        : 65
+                    }%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-wrap items-center gap-3">
               <Link
-                to="/analytics"
-                className="text-xs text-accent hover:text-accent-hover font-medium inline-flex items-center gap-1 transition-colors"
+                to={latestProject ? `/projects/${latestProject.project_id}` : "/spaces"}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-md shadow-accent/25 transition-all hover-lift cursor-pointer"
               >
-                <span>Full Telemetry</span>
-                <ArrowRight className="w-3 h-3" />
+                <span>Continue Learning</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              <Link
+                to={latestProject ? `/projects/${latestProject.project_id}?tab=quiz` : "/spaces"}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface/80 hover:bg-surface text-text-primary text-xs font-semibold border border-border/70 transition-all cursor-pointer"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-sky-500" />
+                <span>Practice Quiz</span>
               </Link>
             </div>
+          </div>
 
-            {recentActivity.length === 0 ? (
-              <div className="py-12 text-center text-text-muted text-xs">
-                <Activity className="w-8 h-8 text-text-muted mx-auto mb-2 opacity-50" />
-                <p className="font-semibold text-text-secondary">No activity recorded yet</p>
-                <p className="mt-1">
-                  Upload materials, start a quiz, or chat with the AI Tutor to build your activity history.
-                </p>
+          {/* Educational Visual / Illustration Accent on the right */}
+          <div className="hidden md:flex md:col-span-4 justify-center items-center">
+            <div className="relative w-40 h-40 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border border-dashed border-accent/30 animate-[spin_40s_linear_infinite]" />
+              <div className="w-28 h-28 rounded-2xl bg-gradient-to-tr from-accent/20 to-purple-500/20 border border-accent/30 flex flex-col items-center justify-center p-3 text-center shadow-lg backdrop-blur-sm">
+                <Target className="w-8 h-8 text-accent mb-1.5" />
+                <span className="text-[10px] font-mono text-text-muted uppercase tracking-wider">Goal</span>
+                <span className="text-xs font-bold text-text-primary">Master Concepts</span>
               </div>
-            ) : (
-              <div className="space-y-2.5">
-                {recentActivity.slice(0, 5).map((act) => (
-                  <div
-                    key={act.id}
-                    className="p-3 rounded-xl bg-surface-muted/60 border border-border/70 hover:border-border transition-colors flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center gap-3 min-w-0 pr-2">
-                      <div className="p-2 rounded-lg bg-surface border border-border flex-shrink-0">
-                        {getActivityIcon(act.event_type)}
-                      </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ==================================================================== */}
+      {/* 4. QUICK ACTIONS: BORDERLESS INTERACTIVE ROW                         */}
+      {/* ==================================================================== */}
+      <div>
+        <div className="text-xs font-bold uppercase tracking-wider text-text-muted mb-2.5 px-1">
+          Quick Actions
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Link
+            to={latestProject ? `/projects/${latestProject.project_id}?tab=tutor` : "/spaces"}
+            className="p-3.5 rounded-2xl bg-surface hover:bg-indigo-500/[0.06] border border-border/60 hover:border-indigo-500/30 transition-all flex items-center gap-3 group hover-lift shadow-xs"
+          >
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+              <Bot className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-text-primary group-hover:text-indigo-500 transition-colors truncate">
+                Ask AI Tutor
+              </div>
+              <div className="text-[10px] text-text-muted truncate">Grounded Q&A</div>
+            </div>
+          </Link>
+
+          <Link
+            to={latestProject ? `/projects/${latestProject.project_id}?tab=quiz` : "/spaces"}
+            className="p-3.5 rounded-2xl bg-surface hover:bg-sky-500/[0.06] border border-border/60 hover:border-sky-500/30 transition-all flex items-center gap-3 group hover-lift shadow-xs"
+          >
+            <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center shrink-0">
+              <HelpCircle className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-text-primary group-hover:text-sky-500 transition-colors truncate">
+                Practice Quiz
+              </div>
+              <div className="text-[10px] text-text-muted truncate">Adaptive tests</div>
+            </div>
+          </Link>
+
+          <Link
+            to={latestProject ? `/projects/${latestProject.project_id}?tab=flashcards` : "/spaces"}
+            className="p-3.5 rounded-2xl bg-surface hover:bg-amber-500/[0.06] border border-border/60 hover:border-amber-500/30 transition-all flex items-center gap-3 group hover-lift shadow-xs"
+          >
+            <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+              <Award className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-text-primary group-hover:text-amber-500 transition-colors truncate">
+                Review Flashcards
+              </div>
+              <div className="text-[10px] text-text-muted truncate">Spaced repetition</div>
+            </div>
+          </Link>
+
+          <Link
+            to={latestProject ? `/projects/${latestProject.project_id}?tab=growth` : "/spaces"}
+            className="p-3.5 rounded-2xl bg-surface hover:bg-purple-500/[0.06] border border-border/60 hover:border-purple-500/30 transition-all flex items-center gap-3 group hover-lift shadow-xs"
+          >
+            <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-text-primary group-hover:text-purple-500 transition-colors truncate">
+                Learning Plans
+              </div>
+              <div className="text-[10px] text-text-muted truncate">Curriculum roadmap</div>
+            </div>
+          </Link>
+        </div>
+      </div>
+
+      {/* ==================================================================== */}
+      {/* 5. TWO-COLUMN: RECENT ACTIVITY TIMELINE + TOP RECOMMENDATIONS        */}
+      {/* ==================================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-2">
+        {/* Left (~60%): Recent Activity as a Clean Vertical Timeline */}
+        <div className="lg:col-span-7 space-y-4">
+          <div className="flex items-center justify-between pb-1 border-b border-border/40">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-accent" />
+              <h2 className="text-sm font-bold text-text-primary tracking-tight">Recent Activity</h2>
+            </div>
+            <Link
+              to="/analytics"
+              className="text-xs text-accent hover:text-accent-hover font-medium inline-flex items-center gap-1 transition-colors"
+            >
+              <span>Full History</span>
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          {recentActivity.length === 0 ? (
+            <div className="py-12 text-center text-text-muted text-xs">
+              <Activity className="w-8 h-8 text-text-muted mx-auto mb-2 opacity-40" />
+              <p className="font-semibold text-text-secondary">No activity recorded yet</p>
+              <p className="mt-1">
+                Upload study material or complete a quiz to begin tracking your journey.
+              </p>
+            </div>
+          ) : (
+            <div className="relative pl-6 space-y-5 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-border/60">
+              {recentActivity.slice(0, 5).map((act) => (
+                <div key={act.id} className="relative group">
+                  {/* Timeline dot */}
+                  <span className="absolute -left-6 top-1.5 w-2.5 h-2.5 rounded-full bg-accent ring-4 ring-surface" />
+                  
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="shrink-0">{getActivityIcon(act.event_type)}</div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-text-primary truncate">{act.title}</span>
-                          {act.project_name && (
-                            <span className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-accent-soft text-accent border border-accent/20 truncate">
-                              {act.project_name}
-                            </span>
-                          )}
+                        <div className="text-xs font-semibold text-text-primary group-hover:text-accent transition-colors truncate">
+                          {act.title}
                         </div>
-                        <p className="text-[11px] text-text-muted truncate mt-0.5">
-                          {act.detail || "Learning milestone recorded"}
+                        <p className="text-[11px] text-text-muted mt-0.5 truncate">
+                          {act.detail || "Learning event logged"}
                         </p>
                       </div>
                     </div>
-
-                    <span className="text-[11px] font-mono text-text-muted flex-shrink-0">
+                    <span className="text-[10px] font-mono text-text-muted shrink-0">
                       {formatRelativeTime(act.created_at)}
                     </span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right (5 cols / ~40%): Top Focus Recommendations Across Projects */}
-        <div className="lg:col-span-5 rounded-2xl border border-border bg-surface p-5 flex flex-col justify-between shadow-sm">
-          <div>
-            <div className="flex items-center justify-between mb-4 pb-2.5 border-b border-border">
-              <div className="flex items-center gap-2">
-                <Lightbulb className="w-4 h-4 text-amber-500" />
-                <h2 className="text-sm font-bold text-text-primary tracking-tight">
-                  Top Focus Recommendations
-                </h2>
-              </div>
-              <span className="text-[10px] font-mono text-text-muted">
-                {recommendations.length} active
-              </span>
+                </div>
+              ))}
             </div>
-
-            {recommendations.length === 0 ? (
-              <div className="py-12 text-center text-text-muted text-xs">
-                <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
-                <p className="font-semibold text-text-primary">You're completely on track</p>
-                <p className="text-text-muted mt-1">
-                  Complete more quiz attempts to trigger targeted recommendations.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {recommendations.slice(0, 3).map((rec, idx) => (
-                  <div
-                    key={rec.id}
-                    className="p-3.5 rounded-xl bg-surface-muted/60 border border-border/70 space-y-2 hover:border-border transition-colors shadow-sm"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={`text-[10px] font-mono px-2 py-0.5 rounded-md border font-semibold ${getPriorityBadgeClass(
-                          rec.priority
-                        )}`}
-                      >
-                        P{idx + 1} • {rec.priority} Priority
-                      </span>
-                      <span className="text-[10px] font-mono text-text-muted truncate max-w-[130px]">
-                        {rec.project_name}
-                      </span>
-                    </div>
-
-                    <div>
-                      <h4 className="text-xs font-bold text-text-primary">
-                        {rec.target_concept_name || rec.title}
-                      </h4>
-                      <p className="text-[11px] text-text-muted line-clamp-2 mt-0.5">
-                        {rec.reasoning || rec.body}
-                      </p>
-                    </div>
-
-                    <div className="pt-1.5 flex items-center justify-between text-[11px] text-text-muted border-t border-border/60">
-                      <span className="truncate mr-2 font-mono text-[10px] text-text-muted">
-                        {rec.recommendation_type.replace(/_/g, " ")}
-                      </span>
-                      <Link
-                        to={`/projects/${rec.project_id}?tab=quiz`}
-                        className="px-2.5 py-1 rounded-md bg-accent/15 text-accent border border-accent/30 hover:bg-accent hover:text-white transition-colors font-medium flex-shrink-0"
-                      >
-                        Start Practice &rarr;
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          )}
         </div>
-      </div>
 
-      {/* ==================================================================== */}
-      {/* 5. ROW 4: LEARNING JOURNEY (LEFT) + WEAK AREAS (RIGHT)               */}
-      {/* ==================================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left (7 cols / ~60%): Learning Journey */}
-        <div className="lg:col-span-7 rounded-2xl border border-border bg-surface p-5 flex flex-col justify-between shadow-sm">
-          <div>
-            <div className="mb-4">
+        {/* Right (~40%): Top Focus Recommendations with Left Accent Lines */}
+        <div className="lg:col-span-5 space-y-4">
+          <div className="flex items-center justify-between pb-1 border-b border-border/40">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="w-4 h-4 text-amber-500" />
               <h2 className="text-sm font-bold text-text-primary tracking-tight">
-                Your Learning Journey
+                Top Recommendations
               </h2>
-              <p className="text-xs text-text-muted mt-0.5">
-                {selectedProject
-                  ? `Knowledge retention and progress for ${selectedProject.project_name}.`
-                  : "Cross-project knowledge retention and practice progression."}
-              </p>
             </div>
-
-            {/* Metrics Grid */}
-            <div className="grid grid-cols-5 divide-x divide-border bg-surface-muted/60 border border-border rounded-xl p-3 sm:p-4 text-center">
-              {/* Metric 1: Mastery */}
-              <div className="px-1 sm:px-2">
-                <div className="flex items-center justify-center gap-1 text-accent text-[10px] font-mono uppercase font-semibold">
-                  <Target className="w-3 h-3" />
-                  <span>Mastery</span>
-                </div>
-                <div className="text-base sm:text-xl font-bold text-text-primary font-mono mt-1">
-                  {masteryPercent !== null ? `${masteryPercent}%` : "—"}
-                </div>
-              </div>
-
-              {/* Metric 2: Growth */}
-              <div className="px-1 sm:px-2 flex flex-col items-center justify-center">
-                <div className="flex items-center justify-center gap-1 text-emerald-600 dark:text-emerald-400 text-[10px] font-mono uppercase font-semibold">
-                  <TrendingUp className="w-3 h-3" />
-                  <span>Growth</span>
-                </div>
-                {growthDelta !== null ? (
-                  <>
-                    <div
-                      className={`text-base sm:text-xl font-bold font-mono mt-1 ${
-                        growthDelta >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-                      }`}
-                    >
-                      {growthDelta >= 0 ? `+${growthDelta}%` : `${growthDelta}%`}
-                    </div>
-                    <div className="text-[9px] text-text-muted mt-0.5 leading-tight hidden sm:block">
-                      {growthDelta >= 0 ? "Mastery trending up" : "Needs reinforcement"}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-xs sm:text-sm font-bold text-text-muted font-medium mt-1 leading-tight">
-                      Not enough history
-                    </div>
-                    <div className="text-[9px] text-text-muted mt-0.5 leading-tight hidden sm:block">
-                      Complete more assessments to see trend
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Metric 3: Weak Topics */}
-              <div className="px-1 sm:px-2">
-                <div className="flex items-center justify-center gap-1 text-amber-600 dark:text-amber-400 text-[10px] font-mono uppercase font-semibold">
-                  <AlertTriangle className="w-3 h-3" />
-                  <span>Weak</span>
-                </div>
-                <div className="text-base sm:text-xl font-bold text-amber-600 dark:text-amber-400 font-mono mt-1">
-                  {weakCount}
-                </div>
-              </div>
-
-              {/* Metric 4: Completed Quizzes */}
-              <div className="px-1 sm:px-2">
-                <div className="flex items-center justify-center gap-1 text-purple-600 dark:text-purple-400 text-[10px] font-mono uppercase font-semibold">
-                  <Award className="w-3 h-3" />
-                  <span>Quizzes</span>
-                </div>
-                <div className="text-base sm:text-xl font-bold text-purple-600 dark:text-purple-400 font-mono mt-1">
-                  {completedQuizzesCount}
-                </div>
-              </div>
-
-              {/* Metric 5: Study Streak (Real active days, no fake ?? 1) */}
-              <div className="px-1 sm:px-2">
-                <div className="flex items-center justify-center gap-1 text-sky-600 dark:text-sky-400 text-[10px] font-mono uppercase font-semibold">
-                  <Calendar className="w-3 h-3" />
-                  <span>Streak</span>
-                </div>
-                <div className="text-base sm:text-xl font-bold text-sky-600 dark:text-sky-400 font-mono mt-1">
-                  {studyStreakDays > 0 ? (
-                    <span>{studyStreakDays}<span className="text-[10px] font-normal text-text-muted">d</span></span>
-                  ) : (
-                    <span className="text-xs text-text-muted">0d</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs text-text-muted">
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-accent" />
-              Adaptive knowledge tracking active &bull; Personalized to your practice pace
+            <span className="text-[11px] font-mono text-text-muted">
+              {recommendations.length} active
             </span>
-            <Link
-              to="/analytics"
-              className="text-accent hover:text-accent-hover font-medium inline-flex items-center gap-1"
-            >
-              View your analytics &rarr;
-            </Link>
           </div>
-        </div>
 
-        {/* Right (5 cols / ~40%): Weak Topics Panel */}
-        <div className="lg:col-span-5 rounded-2xl border border-border bg-surface p-5 flex flex-col justify-between shadow-sm">
-          <div>
-            <div className="flex items-center justify-between mb-3.5 pb-2.5 border-b border-border">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                <h2 className="text-sm font-bold text-text-primary tracking-tight">Weak Topics</h2>
-              </div>
-              <span className="text-[10px] font-mono text-text-muted">
-                {weakAreasList.length} requiring practice
-              </span>
-            </div>
-
-            {weakAreasList.length === 0 ? (
-              <div className="py-8 text-center text-text-muted text-xs">
-                <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-1.5 opacity-80" />
-                <p className="font-semibold text-text-primary">All concepts on track</p>
-                <p className="text-[11px] text-text-muted mt-0.5">
-                  No concepts require urgent reinforcement right now.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {weakAreasList.slice(0, 4).map((item, idx) => (
-                  <Link
-                    key={item.concept_id}
-                    to={`/projects/${item.project_id}?tab=quiz`}
-                    className="p-2.5 rounded-xl bg-surface-muted/60 border border-border/70 hover:border-amber-500/40 hover:bg-surface-muted transition-all flex items-center justify-between group shadow-xs"
-                  >
-                    <div className="min-w-0 flex items-center gap-2">
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-semibold flex-shrink-0">
-                        P{idx + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="text-xs font-medium text-text-primary group-hover:text-amber-600 dark:group-hover:text-amber-400 truncate">
-                          {item.concept_name}
-                        </div>
-                        <div className="text-[10px] text-text-muted truncate">
-                          {item.project_name}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                      <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-bold">
-                        {Math.round(item.mastery_score)}%
-                      </span>
-                      <ChevronRight className="w-3.5 h-3.5 text-text-muted group-hover:text-amber-500 group-hover:translate-x-0.5 transition-transform" />
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ==================================================================== */}
-      {/* 6. ROW 5: HIERARCHICAL LEARNING SPACES & PROJECTS SECTION            */}
-      {/* ==================================================================== */}
-      <div className="rounded-2xl border border-border bg-surface p-5 space-y-4 shadow-sm">
-        <div className="flex items-center justify-between pb-2.5 border-b border-border">
-          <div className="flex items-center gap-2">
-            <Folder className="w-4 h-4 text-accent" />
-            <div>
-              <h2 className="text-sm font-bold text-text-primary tracking-tight">
-                Your Learning Spaces
-              </h2>
-              <p className="text-xs text-text-muted mt-0.5">
-                Hierarchical view of your knowledge spaces and projects
+          {recommendations.length === 0 ? (
+            <div className="py-12 text-center text-text-muted text-xs">
+              <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
+              <p className="font-semibold text-text-primary">You're on track</p>
+              <p className="text-text-muted mt-1">
+                Complete more quizzes to trigger personalized recommendations.
               </p>
             </div>
-          </div>
-          <Link
-            to="/spaces"
-            className="text-xs text-accent hover:text-accent-hover font-medium inline-flex items-center gap-1 transition-colors"
-          >
-            <span>All Spaces</span>
-            <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
-
-        {spaces.length === 0 ? (
-          <div className="py-8 text-center text-text-muted text-xs">
-            No spaces created yet. Create a space to organize your projects.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {spaces.map((sp) => {
-              // Find projects in this space from allProjects
-              const spaceProjects = allProjects.filter(
-                (p) => p.space_name.toLowerCase() === sp.name.toLowerCase()
-              );
-
-              return (
+          ) : (
+            <div className="space-y-3">
+              {recommendations.slice(0, 3).map((rec, idx) => (
                 <div
-                  key={sp.id}
-                  className="p-4 rounded-xl bg-surface-muted/50 border border-border/70 space-y-3"
+                  key={rec.id}
+                  className="p-3.5 rounded-xl bg-surface border-l-4 border-l-indigo-500 border-t border-r border-b border-border/60 hover:shadow-sm transition-all"
                 >
-                  <div className="flex items-center justify-between">
-                    <Link
-                      to={`/spaces/${sp.id}`}
-                      className="text-xs font-bold text-text-primary hover:text-accent transition-colors flex items-center gap-2"
-                    >
-                      <Folder className="w-3.5 h-3.5 text-accent" />
-                      <span>{sp.name}</span>
-                    </Link>
-                    <span className="text-[10px] font-mono text-text-muted">
-                      {spaceProjects.length} {spaceProjects.length === 1 ? "project" : "projects"}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded-md ${getPriorityBadgeClass(rec.priority)}`}>
+                      P{idx + 1} • {rec.priority} Priority
+                    </span>
+                    <span className="text-[10px] text-text-muted truncate max-w-[120px]">
+                      {rec.project_name}
                     </span>
                   </div>
 
-                  {spaceProjects.length === 0 ? (
-                    <p className="text-[11px] text-text-muted italic pl-5">
-                      No projects inside this space yet.
-                    </p>
-                  ) : (
-                    <div className="space-y-1.5 pl-2 border-l border-border ml-2">
-                      {spaceProjects.map((p) => (
-                        <Link
-                          key={p.project_id}
-                          to={`/projects/${p.project_id}`}
-                          className="p-2 rounded-lg bg-surface border border-border hover:border-accent/40 hover:bg-surface-muted/60 transition-all flex items-center justify-between group text-xs shadow-xs"
-                        >
-                          <div className="min-w-0 pr-2">
-                            <span className="font-medium text-text-primary group-hover:text-accent truncate block">
-                              {p.project_name}
-                            </span>
-                            <span className="text-[10px] text-text-muted font-mono">
-                              {p.total_concepts} concepts • {p.completed_quiz_attempts} completed quizzes
-                            </span>
-                          </div>
+                  <h3 className="text-xs font-bold text-text-primary mt-1">
+                    {rec.target_concept_name || rec.title}
+                  </h3>
+                  <p className="text-[11px] text-text-muted line-clamp-2 mt-0.5 leading-relaxed">
+                    {rec.reasoning || rec.body}
+                  </p>
 
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {p.average_mastery !== null ? (
-                              <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-                                {Math.round(p.average_mastery)}%
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-mono text-text-muted">New</span>
-                            )}
-                            <ChevronRight className="w-3 h-3 text-text-muted group-hover:text-text-primary transition-colors" />
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
+                  <div className="mt-2.5 pt-2 flex items-center justify-between text-[11px] border-t border-border/40">
+                    <span className="text-[10px] text-text-muted font-mono capitalize">
+                      {rec.recommendation_type.replace(/_/g, " ")}
+                    </span>
+                    <Link
+                      to={`/projects/${rec.project_id}?tab=quiz`}
+                      className="text-xs font-semibold text-accent hover:text-accent-hover inline-flex items-center gap-1"
+                    >
+                      <span>Start Practice</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ==================================================================== */}
+      {/* 6. LEARNING JOURNEY: VISUAL 5-STEP PIPELINE                          */}
+      {/* ==================================================================== */}
+      <div className="pt-4 border-t border-border/40">
+        <div className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4 px-1">
+          Learning Journey Pipeline
+        </div>
+        <div className="grid grid-cols-5 gap-2 sm:gap-4 relative">
+          {[
+            { step: "1", title: "Add Material", desc: "PDFs, slides, notes", icon: FileText, color: "text-sky-500 bg-sky-500/10" },
+            { step: "2", title: "Understand", desc: "Grounded AI Tutor", icon: Bot, color: "text-indigo-500 bg-indigo-500/10" },
+            { step: "3", title: "Practice", desc: "Adaptive quizzes", icon: HelpCircle, color: "text-purple-500 bg-purple-500/10" },
+            { step: "4", title: "Master", desc: "Spaced flashcards", icon: Award, color: "text-amber-500 bg-amber-500/10" },
+            { step: "5", title: "Grow", desc: "Mastery analytics", icon: TrendingUp, color: "text-emerald-500 bg-emerald-500/10" },
+          ].map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <div key={idx} className="flex flex-col items-center text-center group">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold mb-2 transition-transform group-hover:scale-110 ${item.color}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div className="text-[11px] sm:text-xs font-bold text-text-primary">{item.title}</div>
+                <div className="text-[10px] text-text-muted hidden sm:block mt-0.5">{item.desc}</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
