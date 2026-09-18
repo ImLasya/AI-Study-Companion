@@ -40,7 +40,34 @@ interface TutorTabProps {
 }
 
 const MAX_QUESTION_LENGTH = 2000;
+const cleanTutorContent = (content: string): string => {
+  if (!content) return "";
 
+  return content
+    // Remove complete citation_chunk_ids blocks
+    .replace(
+      /<citation_chunk_ids>[\s\S]*?<\/citation_chunk_ids>/gi,
+      ""
+    )
+    // Remove incomplete citation_chunk_ids block during streaming
+    .replace(
+      /<citation_chunk_ids>[\s\S]*$/gi,
+      ""
+    )
+    // Remove one or more UUIDs inside citation brackets
+    .replace(
+      /\[\s*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\s*,\s*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})*\s*\]/gi,
+      ""
+    )
+    // Remove standalone UUIDs if they appear without brackets
+    .replace(
+      /(?<![a-z0-9])[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![a-z0-9])/gi,
+      ""
+    )
+    // Clean leftover whitespace
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+};
 export const TutorTab: React.FC<TutorTabProps> = ({
   projectId,
   newSessionTrigger = 0,
@@ -209,15 +236,28 @@ export const TutorTab: React.FC<TutorTabProps> = ({
           onStart: (convId) => {
             setActiveConvId(convId);
           },
+          // onToken: (token) => {
+          //   setMessages((prev) =>
+          //     prev.map((m) =>
+          //       m.id === pendingId
+          //         ? { ...m, content: m.content + token, isPending: true }
+          //         : m
+          //     )
+          //   );
+          // },
           onToken: (token) => {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === pendingId
-                  ? { ...m, content: m.content + token, isPending: true }
-                  : m
-              )
-            );
-          },
+  setMessages((prev) =>
+    prev.map((m) =>
+      m.id === pendingId
+        ? {
+            ...m,
+            content: cleanTutorContent(m.content + token),
+            isPending: true,
+          }
+        : m
+    )
+  );
+},
           onInsufficientEvidence: (data) => {
             setMessages((prev) =>
               prev.map((m) =>
@@ -453,7 +493,10 @@ export const TutorTab: React.FC<TutorTabProps> = ({
                         </div>
                       ) : (
                         <div className="space-y-2.5">
-                          <div className="whitespace-pre-wrap break-words">{turn.content}</div>
+                          {/* <div className="whitespace-pre-wrap break-words">{turn.content}</div> */}
+                          <div className="whitespace-pre-wrap break-words">
+                            {cleanTutorContent(turn.content)}
+                          </div>  
                           {isPending && (
                             <span className="inline-block w-1.5 h-3 ml-1 bg-[#4F46E5] animate-pulse" />
                           )}
