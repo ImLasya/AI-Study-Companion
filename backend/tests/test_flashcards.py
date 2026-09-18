@@ -31,7 +31,6 @@ from app.schemas.flashcard import (
 )
 from app.services.flashcard_service import FlashcardService
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Fixtures
 # ─────────────────────────────────────────────────────────────────────────────
@@ -776,8 +775,9 @@ async def test_redis_unavailable_generation_continues(
 @pytest.mark.asyncio
 async def test_ai_usage_logged_on_generation(db_session: AsyncSession, user_project):
     """AI usage should be logged (to db) after a successful flashcard generation."""
-    from app.models.ai_usage import AIUsageLog
     from sqlalchemy import select
+
+    from app.models.ai_usage import AIUsageLog
 
     user, project = user_project
     chunk = make_chunk()

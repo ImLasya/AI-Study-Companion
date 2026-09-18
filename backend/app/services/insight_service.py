@@ -8,10 +8,10 @@ Learning insights are strictly informational and advisory.
 This service NEVER directly mutates concept mastery or overwrites authoritative mastery scores.
 """
 
-from collections import defaultdict
-from datetime import UTC, datetime
 import logging
 import uuid
+from collections import defaultdict
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession

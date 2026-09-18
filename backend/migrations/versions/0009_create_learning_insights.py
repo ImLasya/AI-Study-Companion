@@ -6,8 +6,8 @@ Create Date: 2026-09-17 14:35:00.000000
 
 """
 
-from collections.abc import Sequence
 import uuid
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op

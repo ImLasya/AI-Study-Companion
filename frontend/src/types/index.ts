@@ -18,6 +18,9 @@ export interface Space {
   created_at: string;
   updated_at: string;
   projects_count: number;
+  concepts_count?: number;
+  assessed_concepts_count?: number;
+  average_mastery?: number | null;
 }
 
 export interface Project {
@@ -409,6 +412,9 @@ export interface GlobalStudyActivity {
   active_study_days: number;
   review_streak_days?: number;
   consistency_score?: number;
+  total_materials_count?: number;
+  total_tutor_messages?: number;
+  activity_distribution?: Record<string, number>;
 }
 
 export interface GlobalAnalyticsResponse {
@@ -454,11 +460,18 @@ export interface AdminOverviewResponse {
   total_users: number;
   total_spaces: number;
   total_projects: number;
+  total_materials?: number;
+  total_quiz_attempts?: number;
+  total_tutor_sessions?: number;
+  total_flashcards?: number;
+  average_quiz_score?: number;
   active_users_daily: number;
   active_users_weekly: number;
   total_ai_spend_usd: number;
   total_ai_calls: number;
   job_health_summary: Record<string, number>;
+  concept_mastery_distribution?: Record<string, number>;
+  activity_distribution?: Record<string, number>;
 }
 
 export interface AdminUserSummary {

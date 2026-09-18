@@ -586,8 +586,8 @@ class MockLLMProvider(LLMProvider):
         text = ""
         if isinstance(self.canned_response, str):
             text = self.canned_response
-        elif hasattr(self.canned_response, "answer"):
-            text = self.canned_response.answer
+        elif self.canned_response is not None and hasattr(self.canned_response, "answer"):
+            text = str(getattr(self.canned_response, "answer", ""))
         elif isinstance(self.canned_response, dict) and "answer" in self.canned_response:
             text = self.canned_response["answer"]
         else:

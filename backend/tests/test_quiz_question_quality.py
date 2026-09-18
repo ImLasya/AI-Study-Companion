@@ -8,11 +8,11 @@ Validates:
 """
 
 import pytest
+
 from app.services.question_validator import (
     is_toc_or_metadata_chunk,
     validate_quiz_question_quality,
 )
-
 
 # ==============================================================================
 # 1. Explicit Bad-Question Fixtures (MUST BE REJECTED)

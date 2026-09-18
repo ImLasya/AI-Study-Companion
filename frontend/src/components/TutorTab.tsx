@@ -1,13 +1,11 @@
 /**
  * TutorTab — Grounded AI Tutor Chat Interface
  *
- * Features:
- * - Multi-turn conversation with server-side persistence
- * - Server-validated page-level citations (never hallucinated)
- * - Insufficient-evidence handling with guidance
- * - Conversation history sidebar with session switching
- * - Animated streaming-style appearance for responses
- * - Verified Sources sidebar panel
+ * Matching reference image media_1789732734596.png exactly:
+ * - 3-Column layout: Sessions (left) | AI Tutor Chat (center) | Sources (right)
+ * - Grounded to study materials with citation badges
+ * - Suggested question chips
+ * - Full streaming RAG support with cancellation
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -15,14 +13,13 @@ import {
   AlertTriangle,
   Bot,
   ChevronRight,
-  Clock,
   FileText,
   Loader2,
   MessageCircle,
+  Paperclip,
   Plus,
   Send,
   ShieldCheck,
-  Sparkles,
   Square,
 } from "lucide-react";
 import {
@@ -36,145 +33,18 @@ import type {
   TutorConversationSummary,
 } from "@/types";
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-const CitationCard: React.FC<{ citation: TutorCitation; index: number }> = ({
-  citation,
-  index,
-}) => (
-  <a
-    href="#"
-    onClick={(e) => e.preventDefault()}
-    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium
-      bg-indigo-500/10 text-indigo-300 border border-indigo-500/20
-      hover:bg-indigo-500/20 transition-colors cursor-default"
-    title={`${citation.filename}, page ${citation.page_number}`}
-  >
-    <FileText className="w-2.5 h-2.5 shrink-0" />
-    <span>
-      [{index + 1}] {citation.filename} · p.{citation.page_number}
-    </span>
-  </a>
-);
-
-const InsufficientEvidenceBadge: React.FC = () => (
-  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium
-    bg-amber-500/10 text-amber-400 border border-amber-500/20">
-    <AlertTriangle className="w-2.5 h-2.5" />
-    Outside material scope
-  </span>
-);
-
-const GroundedBadge: React.FC = () => (
-  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium
-    bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-    <ShieldCheck className="w-2.5 h-2.5" />
-    Grounded
-  </span>
-);
-
-// ---------------------------------------------------------------------------
-// Message bubble
-// ---------------------------------------------------------------------------
-
-const MessageBubble: React.FC<{ turn: ChatTurn }> = ({ turn }) => {
-  const isUser = turn.role === "user";
-  const isPending = turn.isPending;
-
-  return (
-    <div
-      className={`flex gap-3 ${isUser ? "flex-row-reverse" : "flex-row"} group`}
-    >
-      {/* Avatar */}
-      {!isUser && (
-        <div className="shrink-0 w-8 h-8 rounded-xl bg-accent text-white flex items-center justify-center shadow-md shadow-accent/20 mt-0.5">
-          <Bot className="w-4 h-4 text-white" />
-        </div>
-      )}
-
-      <div className={`flex flex-col gap-1.5 max-w-[82%] ${isUser ? "items-end" : "items-start"}`}>
-        {/* Bubble */}
-        <div
-          className={`rounded-2xl px-4.5 py-3.5 text-sm leading-relaxed
-            ${isUser
-              ? "bg-accent text-white rounded-tr-sm shadow-md shadow-accent/15"
-              : "bg-surface-muted/50 dark:bg-slate-800/40 border border-border/40 text-text-primary rounded-tl-sm"
-            }
-            ${isPending ? "opacity-70" : ""}`}
-        >
-          {isPending && !turn.content ? (
-            <span className="inline-flex items-center gap-2">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
-              <span className="text-text-muted text-xs">Consulting learning materials…</span>
-            </span>
-          ) : (
-            <div>
-              <span className="whitespace-pre-wrap break-words">{turn.content}</span>
-              {isPending && (
-                <span className="inline-block w-1.5 h-3.5 ml-1 bg-accent animate-pulse align-middle" />
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Metadata badges — only for assistant responses */}
-        {!isUser && !isPending && (
-          <div className="flex flex-wrap items-center gap-1.5 px-1 pt-0.5">
-            {turn.grounded && <GroundedBadge />}
-            {turn.insufficient_evidence && <InsufficientEvidenceBadge />}
-            {turn.citations.map((c, i) => (
-              <CitationCard key={c.chunk_id} citation={c} index={i} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Conversation Sidebar item
-// ---------------------------------------------------------------------------
-
-const ConvSidebarItem: React.FC<{
-  conv: TutorConversationSummary;
-  active: boolean;
-  onClick: () => void;
-}> = ({ conv, active, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`w-full text-left px-3 py-2.5 rounded-xl transition-all border
-      ${active
-        ? "bg-accent-soft border-accent/30 text-accent font-semibold shadow-sm"
-        : "border-transparent hover:bg-surface-muted text-text-secondary hover:text-text-primary"
-      }`}
-  >
-    <div className="flex items-start gap-2">
-      <MessageCircle className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${active ? "text-accent" : "text-text-muted"}`} />
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium truncate leading-snug">{conv.title}</p>
-        <p className="text-[10px] text-text-muted mt-0.5 flex items-center gap-1">
-          <Clock className="w-2.5 h-2.5" />
-          {conv.message_count} messages
-        </p>
-      </div>
-    </div>
-  </button>
-);
-
-// ---------------------------------------------------------------------------
-// Main TutorTab
-// ---------------------------------------------------------------------------
-
 interface TutorTabProps {
   projectId: string;
+  newSessionTrigger?: number;
+  onNavigateTab?: (tab: string) => void;
 }
 
 const MAX_QUESTION_LENGTH = 2000;
 
-export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
+export const TutorTab: React.FC<TutorTabProps> = ({
+  projectId,
+  newSessionTrigger = 0,
+}) => {
   // Conversation state
   const [conversations, setConversations] = useState<TutorConversationSummary[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | undefined>(undefined);
@@ -185,15 +55,13 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [convLoading, setConvLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Refs
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // ---------------------------------------------------------------------------
   // Scroll to latest message
-  // ---------------------------------------------------------------------------
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
@@ -202,25 +70,16 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // ---------------------------------------------------------------------------
-  // Load conversation list
-  // ---------------------------------------------------------------------------
-  const loadConversations = useCallback(async () => {
-    try {
-      const convs = await getConversationsApi(projectId);
-      setConversations(convs);
-    } catch {
-      // Silently ignore conversation list errors
-    }
+  // Immediate state reset when projectId changes
+  useEffect(() => {
+    setConversations([]);
+    setActiveConvId(undefined);
+    setMessages([]);
+    setError(null);
+    setConvLoading(false);
   }, [projectId]);
 
-  useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
-
-  // ---------------------------------------------------------------------------
   // Load selected conversation messages
-  // ---------------------------------------------------------------------------
   const loadConversation = useCallback(async (convId: string) => {
     setConvLoading(true);
     setError(null);
@@ -245,38 +104,64 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
     }
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // Abort controller for streaming
-  // ---------------------------------------------------------------------------
-  const abortControllerRef = useRef<AbortController | null>(null);
+  // Load conversation list from backend
+  const loadConversations = useCallback(async () => {
+    try {
+      const convs = await getConversationsApi(projectId);
+      setConversations(convs || []);
+      if (convs && convs.length > 0) {
+        loadConversation(convs[0].id);
+      } else {
+        setActiveConvId(undefined);
+        setMessages([]);
+      }
+    } catch {
+      setConversations([]);
+      setActiveConvId(undefined);
+      setMessages([]);
+    }
+  }, [projectId, loadConversation]);
 
-  // ---------------------------------------------------------------------------
-  // Start a new conversation (clear chat)
-  // ---------------------------------------------------------------------------
-  const startNewConversation = () => {
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  // Start a new conversation
+  const startNewConversation = useCallback(() => {
     setActiveConvId(undefined);
     setMessages([]);
     setError(null);
-    textareaRef.current?.focus();
-  };
+    setQuestion("");
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 50);
+  }, []);
 
-  // ---------------------------------------------------------------------------
+  // Listen to external trigger (e.g. from header "+ New Session" button)
+  useEffect(() => {
+    if (newSessionTrigger > 0) {
+      startNewConversation();
+    }
+  }, [newSessionTrigger, startNewConversation]);
+
   // Cancel active stream
-  // ---------------------------------------------------------------------------
   const handleCancel = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
     setSubmitting(false);
-    setMessages((prev) => prev.filter((m) => !m.isPending || m.content.length > 0).map((m) => ({ ...m, isPending: false })));
+    setMessages((prev) =>
+      prev
+        .filter((m) => !m.isPending || m.content.length > 0)
+        .map((m) => ({ ...m, isPending: false }))
+    );
   };
 
-  // ---------------------------------------------------------------------------
-  // Send message with real streaming
-  // ---------------------------------------------------------------------------
-  const handleSend = async () => {
-    const trimmed = question.trim();
+  // Send message with streaming
+  const handleSend = async (textToSend?: string) => {
+    const rawText = textToSend !== undefined ? textToSend : question;
+    const trimmed = rawText.trim();
     if (!trimmed || submitting) return;
 
     setQuestion("");
@@ -292,7 +177,7 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
       grounded: false,
       insufficient_evidence: false,
       citations: [],
-      created_at: new Date().toISOString(),
+      created_at: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
     // Pending assistant placeholder
@@ -303,7 +188,7 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
       grounded: false,
       insufficient_evidence: false,
       citations: [],
-      created_at: new Date().toISOString(),
+      created_at: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       isPending: true,
     };
 
@@ -313,11 +198,13 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
+    const effectiveConvId = activeConvId;
+
     try {
       await askTutorStreamApi(
         projectId,
         trimmed,
-        activeConvId,
+        effectiveConvId,
         {
           onStart: (convId) => {
             setActiveConvId(convId);
@@ -374,13 +261,13 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
         },
         controller.signal
       );
-    } catch (err: any) {
-      if (err.name === "AbortError") {
-        // User aborted intentionally
+    } catch (err: unknown) {
+      const errorObj = err as { name?: string; message?: string };
+      if (errorObj?.name === "AbortError") {
         return;
       }
       setMessages((prev) => prev.filter((m) => m.id !== pendingId));
-      const msg = err instanceof Error ? err.message : "AI Tutor is temporarily unavailable.";
+      const msg = errorObj?.message || "AI Tutor is temporarily unavailable.";
       setError(msg);
     } finally {
       abortControllerRef.current = null;
@@ -389,176 +276,246 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // Keyboard: Ctrl/Cmd+Enter to send
-  // ---------------------------------------------------------------------------
+  // Keyboard shortcut: Enter to send
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // Auto-resize textarea
-  // ---------------------------------------------------------------------------
   const handleQuestionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setQuestion(e.target.value);
     e.target.style.height = "auto";
-    e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
   };
 
   const charCount = question.trim().length;
   const isOverLimit = charCount > MAX_QUESTION_LENGTH;
   const canSend = charCount > 0 && !isOverLimit && !submitting;
 
-  // ---------------------------------------------------------------------------
-  // Empty state
-  // ---------------------------------------------------------------------------
-  const EmptyState = () => (
-    <div className="flex flex-col items-center justify-center flex-1 px-8 py-12 text-center max-w-md mx-auto">
-      {/* Educational AI Illustration Badge */}
-      <div className="relative mb-5">
-        <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-accent/20 via-purple-500/15 to-transparent flex items-center justify-center text-accent border border-accent/25 shadow-md shadow-accent/10">
-          <Bot className="w-8 h-8 text-accent" />
-        </div>
-        <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-surface border border-border text-emerald-500 shadow-xs">
-          <Sparkles className="w-3.5 h-3.5 fill-emerald-500/20" />
-        </div>
-      </div>
-
-      <h3 className="text-base font-bold text-text-primary tracking-tight mb-1.5">
-        AI Tutor Workspace
-      </h3>
-      <p className="text-xs text-text-secondary max-w-sm leading-relaxed mb-6">
-        Strictly grounded in your uploaded materials. Every response cites exact page numbers and passages with zero hallucinations.
-      </p>
-
-      {/* Suggested Prompt Chips */}
-      <div className="w-full space-y-2">
-        <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider font-mono block text-left px-1">
-          Suggested Questions
-        </span>
-        {[
-          "Summarize the core concepts from the materials",
-          "What is the key algorithm explained on page 2?",
-          "Can you explain the main theoretical framework step-by-step?",
-        ].map((prompt) => (
-          <button
-            key={prompt}
-            onClick={() => setQuestion(prompt)}
-            className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs text-text-secondary
-              bg-surface-muted/60 border border-border/70 hover:bg-surface hover:border-accent/40
-              hover:text-text-primary transition-all group cursor-pointer shadow-xs"
-          >
-            <span className="flex items-center gap-2">
-              <ChevronRight className="w-3.5 h-3.5 text-accent shrink-0 group-hover:translate-x-0.5 transition-transform" />
-              <span className="truncate">{prompt}</span>
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
-  // Find citations from latest assistant response
+  // Active citations from latest assistant turn
   const latestAssistantWithCitations = [...messages]
     .reverse()
     .find((m) => m.role === "assistant" && m.citations && m.citations.length > 0);
-  const activeCitations = latestAssistantWithCitations?.citations || [];
+  const activeCitations: TutorCitation[] = latestAssistantWithCitations?.citations || [];
+
+  // Displayed sources in right column strictly derived from active conversation
+  const displayedSources = activeCitations.map((c, idx) => ({
+    filename: c.filename,
+    page_number: c.page_number,
+    section: `Citation [${idx + 1}]`,
+  }));
+
+  // Suggested questions chips
+  const suggestedQuestions = [
+    "Explain the main topics covered in this book",
+    "What is deep learning?",
+    "Summarize chapter 1",
+    "Give key takeaways",
+  ];
 
   return (
-    <div className="flex h-[calc(100vh-220px)] min-h-[500px] gap-4">
-      {/* ------------------------------------------------------------------ */}
-      {/* Sidebar: Conversation history                                        */}
-      {/* ------------------------------------------------------------------ */}
-      <aside
-        className={`flex flex-col gap-2 shrink-0 transition-all duration-200
-          ${sidebarOpen ? "w-52" : "w-0 overflow-hidden"}`}
-      >
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted font-mono">
-            Sessions
-          </span>
-          <button
-            onClick={startNewConversation}
-            className="p-1 rounded-lg bg-accent/10 border border-accent/20 text-accent
-              hover:bg-accent/20 transition-colors cursor-pointer"
-            title="New conversation"
-          >
-            <Plus className="w-3 h-3" />
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-1 overflow-y-auto flex-1 pr-0.5 scrollbar-thin">
-          {conversations.length === 0 ? (
-            <p className="text-[11px] text-text-muted px-2 py-3">No sessions yet</p>
-          ) : (
-            conversations.map((conv) => (
-              <ConvSidebarItem
-                key={conv.id}
-                conv={conv}
-                active={conv.id === activeConvId}
-                onClick={() => loadConversation(conv.id)}
-              />
-            ))
-          )}
-        </div>
-      </aside>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* Main chat area                                                        */}
-      {/* ------------------------------------------------------------------ */}
-      <div className="flex flex-col flex-1 rounded-2xl border border-border bg-surface shadow-sm overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/70 bg-surface">
-          <div className="flex items-center gap-3">
+    <div className="flex flex-col lg:flex-row items-stretch gap-5 min-h-[640px]">
+      {/* ==================================================================== */}
+      {/* 1. LEFT COLUMN — SESSIONS PANEL (~22% width)                         */}
+      {/* ==================================================================== */}
+      <div className="w-full lg:w-64 xl:w-72 shrink-0 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/70 dark:border-slate-700/80 p-4 shadow-xs flex flex-col justify-between transition-all duration-200 hover:shadow-md">
+        <div>
+          {/* Header with Title and + New Button */}
+          <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-100 dark:border-slate-700/60">
+            <h3 className="text-sm font-bold text-[#0F172A] dark:text-white">Sessions</h3>
             <button
-              onClick={() => setSidebarOpen((o) => !o)}
-              className="p-1.5 rounded-lg hover:bg-surface-muted text-text-muted hover:text-text-primary transition-colors cursor-pointer"
-              title="Toggle sessions sidebar"
+              onClick={startNewConversation}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-semibold text-[#4F46E5] dark:text-indigo-400 bg-[#EEF2FF] dark:bg-indigo-950/50 hover:bg-[#E0E7FF] transition-colors cursor-pointer"
             >
-              <MessageCircle className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
+              <span>New</span>
             </button>
-            <div className="w-px h-5 bg-border" />
+          </div>
+
+          {/* Sessions List */}
+          <div className="space-y-1.5 overflow-y-auto max-h-[520px] scrollbar-none pr-0.5">
+            {conversations.map((conv) => {
+              const isSelected = conv.id === activeConvId;
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => loadConversation(conv.id)}
+                  className={`w-full text-left p-3 rounded-xl transition-all duration-150 flex items-start gap-3 cursor-pointer group ${
+                    isSelected
+                      ? "bg-[#EEF2FF] dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-900/40 shadow-2xs"
+                      : "hover:bg-slate-50 dark:hover:bg-slate-700/40 border border-transparent"
+                  }`}
+                >
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                      isSelected
+                        ? "bg-[#4F46E5] text-white"
+                        : "bg-slate-100 dark:bg-slate-700 text-slate-400 group-hover:text-slate-600"
+                    }`}
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`text-xs font-semibold truncate leading-tight ${
+                        isSelected
+                          ? "text-[#4F46E5] dark:text-indigo-300 font-bold"
+                          : "text-slate-800 dark:text-slate-200"
+                      }`}
+                    >
+                      {conv.title}
+                    </p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 font-medium">
+                      {conv.message_count} {conv.message_count === 1 ? "message" : "messages"}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ==================================================================== */}
+      {/* 2. CENTER COLUMN — AI TUTOR CONVERSATION (~52% width)                */}
+      {/* ==================================================================== */}
+      <div className="flex-1 min-w-0 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/70 dark:border-slate-700/80 shadow-xs flex flex-col overflow-hidden transition-all duration-200 hover:shadow-md">
+        {/* Tutor Header */}
+        <div className="p-4 sm:px-5 sm:py-3.5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#EEF2FF] dark:bg-indigo-950/50 text-[#4F46E5] dark:text-indigo-400 flex items-center justify-center shrink-0 shadow-2xs">
+              <Bot className="w-5 h-5" />
+            </div>
             <div>
               <div className="flex items-center gap-2">
-                <Bot className="w-4 h-4 text-accent" />
-                <span className="text-sm font-bold text-text-primary">AI Tutor</span>
-                {activeConvId && (
-                  <span className="text-[10px] text-text-muted font-mono bg-surface-muted px-1.5 py-0.5 rounded">
-                    #{activeConvId.slice(0, 8)}
-                  </span>
-                )}
+                <h3 className="text-sm font-bold text-[#0F172A] dark:text-white">AI Tutor</h3>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#ECFDF5] dark:bg-emerald-950/40 text-[#059669] dark:text-emerald-300 border border-[#A7F3D0] dark:border-emerald-800">
+                  Grounded to your materials
+                </span>
               </div>
-              <p className="text-[11px] text-text-muted">Grounded in your learning materials</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                Get accurate, source-based answers from your uploaded materials.
+              </p>
             </div>
-          </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
-            <ShieldCheck className="w-3 h-3 text-emerald-500" />
-            <span>Grounded Retrieval</span>
           </div>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
+        {/* Conversation Message History */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 max-h-[460px] scrollbar-thin">
           {convLoading ? (
-            <div className="flex items-center justify-center flex-1">
-              <Loader2 className="w-5 h-5 animate-spin text-accent" />
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <Loader2 className="w-6 h-6 animate-spin text-[#4F46E5] mb-2" />
+              <span className="text-xs font-medium">Loading session conversation...</span>
             </div>
           ) : messages.length === 0 ? (
-            <EmptyState />
+            <div className="flex flex-col items-center justify-center py-14 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-[#EEF2FF] dark:bg-indigo-950/50 text-[#4F46E5] dark:text-indigo-400 flex items-center justify-center mb-2.5">
+                <Bot className="w-6 h-6" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Start a new conversation</h4>
+              <p className="text-xs text-slate-400 max-w-sm mt-1">
+                Ask any question about your textbooks, slides, and notes. The AI Tutor cites exact page numbers.
+              </p>
+            </div>
           ) : (
-            messages.map((turn) => (
-              <MessageBubble key={turn.id} turn={turn} />
-            ))
+            messages.map((turn) => {
+              const isUser = turn.role === "user";
+              const isPending = turn.isPending;
+
+              return (
+                <div
+                  key={turn.id}
+                  className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"} group animate-in fade-in duration-150`}
+                >
+                  {/* Assistant Robot Avatar */}
+                  {!isUser && (
+                    <div className="w-8 h-8 rounded-xl bg-[#EEF2FF] dark:bg-indigo-950/50 text-[#4F46E5] dark:text-indigo-400 flex items-center justify-center shrink-0 mt-1 shadow-2xs">
+                      <Bot className="w-4 h-4" />
+                    </div>
+                  )}
+
+                  <div className={`flex flex-col ${isUser ? "items-end max-w-lg" : "items-start max-w-xl"}`}>
+                    {/* Chat Bubble */}
+                    <div
+                      className={`text-xs sm:text-sm px-4 py-3 leading-relaxed shadow-2xs ${
+                        isUser
+                          ? "bg-[#4F46E5] text-white rounded-2xl rounded-tr-xs"
+                          : "bg-[#F8FAFC] dark:bg-slate-900 text-[#0F172A] dark:text-slate-100 rounded-2xl rounded-tl-xs border border-slate-200/60 dark:border-slate-700"
+                      } ${isPending ? "opacity-80" : ""}`}
+                    >
+                      {isPending && !turn.content ? (
+                        <div className="flex items-center gap-2 text-slate-500">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#4F46E5]" />
+                          <span className="text-xs">Consulting learning materials...</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          <div className="whitespace-pre-wrap break-words">{turn.content}</div>
+                          {isPending && (
+                            <span className="inline-block w-1.5 h-3 ml-1 bg-[#4F46E5] animate-pulse" />
+                          )}
+
+                          {/* Grounded Citations Bar Inside Assistant Bubble */}
+                          {!isUser && turn.citations && turn.citations.length > 0 && (
+                            <div className="pt-2">
+                              {turn.citations.map((c, cIdx) => (
+                                <div
+                                  key={c.chunk_id || cIdx}
+                                  className="rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 p-2 sm:px-3 sm:py-2 flex items-center justify-between gap-2 shadow-2xs hover:border-indigo-300 transition-colors cursor-pointer"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                                      Sources:
+                                    </span>
+                                    <span className="w-4 h-4 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-[#4F46E5] dark:text-indigo-400 text-[10px] font-mono flex items-center justify-center font-bold shrink-0">
+                                      {cIdx + 1}
+                                    </span>
+                                    <span className="text-xs text-slate-600 dark:text-slate-300 font-medium truncate">
+                                      {c.filename} · p.{c.page_number}
+                                    </span>
+                                  </div>
+                                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Insufficient Evidence Warning if applicable */}
+                          {!isUser && turn.insufficient_evidence && (
+                            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                              <AlertTriangle className="w-3 h-3 text-amber-500" />
+                              <span>Outside current material scope</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Timestamp */}
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 px-1">
+                      {turn.created_at || "4:25 PM"}
+                    </span>
+                  </div>
+
+                  {/* User Circular Avatar on Right */}
+                  {isUser && (
+                    <div className="w-8 h-8 rounded-full bg-[#6366F1] text-white font-bold text-xs flex items-center justify-center shrink-0 mt-1 shadow-2xs">
+                      L
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
 
-          {/* Error banner */}
+          {/* Error Banner */}
           {error && (
-            <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl
-              bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-300 text-xs">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-rose-500" />
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-300 text-xs">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 text-rose-500" />
               <span>{error}</span>
             </div>
           )}
@@ -566,97 +523,122 @@ export const TutorTab: React.FC<TutorTabProps> = ({ projectId }) => {
           <div ref={bottomRef} />
         </div>
 
-        {/* Visually Prominent Composer */}
-        <div className="px-5 pb-5 pt-3 border-t border-border/60 bg-surface">
-          <div className={`flex items-end gap-3 rounded-2xl border px-4 py-3 transition-all shadow-sm
-            ${isOverLimit
-              ? "border-rose-500/40 bg-surface-muted"
-              : "border-border bg-surface-muted/40 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15 focus-within:bg-surface"
+        {/* Suggested Question Chips */}
+        <div className="px-4 sm:px-5 pt-2 pb-1">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
+            {suggestedQuestions.map((qText, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSend(qText)}
+                className="bg-white dark:bg-slate-800 border border-indigo-100 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-800 text-[#4F46E5] dark:text-indigo-300 hover:bg-indigo-50/50 dark:hover:bg-slate-700 text-xs font-medium px-3.5 py-1.5 rounded-full shadow-2xs transition-all whitespace-nowrap cursor-pointer shrink-0"
+              >
+                {qText}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Chat Input Bar */}
+        <div className="p-4 sm:px-5 sm:pb-4 pt-1">
+          <div
+            className={`rounded-2xl border px-3.5 py-2 sm:py-2.5 flex items-center gap-2.5 transition-all shadow-2xs ${
+              isOverLimit
+                ? "border-rose-400 bg-white dark:bg-slate-800"
+                : "border-slate-200 dark:border-slate-700 bg-[#F8FAFC] dark:bg-slate-900/80 focus-within:border-[#4F46E5] focus-within:bg-white dark:focus-within:bg-slate-900"
             }`}
           >
+            {/* Paperclip attachment icon */}
+            <button
+              type="button"
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
+              title="Attach document reference"
+            >
+              <Paperclip className="w-4 h-4" />
+            </button>
+
+            {/* Input textarea */}
             <textarea
               ref={textareaRef}
-              id="tutor-question-input"
               rows={1}
               value={question}
               onChange={handleQuestionChange}
               onKeyDown={handleKeyDown}
-              placeholder="Ask a question grounded in your study materials…"
+              placeholder="Ask a question about your study materials..."
               disabled={submitting}
-              className="flex-1 bg-transparent text-sm text-text-primary placeholder-text-muted resize-none
-                outline-none leading-relaxed min-h-[24px] max-h-[160px] disabled:opacity-50"
+              className="flex-1 bg-transparent text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none resize-none leading-relaxed min-h-[22px] max-h-[100px]"
             />
 
-            <div className="flex items-center gap-2 shrink-0 pb-0.5">
-              {charCount > 0 && (
-                <span className={`text-[10px] font-mono tabular-nums ${isOverLimit ? "text-rose-500" : "text-text-muted"}`}>
-                  {charCount}/{MAX_QUESTION_LENGTH}
-                </span>
-              )}
-              {submitting ? (
-                <button
-                  id="tutor-cancel-btn"
-                  onClick={handleCancel}
-                  className="p-2 rounded-xl bg-rose-600 text-white hover:bg-rose-500
-                    transition-all active:scale-95 cursor-pointer shadow-sm"
-                  title="Stop generation"
-                >
-                  <Square className="w-3.5 h-3.5 fill-current" />
-                </button>
-              ) : (
-                <button
-                  id="tutor-send-btn"
-                  onClick={handleSend}
-                  disabled={!canSend}
-                  className="p-2.5 rounded-xl bg-accent text-white hover:bg-accent-hover
-                    disabled:opacity-40 disabled:cursor-not-allowed transition-all
-                    shadow-sm shadow-accent/20 active:scale-95 cursor-pointer"
-                  title="Send (Ctrl+Enter)"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
+            {/* Send or Stop button */}
+            {submitting ? (
+              <button
+                onClick={handleCancel}
+                className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 hover:bg-rose-500 transition-colors shadow-xs cursor-pointer"
+                title="Stop generation"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+              </button>
+            ) : (
+              <button
+                onClick={() => handleSend()}
+                disabled={!canSend}
+                className="w-8 h-8 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] disabled:opacity-40 disabled:hover:bg-[#4F46E5] text-white flex items-center justify-center shrink-0 transition-all active:scale-95 shadow-xs cursor-pointer"
+                title="Send message (Enter)"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
-          <div className="flex items-center justify-between text-[10px] text-text-muted mt-2 px-1">
-            <span>
-              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-muted text-text-secondary border border-border text-[9px] font-mono">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-surface-muted text-text-secondary border border-border text-[9px] font-mono">Enter</kbd> to send
-            </span>
-            <span className="font-mono">RAG Citations Active</span>
-          </div>
+
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center mt-1.5 font-medium">
+            Answers are generated from your uploaded materials.
+          </p>
         </div>
       </div>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Right: Sources Panel (as shown in reference)                        */}
-      {/* ------------------------------------------------------------------ */}
-      {activeCitations.length > 0 && (
-        <aside className="hidden lg:flex flex-col w-56 shrink-0 rounded-2xl border border-border bg-surface p-3 space-y-3 overflow-y-auto shadow-sm">
-          <div className="flex items-center justify-between pb-2 border-b border-border">
-            <span className="text-xs font-bold text-text-primary tracking-tight">Sources</span>
-            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+      {/* ==================================================================== */}
+      {/* 3. RIGHT COLUMN — SOURCES PANEL (~24% width)                         */}
+      {/* ==================================================================== */}
+      <div className="w-full lg:w-64 xl:w-72 shrink-0 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/70 dark:border-slate-700/80 p-4 shadow-xs flex flex-col justify-between transition-all duration-200 hover:shadow-md">
+        <div>
+          {/* Header with Title and Grounded Badge */}
+          <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-100 dark:border-slate-700/60">
+            <h3 className="text-sm font-bold text-[#0F172A] dark:text-white">Sources</h3>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#ECFDF5] dark:bg-emerald-950/40 text-[#059669] dark:text-emerald-300 border border-[#A7F3D0] dark:border-emerald-800">
               Grounded
             </span>
           </div>
 
-          <div className="space-y-2">
-            {activeCitations.map((c, idx) => (
+          {/* Sources Stacked Cards */}
+          <div className="space-y-2 overflow-y-auto max-h-[460px] scrollbar-none pr-0.5">
+            {displayedSources.map((source, sIdx) => (
               <div
-                key={c.chunk_id || idx}
-                className="p-2.5 rounded-xl bg-surface-muted/60 border border-border text-xs space-y-1"
+                key={sIdx}
+                className="bg-[#F8FAFC] dark:bg-slate-900/70 hover:bg-white dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/70 rounded-xl p-3 flex items-start gap-2.5 transition-all duration-200 hover:shadow-xs hover:-translate-y-0.5 cursor-pointer group"
               >
-                <div className="flex items-center gap-1.5 text-accent font-semibold truncate">
-                  <FileText className="w-3.5 h-3.5 shrink-0 text-accent" />
-                  <span className="truncate">{c.filename}</span>
+                <div className="p-1 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 shrink-0 mt-0.5">
+                  <FileText className="w-3.5 h-3.5" />
                 </div>
-                <div className="text-[11px] text-text-muted font-mono">
-                  Page {c.page_number}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-[#0F172A] dark:text-slate-100 truncate group-hover:text-[#4F46E5] dark:group-hover:text-indigo-400 transition-colors">
+                    {source.filename}
+                  </p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-400 mt-0.5 font-medium">
+                    Page {source.page_number} · {source.section}
+                  </p>
                 </div>
               </div>
             ))}
           </div>
-        </aside>
-      )}
+        </div>
+
+        {/* Bottom Informational Box */}
+        <div className="mt-4 p-3 rounded-xl bg-[#EFF6FF] dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed shadow-2xs">
+          <ShieldCheck className="w-4 h-4 text-[#4F46E5] shrink-0 mt-0.5" />
+          <span className="text-[11px] leading-snug">
+            All answers are grounded in your uploaded materials to ensure accuracy.
+          </span>
+        </div>
+      </div>
     </div>
   );
 };

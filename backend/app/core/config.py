@@ -35,10 +35,76 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_study_companion_test"
     )
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_database_url(cls, v: str | None) -> str:
+        if not v:
+            return "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_study_companion"
+        # Railway and cloud providers inject postgres:// or postgresql://
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
+
+    @field_validator("SYNC_DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_sync_database_url(cls, v: str | None, info) -> str:
+        raw = v
+        # If not explicitly provided, or if left as default while DATABASE_URL was overridden
+        default_sync = "postgresql://postgres:postgres@localhost:5432/ai_study_companion"
+        if not raw or raw == default_sync:
+            db_url = info.data.get("DATABASE_URL")
+            default_async = "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_study_companion"
+            if db_url and db_url != default_async:
+                raw = db_url
+
+        if not raw:
+            return default_sync
+        if raw.startswith("postgresql+asyncpg://"):
+            return raw.replace("postgresql+asyncpg://", "postgresql://", 1)
+        if raw.startswith("postgres://"):
+            return raw.replace("postgres://", "postgresql://", 1)
+        return raw
+
     # 4. Redis & Celery (Phase 0 Required)
     REDIS_URL: str = "redis://localhost:6379/0"
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/1"
+
+    @field_validator("CELERY_BROKER_URL", mode="before")
+    @classmethod
+    def assemble_celery_broker_url(cls, v: str | None, info) -> str:
+        redis_url: str = str(info.data.get("REDIS_URL") or "")
+        env = str(info.data.get("ENVIRONMENT", "development"))
+        # If explicitly specified to a custom URL, respect it
+        if v and v != "redis://localhost:6379/0":
+            return str(v)
+        # Use REDIS_URL if non-default
+        if redis_url and redis_url != "redis://localhost:6379/0":
+            return redis_url
+        if env.lower() == "production" and (not v or v == "redis://localhost:6379/0"):
+            if not redis_url or redis_url == "redis://localhost:6379/0":
+                raise ValueError(
+                    "In production, REDIS_URL or CELERY_BROKER_URL must be configured and cannot be localhost."
+                )
+        return str(redis_url or v or "redis://localhost:6379/0")
+
+    @field_validator("CELERY_RESULT_BACKEND", mode="before")
+    @classmethod
+    def assemble_celery_result_backend(cls, v: str | None, info) -> str:
+        redis_url: str = str(info.data.get("REDIS_URL") or "")
+        env = str(info.data.get("ENVIRONMENT", "development"))
+        if v and v != "redis://localhost:6379/1":
+            return str(v)
+        if redis_url and redis_url != "redis://localhost:6379/0":
+            return redis_url
+        if env.lower() == "production" and (not v or v == "redis://localhost:6379/1"):
+            if not redis_url or redis_url == "redis://localhost:6379/0":
+                raise ValueError(
+                    "In production, REDIS_URL or CELERY_RESULT_BACKEND must be configured and cannot be localhost."
+                )
+        return str(redis_url or v or "redis://localhost:6379/1")
 
     # 5. Authentication & JWT
     JWT_SECRET: str = "development-insecure-secret-key-32-chars-long"

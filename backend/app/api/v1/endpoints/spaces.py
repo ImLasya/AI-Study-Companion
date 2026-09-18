@@ -21,18 +21,21 @@ async def list_spaces(
 ) -> list[SpaceResponse]:
     """List all learning spaces owned by the authenticated user."""
     service = SpaceService(db)
-    spaces_with_counts = await service.list_spaces(user_id=current_user.id)
+    spaces_with_stats = await service.list_spaces(user_id=current_user.id)
     return [
         SpaceResponse(
-            id=space.id,
-            user_id=space.user_id,
-            name=space.name,
-            description=space.description,
-            created_at=space.created_at,
-            updated_at=space.updated_at,
-            projects_count=count,
+            id=stats.space.id,
+            user_id=stats.space.user_id,
+            name=stats.space.name,
+            description=stats.space.description,
+            created_at=stats.space.created_at,
+            updated_at=stats.space.updated_at,
+            projects_count=stats.projects_count,
+            concepts_count=stats.concepts_count,
+            assessed_concepts_count=stats.assessed_concepts_count,
+            average_mastery=stats.average_mastery,
         )
-        for space, count in spaces_with_counts
+        for stats in spaces_with_stats
     ]
 
 
@@ -53,6 +56,9 @@ async def create_space(
         created_at=space.created_at,
         updated_at=space.updated_at,
         projects_count=0,
+        concepts_count=0,
+        assessed_concepts_count=0,
+        average_mastery=None,
     )
 
 
@@ -64,18 +70,18 @@ async def get_space(
 ) -> SpaceResponse:
     """Retrieve details of a space owned by the user. Returns 404 if not found."""
     service = SpaceService(db)
-    space = await service.get_space(user_id=current_user.id, space_id=space_id)
-    # Count projects
-    proj_service = ProjectService(db)
-    projects = await proj_service.list_projects_in_space(user_id=current_user.id, space_id=space_id)
+    stats = await service.get_space_with_stats(user_id=current_user.id, space_id=space_id)
     return SpaceResponse(
-        id=space.id,
-        user_id=space.user_id,
-        name=space.name,
-        description=space.description,
-        created_at=space.created_at,
-        updated_at=space.updated_at,
-        projects_count=len(projects),
+        id=stats.space.id,
+        user_id=stats.space.user_id,
+        name=stats.space.name,
+        description=stats.space.description,
+        created_at=stats.space.created_at,
+        updated_at=stats.space.updated_at,
+        projects_count=stats.projects_count,
+        concepts_count=stats.concepts_count,
+        assessed_concepts_count=stats.assessed_concepts_count,
+        average_mastery=stats.average_mastery,
     )
 
 
@@ -88,17 +94,19 @@ async def update_space(
 ) -> SpaceResponse:
     """Update space details."""
     service = SpaceService(db)
-    space = await service.update_space(user_id=current_user.id, space_id=space_id, data=data)
-    proj_service = ProjectService(db)
-    projects = await proj_service.list_projects_in_space(user_id=current_user.id, space_id=space_id)
+    await service.update_space(user_id=current_user.id, space_id=space_id, data=data)
+    stats = await service.get_space_with_stats(user_id=current_user.id, space_id=space_id)
     return SpaceResponse(
-        id=space.id,
-        user_id=space.user_id,
-        name=space.name,
-        description=space.description,
-        created_at=space.created_at,
-        updated_at=space.updated_at,
-        projects_count=len(projects),
+        id=stats.space.id,
+        user_id=stats.space.user_id,
+        name=stats.space.name,
+        description=stats.space.description,
+        created_at=stats.space.created_at,
+        updated_at=stats.space.updated_at,
+        projects_count=stats.projects_count,
+        concepts_count=stats.concepts_count,
+        assessed_concepts_count=stats.assessed_concepts_count,
+        average_mastery=stats.average_mastery,
     )
 
 

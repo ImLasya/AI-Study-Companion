@@ -17,6 +17,7 @@ from app.models.concept import Concept
 from app.models.conversation import TutorConversation, TutorMessage
 from app.models.event import ActivityEvent
 from app.models.mastery import ConceptMastery
+from app.models.material import Material
 from app.models.project import Project
 from app.models.quiz import Quiz, QuizAttempt
 from app.models.space import Space
@@ -322,6 +323,41 @@ class AnalyticsRepository:
         )
         tot_convs = (await self.session.execute(stmt_tc)).scalar() or 0
 
+        # Total materials across all user projects
+        stmt_mat = (
+            select(func.count(Material.id))
+            .join(Project, Material.project_id == Project.id)
+            .where(Project.user_id == user_id)
+        )
+        tot_materials = (await self.session.execute(stmt_mat)).scalar() or 0
+
+        # Total tutor messages across user conversations
+        stmt_t_msgs = (
+            select(func.count(TutorMessage.id))
+            .join(TutorConversation, TutorMessage.conversation_id == TutorConversation.id)
+            .where(TutorConversation.user_id == user_id)
+        )
+        tot_tutor_msgs = (await self.session.execute(stmt_t_msgs)).scalar() or 0
+
+        # Activity distribution across categories
+        stmt_events_dist = (
+            select(ActivityEvent.event_type, func.count(ActivityEvent.id))
+            .where(ActivityEvent.user_id == user_id)
+            .group_by(ActivityEvent.event_type)
+        )
+        ev_dist_map = dict((await self.session.execute(stmt_events_dist)).all())
+        quiz_actions = sum(cnt for k, cnt in ev_dist_map.items() if "quiz" in k or "question" in k)
+        material_actions = sum(
+            cnt for k, cnt in ev_dist_map.items() if "material" in k or "flashcard" in k or "plan" in k
+        )
+        tutor_actions = max(tot_tutor_msgs, sum(cnt for k, cnt in ev_dist_map.items() if "tutor" in k))
+
+        act_distribution = {
+            "quizzes": quiz_actions,
+            "tutor": tutor_actions,
+            "materials": material_actions,
+        }
+
         # Global daily activity for streaks and consistency
         stmt_global_days = (
             select(func.date_trunc("day", ActivityEvent.created_at).label("d"))
@@ -353,6 +389,9 @@ class AnalyticsRepository:
             active_study_days=active_days,
             review_streak_days=g_streak,
             consistency_score=g_consistency,
+            total_materials_count=tot_materials,
+            total_tutor_messages=tot_tutor_msgs,
+            activity_distribution=act_distribution,
         )
 
         # 2. Per-project Attempt & Definition Breakdowns
@@ -498,19 +537,57 @@ class AnalyticsRepository:
         stmt_trend = (
             select(
                 func.date_trunc("day", ActivityEvent.created_at).label("day"),
+                ActivityEvent.event_type,
                 func.count(ActivityEvent.id).label("cnt"),
             )
             .where(ActivityEvent.user_id == user_id, ActivityEvent.created_at >= since_30d)
-            .group_by(text("day"))
+            .group_by(text("day"), ActivityEvent.event_type)
             .order_by(text("day ASC"))
         )
         res_trend = await self.session.execute(stmt_trend)
+        daily_trend_map: dict[str, dict[str, Any]] = {}
+        for row in res_trend.fetchall():
+            day_str = row.day.strftime("%Y-%m-%d")
+            if day_str not in daily_trend_map:
+                daily_trend_map[day_str] = {
+                    "date": day_str,
+                    "event_count": 0,
+                    "event_breakdown": {},
+                }
+            daily_trend_map[day_str]["event_count"] += row.cnt
+            daily_trend_map[day_str]["event_breakdown"][row.event_type] = row.cnt
+
+        # Also query tutor messages by day
+        stmt_tutor_days = (
+            select(
+                func.date_trunc("day", TutorMessage.created_at).label("day"),
+                func.count(TutorMessage.id).label("cnt"),
+            )
+            .join(TutorConversation, TutorMessage.conversation_id == TutorConversation.id)
+            .where(TutorConversation.user_id == user_id, TutorMessage.created_at >= since_30d)
+            .group_by(text("day"))
+        )
+        res_tutor_days = await self.session.execute(stmt_tutor_days)
+        for row in res_tutor_days.fetchall():
+            day_str = row.day.strftime("%Y-%m-%d")
+            if day_str not in daily_trend_map:
+                daily_trend_map[day_str] = {
+                    "date": day_str,
+                    "event_count": 0,
+                    "event_breakdown": {},
+                }
+            daily_trend_map[day_str]["event_count"] += row.cnt
+            daily_trend_map[day_str]["event_breakdown"]["tutor_turn"] = (
+                daily_trend_map[day_str]["event_breakdown"].get("tutor_turn", 0) + row.cnt
+            )
+
         overall_trend = [
             DailyActivityBucket(
-                date=r.day.strftime("%Y-%m-%d"),
-                event_count=r.cnt,
+                date=v["date"],
+                event_count=v["event_count"],
+                event_breakdown=v["event_breakdown"],
             )
-            for r in res_trend.fetchall()
+            for v in sorted(daily_trend_map.values(), key=lambda x: x["date"])
         ]
 
         # 6. User AI Usage Summary

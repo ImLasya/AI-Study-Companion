@@ -3,8 +3,9 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
   BarChart3,
+  BookOpen,
   FolderKanban,
-  LayoutDashboard,
+  LayoutGrid,
   LogOut,
   Server,
   Sparkles,
@@ -14,7 +15,6 @@ import {
   Zap,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { EduMindLogo } from "@/components/EduMindLogo";
 
 interface SidebarProps {
   onCloseMobile?: () => void;
@@ -90,214 +90,251 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
   const getInitials = () => {
     if (user?.full_name) {
       const parts = user.full_name.trim().split(" ");
-      return parts.map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+      return parts[0]?.charAt(0).toUpperCase() || "L";
     }
     if (user?.email) {
-      return user.email.slice(0, 2).toUpperCase();
+      return user.email.charAt(0).toUpperCase();
     }
-    return "U";
+    return "L";
   };
 
-  const navLinkClass = (path: string) => {
-    const active = isCurrent(path);
-    return `relative flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-      active
-        ? "bg-accent-soft text-accent border border-accent/30 font-semibold shadow-sm"
-        : "text-text-secondary hover:text-text-primary hover:bg-surface-muted border border-transparent"
-    }`;
-  };
-
-  const adminNavLinkClass = (tabKey: string) => {
-    const active = isAdminTabActive(tabKey);
-    return `relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
-      active
-        ? "bg-accent-soft text-accent border border-accent/30 font-semibold shadow-sm"
-        : "text-text-secondary hover:text-text-primary hover:bg-surface-muted border border-transparent"
-    }`;
-  };
+  const displayName = user?.full_name || "lasya";
+  const displayRole = (user?.role || "USER").toUpperCase();
 
   return (
-    <aside className="w-60 bg-surface border-r border-border flex flex-col h-full select-none transition-colors">
-      {/* Brand Header */}
-      <div className="p-4 border-b border-border flex items-center justify-between">
-        <Link
-          to={user?.role === "admin" ? "/admin" : "/dashboard"}
-          onClick={onCloseMobile}
-          className="flex items-center space-x-3 group"
-        >
-          <div className="p-2 bg-accent/15 text-accent border border-accent/30 rounded-xl group-hover:scale-105 transition-transform">
-            <EduMindLogo className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="font-bold text-sm text-text-primary tracking-tight block">
-              EduMind
-            </span>
-            <span className="text-[11px] text-text-muted font-medium">
-              {user?.role === "admin" ? "Admin Workspace" : "Intelligent Learning Workspace"}
-            </span>
-          </div>
-        </Link>
-        {onCloseMobile && (
-          <button
+    <aside className="w-[260px] bg-[#fbfbfe] dark:bg-slate-900 border-r border-[#edf0f7] dark:border-slate-800 flex flex-col h-full select-none transition-colors justify-between overflow-hidden">
+      {/* 1. BRAND HEADER */}
+      <div>
+        <div className="h-[85px] px-5 flex items-center justify-between border-b border-[#edf0f7] dark:border-slate-800 bg-[#fbfbfe] dark:bg-slate-900">
+          <Link
+            to={user?.role === "admin" ? "/admin" : "/dashboard"}
             onClick={onCloseMobile}
-            className="md:hidden p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-muted transition-colors"
-            aria-label="Close sidebar"
+            className="flex items-center space-x-3.5 group"
           >
-            <X className="w-5 h-5" />
-          </button>
-        )}
-      </div>
-
-      {/* Navigation Sections */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-        {user?.role === "admin" ? (
-          <div>
-            <div className="px-3 mb-2 text-[10px] font-semibold text-accent uppercase tracking-wider font-mono">
-              Admin & Operations
+            {/* Open Book Logo Icon */}
+            <div className="w-11 h-11 rounded-2xl bg-[#edf0fe] dark:bg-indigo-950/60 text-[#5454ee] dark:text-indigo-400 flex items-center justify-center flex-shrink-0 shadow-sm transition-transform group-hover:scale-105">
+              <BookOpen className="w-5.5 h-5.5 stroke-[2.2]" />
             </div>
-            <nav className="space-y-1">
-              {ADMIN_NAV_ITEMS.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.key}
-                    to={item.path}
-                    onClick={onCloseMobile}
-                    className={adminNavLinkClass(item.key)}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-        ) : (
-          <>
-            {/* MAIN */}
             <div>
-              <div className="px-3 mb-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider font-mono">
-                Main
-              </div>
-              <nav className="space-y-1">
-                <Link
-                  to="/dashboard"
-                  onClick={onCloseMobile}
-                  className={navLinkClass("/dashboard")}
-                >
-                  <LayoutDashboard className="w-4 h-4 text-accent" />
-                  <span>Dashboard</span>
-                </Link>
-                <Link
-                  to="/spaces"
-                  onClick={onCloseMobile}
-                  className={navLinkClass("/spaces")}
-                >
-                  <FolderKanban className="w-4 h-4 text-accent" />
-                  <span>Spaces</span>
-                </Link>
-              </nav>
+              <span className="font-bold text-[17px] text-[#1e2238] dark:text-white tracking-tight block leading-tight">
+                EduMind
+              </span>
+              <span className="text-[11px] text-[#717a94] dark:text-slate-400 font-medium block leading-tight mt-0.5">
+                {user?.role === "admin" ? "Admin Workspace" : "Intelligent Learning Workspace"}
+              </span>
             </div>
+          </Link>
+          {onCloseMobile && (
+            <button
+              onClick={onCloseMobile}
+              className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              aria-label="Close sidebar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
 
-            {/* ANALYTICS */}
-            <div>
-              <div className="px-3 mb-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider font-mono">
-                Analytics
-              </div>
-              <nav className="space-y-1">
-                <Link
-                  to="/analytics"
-                  onClick={onCloseMobile}
-                  className={navLinkClass("/analytics")}
-                >
-                  <BarChart3 className="w-4 h-4 text-accent" />
-                  <span>Global Analytics</span>
-                </Link>
-              </nav>
-            </div>
-
-            {/* TOOLS */}
-            <div>
-              <div className="px-3 mb-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider font-mono">
-                Tools
-              </div>
-              <nav className="space-y-1">
-                <Link
-                  to="/status"
-                  onClick={onCloseMobile}
-                  className={navLinkClass("/status")}
-                >
-                  <Activity className="w-4 h-4 text-emerald-500" />
-                  <span>System Status</span>
-                </Link>
-              </nav>
-            </div>
-
-            {/* ACCOUNT */}
-            <div>
-              <div className="px-3 mb-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider font-mono">
-                Account
-              </div>
-              <nav className="space-y-1">
-                <Link
-                  to="/profile"
-                  onClick={onCloseMobile}
-                  className={navLinkClass("/profile")}
-                >
-                  <UserIcon className="w-4 h-4 text-accent" />
-                  <span>Profile</span>
-                </Link>
-              </nav>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* User Footer Card */}
-      <div className="p-3 border-t border-border bg-surface transition-colors">
-        <div className="flex items-center justify-between p-2 rounded-xl bg-surface-muted border border-border/70 hover:border-border transition-all">
+        {/* 2. NAVIGATION SECTIONS */}
+        <div className="px-3.5 py-4 space-y-4 overflow-y-auto">
           {user?.role === "admin" ? (
-            <div className="flex items-center space-x-2.5 min-w-0 flex-1">
-              <div className="w-8 h-8 rounded-lg bg-accent/20 border border-accent/30 text-accent font-bold text-xs flex items-center justify-center flex-shrink-0">
-                {getInitials()}
+            <div>
+              <div className="px-3 mb-2 text-[10.5px] font-bold text-[#8d95ab] dark:text-slate-400 uppercase tracking-wider font-mono">
+                Admin &amp; Operations
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold text-text-primary truncate">
-                  {user?.full_name || user?.email}
-                </div>
-                <div className="text-[10px] font-mono text-accent uppercase font-semibold">
-                  {user?.role || "admin"}
-                </div>
-              </div>
+              <nav className="space-y-1">
+                {ADMIN_NAV_ITEMS.map((item) => {
+                  const Icon = item.icon;
+                  const active = isAdminTabActive(item.key);
+                  return (
+                    <Link
+                      key={item.key}
+                      to={item.path}
+                      onClick={onCloseMobile}
+                      className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-[13px] transition-all duration-150 ${
+                        active
+                          ? "bg-gradient-to-r from-[#eceffe] to-[#f2effe] dark:from-indigo-950/50 dark:to-purple-950/40 text-[#5454ee] dark:text-indigo-400 border border-[#e0e2f8] dark:border-indigo-800/60 font-semibold shadow-[0_1px_2px_rgba(84,84,238,0.05)]"
+                          : "text-[#1e2238] dark:text-slate-200 hover:bg-[#f4f5fb] dark:hover:bg-slate-800/60 border border-transparent font-medium"
+                      }`}
+                    >
+                      <Icon className="w-5 h-5 text-[#5454ee] dark:text-indigo-400 stroke-[2]" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
             </div>
           ) : (
-            <Link
-              to="/profile"
-              onClick={onCloseMobile}
-              className="flex items-center space-x-2.5 min-w-0 flex-1 group"
-            >
-              <div className="w-8 h-8 rounded-lg bg-accent/20 border border-accent/30 text-accent font-bold text-xs flex items-center justify-center flex-shrink-0 group-hover:border-accent transition-colors">
-                {getInitials()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold text-text-primary truncate group-hover:text-accent transition-colors">
-                  {user?.full_name || user?.email}
+            <>
+              {/* MAIN SECTION */}
+              <div>
+                <div className="px-3 mb-2 text-[10.5px] font-bold text-[#8d95ab] dark:text-slate-400 uppercase tracking-wider font-mono">
+                  Main
                 </div>
-                <div className="text-[10px] font-mono text-text-muted uppercase">
-                  {user?.role || "user"}
-                </div>
+                <nav className="space-y-1">
+                  {/* Dashboard */}
+                  {(() => {
+                    const active = isCurrent("/dashboard");
+                    return (
+                      <Link
+                        to="/dashboard"
+                        onClick={onCloseMobile}
+                        className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-[13px] transition-all duration-150 ${
+                          active
+                            ? "bg-gradient-to-r from-[#eceffe] to-[#f2effe] dark:from-indigo-950/50 dark:to-purple-950/40 text-[#5454ee] dark:text-indigo-400 border border-[#e0e2f8] dark:border-indigo-800/60 font-semibold shadow-[0_1px_2px_rgba(84,84,238,0.05)]"
+                            : "text-[#1e2238] dark:text-slate-200 hover:bg-[#f4f5fb] dark:hover:bg-slate-800/60 border border-transparent font-medium"
+                        }`}
+                      >
+                        <LayoutGrid
+                          className={`w-5 h-5 stroke-[2] ${
+                            active
+                              ? "text-[#5454ee] dark:text-indigo-400"
+                              : "text-[#5454ee] dark:text-indigo-400"
+                          }`}
+                        />
+                        <span>Dashboard</span>
+                      </Link>
+                    );
+                  })()}
+
+                  {/* Spaces */}
+                  {(() => {
+                    const active = isCurrent("/spaces");
+                    return (
+                      <Link
+                        to="/spaces"
+                        onClick={onCloseMobile}
+                        className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-[13px] transition-all duration-150 ${
+                          active
+                            ? "bg-gradient-to-r from-[#eceffe] to-[#f2effe] dark:from-indigo-950/50 dark:to-purple-950/40 text-[#5454ee] dark:text-indigo-400 border border-[#e0e2f8] dark:border-indigo-800/60 font-semibold shadow-[0_1px_2px_rgba(84,84,238,0.05)]"
+                            : "text-[#1e2238] dark:text-slate-200 hover:bg-[#f4f5fb] dark:hover:bg-slate-800/60 border border-transparent font-medium"
+                        }`}
+                      >
+                        <FolderKanban className="w-5 h-5 text-[#5454ee] dark:text-indigo-400 stroke-[2]" />
+                        <span>Spaces</span>
+                      </Link>
+                    );
+                  })()}
+                </nav>
               </div>
-            </Link>
+
+              {/* ANALYTICS SECTION */}
+              <div>
+                <div className="px-3 mb-2 text-[10.5px] font-bold text-[#8d95ab] dark:text-slate-400 uppercase tracking-wider font-mono">
+                  Analytics
+                </div>
+                <nav className="space-y-1">
+                  {(() => {
+                    const active = isCurrent("/analytics");
+                    return (
+                      <Link
+                        to="/analytics"
+                        onClick={onCloseMobile}
+                        className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-[13px] transition-all duration-150 ${
+                          active
+                            ? "bg-gradient-to-r from-[#eceffe] to-[#f2effe] dark:from-indigo-950/50 dark:to-purple-950/40 text-[#5454ee] dark:text-indigo-400 border border-[#e0e2f8] dark:border-indigo-800/60 font-semibold shadow-[0_1px_2px_rgba(84,84,238,0.05)]"
+                            : "text-[#1e2238] dark:text-slate-200 hover:bg-[#f4f5fb] dark:hover:bg-slate-800/60 border border-transparent font-medium"
+                        }`}
+                      >
+                        <BarChart3 className="w-5 h-5 text-[#5454ee] dark:text-indigo-400 stroke-[2]" />
+                        <span>Global Analytics</span>
+                      </Link>
+                    );
+                  })()}
+                </nav>
+              </div>
+
+              {/* TOOLS SECTION */}
+              <div>
+                <div className="px-3 mb-2 text-[10.5px] font-bold text-[#8d95ab] dark:text-slate-400 uppercase tracking-wider font-mono">
+                  Tools
+                </div>
+                <nav className="space-y-1">
+                  {(() => {
+                    const active = isCurrent("/status");
+                    return (
+                      <Link
+                        to="/status"
+                        onClick={onCloseMobile}
+                        className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-[13px] transition-all duration-150 ${
+                          active
+                            ? "bg-gradient-to-r from-[#eceffe] to-[#f2effe] dark:from-indigo-950/50 dark:to-purple-950/40 text-[#5454ee] dark:text-indigo-400 border border-[#e0e2f8] dark:border-indigo-800/60 font-semibold shadow-[0_1px_2px_rgba(84,84,238,0.05)]"
+                            : "text-[#1e2238] dark:text-slate-200 hover:bg-[#f4f5fb] dark:hover:bg-slate-800/60 border border-transparent font-medium"
+                        }`}
+                      >
+                        {/* Green pulse/heartbeat icon accent */}
+                        <Activity className="w-5 h-5 text-[#10b981] stroke-[2.2]" />
+                        <span>System Status</span>
+                      </Link>
+                    );
+                  })()}
+                </nav>
+              </div>
+
+              {/* ACCOUNT SECTION */}
+              <div>
+                <div className="px-3 mb-2 text-[10.5px] font-bold text-[#8d95ab] dark:text-slate-400 uppercase tracking-wider font-mono">
+                  Account
+                </div>
+                <nav className="space-y-1">
+                  {(() => {
+                    const active = isCurrent("/profile");
+                    return (
+                      <Link
+                        to="/profile"
+                        onClick={onCloseMobile}
+                        className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-[13px] transition-all duration-150 ${
+                          active
+                            ? "bg-gradient-to-r from-[#eceffe] to-[#f2effe] dark:from-indigo-950/50 dark:to-purple-950/40 text-[#5454ee] dark:text-indigo-400 border border-[#e0e2f8] dark:border-indigo-800/60 font-semibold shadow-[0_1px_2px_rgba(84,84,238,0.05)]"
+                            : "text-[#1e2238] dark:text-slate-200 hover:bg-[#f4f5fb] dark:hover:bg-slate-800/60 border border-transparent font-medium"
+                        }`}
+                      >
+                        <UserIcon className="w-5 h-5 text-[#5454ee] dark:text-indigo-400 stroke-[2]" />
+                        <span>Profile</span>
+                      </Link>
+                    );
+                  })()}
+                </nav>
+              </div>
+            </>
           )}
+        </div>
+      </div>
+
+      {/* 3. PINNED BOTTOM AREA */}
+      <div className="p-3.5 border-t border-[#edf0f7] dark:border-slate-800 bg-[#fbfbfe] dark:bg-slate-900">
+        {/* User Profile Card */}
+        <div className="p-2.5 px-3 rounded-2xl bg-[#f0f2fe] dark:bg-indigo-950/40 border border-[#e0e4fb] dark:border-indigo-800/40 flex items-center justify-between shadow-sm">
+          <Link
+            to="/profile"
+            onClick={onCloseMobile}
+            className="flex items-center gap-3 min-w-0 flex-1 group"
+          >
+            {/* Circular Avatar containing 'L' */}
+            <div className="w-9 h-9 rounded-full bg-[#5454ee] text-white font-bold text-sm flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+              {getInitials()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-semibold text-[#1e2238] dark:text-white truncate">
+                {displayName}
+              </div>
+              <div className="text-[10px] font-semibold text-[#717a94] dark:text-slate-400 uppercase tracking-wider mt-0.5">
+                {displayRole}
+              </div>
+            </div>
+          </Link>
+
+          {/* Logout / exit icon on the right */}
           <button
             onClick={handleLogout}
             title="Log out"
-            className="p-1.5 rounded-lg text-text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors ml-1"
+            className="p-1.5 rounded-lg text-[#5454ee] dark:text-indigo-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors ml-1 cursor-pointer"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-4.5 h-4.5 stroke-[2]" />
           </button>
         </div>
       </div>
     </aside>
   );
 };
+

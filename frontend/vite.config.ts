@@ -13,6 +13,20 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
+    proxy: {
+      "/api/v1": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/docs": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/openapi.json": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port: 3000,

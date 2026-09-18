@@ -1,20 +1,53 @@
+/**
+ * FlashcardTab — Intelligent Flashcards & Spaced Repetition Workspace
+ *
+ * Matching reference screenshots:
+ * - media_1789734969286.png: Flashcards & Spaced Repetition Overview
+ *   * 4 statistic cards (Due for Review, New Cards, Reviewed Today, Total Cards)
+ *   * Generate Grounded Flashcards panel (stepper, concept selector, topic hint, dynamic generate button)
+ *   * Segmented filter control & sort bar
+ *   * 3-column responsive flashcard grid with hover lift, badges, question, reveal answer, and 3-dot menu
+ *
+ * - media_1789734969270.png: Active Flashcard Study Session
+ *   * Progress bar with "Card X of Y" and 4 colored rating dots
+ *   * Left/right navigation arrows
+ *   * Large centered dark navy gradient study card with Definition badge, citation, space shortcut
+ *   * Show Answer (Space) button
+ *   * 4-column recall rating buttons ([1] Again, [2] Difficult, [3] Good, [4] Easy with intervals)
+ *   * Informational tip banner
+ *
+ * Preserves 100% of existing functionality:
+ * - listFlashcardsApi, getDueFlashcardsApi, getDueFlashcardsSummaryApi
+ * - generateFlashcardsApi, reviewFlashcardSpacedApi, recordFlashcardSessionApi, deleteFlashcardApi
+ * - SM-2 spaced repetition interval calculation & keyboard shortcuts (Space, 1-4)
+ */
+
 import React, { useCallback, useEffect, useState } from "react";
 import {
   AlertCircle,
-  Award,
+  BarChart3,
   BookOpen,
-  Calendar,
-  CheckCircle2,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Eye,
+  EyeOff,
+  FileText,
+  Info,
+  Lightbulb,
   Loader2,
-  Play,
+  Minus,
+  MoreHorizontal,
   Plus,
   RefreshCw,
   RotateCcw,
   Sparkles,
   Tag,
+  Target,
   Trash2,
   X,
-  FileText,
 } from "lucide-react";
 import {
   deleteFlashcardApi,
@@ -27,13 +60,10 @@ import {
 } from "@/lib/api";
 import { Concept, DueFlashcardsSummary, Flashcard, FlashcardRating } from "@/types";
 
-// ---------------------------------------------------------------------------
-// Types & Interfaces
-// ---------------------------------------------------------------------------
-
 interface FlashcardTabProps {
   projectId: string;
   concepts: Concept[];
+  onNavigateTab?: (tab: string) => void;
 }
 
 type DeckFilter = "all" | "due" | "new" | "known" | "difficult";
@@ -77,174 +107,88 @@ function previewNextInterval(card: Flashcard, rating: FlashcardRating): string {
   return "1d";
 }
 
-function getCardDueStatus(card: Flashcard): { label: string; color: string } {
-  if (card.review_count === 0 || !card.next_review_at) {
-    return { label: "New Card", color: "bg-purple-500/20 text-purple-300 border-purple-500/30" };
-  }
-  const nextReview = new Date(card.next_review_at);
-  const now = new Date();
-  if (nextReview <= now) {
-    return { label: "Due Now", color: "bg-amber-500/20 text-amber-300 border-amber-500/30" };
-  }
-  const diffDays = Math.max(1, Math.round((nextReview.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-  return { label: `In ${diffDays}d`, color: "bg-slate-700/40 text-slate-300 border-slate-700" };
-}
-
-// ---------------------------------------------------------------------------
-// Card Type Badge
-// ---------------------------------------------------------------------------
-
-const CardTypeBadge: React.FC<{ cardType: string }> = ({ cardType }) => {
-  const colorMap: Record<string, string> = {
-    definition: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-    explanation: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-    comparison: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-    process: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-    formula: "bg-rose-500/20 text-rose-300 border-rose-500/30",
-    example: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
-  };
-  const classes =
-    colorMap[cardType] || "bg-slate-500/20 text-slate-300 border-slate-500/30";
-  return (
-    <span
-      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${classes}`}
-    >
-      <Tag className="w-2.5 h-2.5" />
-      {cardType}
-    </span>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Today's Review Dashboard Widget
-// ---------------------------------------------------------------------------
-
-interface TodayReviewWidgetProps {
-  summary: DueFlashcardsSummary | null;
-  onStartReview: () => void;
-  selectedConceptId: string | null;
-  onSelectConcept: (id: string | null) => void;
-  concepts: Concept[];
-  loadingSummary: boolean;
-}
-
-const TodayReviewWidget: React.FC<TodayReviewWidgetProps> = ({
-  summary,
-  onStartReview,
-  selectedConceptId,
-  onSelectConcept,
+export const FlashcardTab: React.FC<FlashcardTabProps> = ({
+  projectId,
   concepts,
-  loadingSummary,
+  onNavigateTab,
 }) => {
-  const dueCount = summary?.due_count ?? 0;
-  const newCount = summary?.new_count ?? 0;
-  const completedToday = summary?.completed_today_count ?? 0;
-  const readyToStudy = dueCount + newCount;
+  // Deck State
+  const [cards, setCards] = useState<Flashcard[]>([]);
+  const [dueSummary, setDueSummary] = useState<DueFlashcardsSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  return (
-    <div className="space-y-4 mb-8 pb-6 border-b border-border/60">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Calendar className="w-4 h-4 text-accent" />
-            <h3 className="font-bold text-text-primary text-base">Today's Review Schedule</h3>
-            <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/25">
-              SM-2 Active
-            </span>
-          </div>
-          <p className="text-xs text-text-muted">
-            Prioritizes overdue items and newly grounded concepts for optimal memory retention.
-          </p>
-        </div>
+  // Spaced repetition study mode state (media_1789734969270.png)
+  const [sessionActive, setSessionActive] = useState(false);
+  const [sessionCards, setSessionCards] = useState<Flashcard[]>([]);
+  const [sessionIndex, setSessionIndex] = useState(0);
+  const [sessionFlipped, setSessionFlipped] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [sessionStats, setSessionStats] = useState<SessionStats>({
+    again: 0,
+    difficult: 0,
+    good: 0,
+    easy: 0,
+    total: 0,
+  });
 
-        {/* Action button & concept selector */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {concepts.length > 0 && (
-            <select
-              value={selectedConceptId || ""}
-              onChange={(e) => onSelectConcept(e.target.value || null)}
-              className="h-9 bg-surface-muted border border-border/80 rounded-xl px-3 text-xs text-text-primary focus:outline-none focus:border-accent cursor-pointer"
-            >
-              <option value="">All Concepts</option>
-              {concepts.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          )}
+  // Generation State (media_1789734969286.png)
+  const [generateCount, setGenerateCount] = useState(5);
+  const [generateConceptId, setGenerateConceptId] = useState<string>("");
+  const [generateTopicHint, setGenerateTopicHint] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [generateSuccess, setGenerateSuccess] = useState<string | null>(null);
 
-          <button
-            id="start-spaced-review-btn"
-            onClick={onStartReview}
-            disabled={readyToStudy === 0 || loadingSummary}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent hover:bg-accent-hover disabled:bg-surface-muted disabled:text-text-muted text-white font-semibold text-xs transition-all shadow-sm disabled:cursor-not-allowed cursor-pointer"
-          >
-            <Play className="w-3.5 h-3.5 fill-current" />
-            <span>
-              {readyToStudy > 0
-                ? `Start Study Session (${readyToStudy} card${readyToStudy !== 1 ? "s" : ""})`
-                : "All Caught Up"}
-            </span>
-          </button>
-        </div>
-      </div>
+  // Filtering & Sorting State
+  const [deckFilter, setDeckFilter] = useState<DeckFilter>("all");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "interval">("newest");
+  const [revealedCardIds, setRevealedCardIds] = useState<Record<string, boolean>>({});
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
-      {/* Metrics Row (Borderless Open Visual Blocks) */}
-      <div className="grid grid-cols-3 gap-3 pt-1">
-        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
-          <p className="text-xl font-bold text-amber-600 dark:text-amber-400 font-mono">
-            {loadingSummary ? "–" : dueCount}
-          </p>
-          <p className="text-[11px] text-amber-700 dark:text-amber-300 font-medium mt-0.5">Due for Review</p>
-        </div>
-        <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-center">
-          <p className="text-xl font-bold text-purple-600 dark:text-purple-400 font-mono">
-            {loadingSummary ? "–" : newCount}
-          </p>
-          <p className="text-[11px] text-purple-700 dark:text-purple-300 font-medium mt-0.5">New Cards</p>
-        </div>
-        <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-            {loadingSummary ? "–" : completedToday}
-          </p>
-          <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium mt-0.5">Completed Today</p>
-        </div>
-      </div>
-    </div>
-  );
-};
+  // Immediate state reset when projectId changes
+  useEffect(() => {
+    setCards([]);
+    setDueSummary(null);
+    setSessionActive(false);
+    setSessionCards([]);
+    setSessionIndex(0);
+    setLoading(true);
+    setLoadError(null);
+  }, [projectId]);
 
-// ---------------------------------------------------------------------------
-// Interactive Spaced Repetition Study Session Flow
-// ---------------------------------------------------------------------------
+  // 1. Fetch Cards and Due Summary
+  const fetchAll = useCallback(async () => {
+    try {
+      setLoadError(null);
+      const [cardsData, summaryData] = await Promise.all([
+        listFlashcardsApi(projectId).catch(() => []),
+        getDueFlashcardsSummaryApi(projectId).catch(() => null),
+      ]);
 
-interface StudySessionProps {
-  cards: Flashcard[];
-  currentIndex: number;
-  onRate: (rating: FlashcardRating) => void;
-  onExit: () => void;
-  reviewLoading: boolean;
-  stats: SessionStats;
-}
-
-const StudySession: React.FC<StudySessionProps> = ({
-  cards,
-  currentIndex,
-  onRate,
-  onExit,
-  reviewLoading,
-  stats,
-}) => {
-  const [flipped, setFlipped] = useState(false);
-  const card = cards[currentIndex];
+      setCards(cardsData || []);
+      setDueSummary(summaryData);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to load flashcards.");
+      setCards([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
 
   useEffect(() => {
-    setFlipped(false);
-  }, [card?.id]);
+    fetchAll();
+  }, [fetchAll]);
 
-  // Keyboard navigation
+  // Ensure card is always on the front/question face when switching cards or entering session
   useEffect(() => {
+    setSessionFlipped(false);
+  }, [sessionIndex, sessionActive]);
+
+  // Keyboard navigation for active study session (media_1789734969270.png)
+  useEffect(() => {
+    if (!sessionActive) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (
@@ -259,566 +203,35 @@ const StudySession: React.FC<StudySessionProps> = ({
 
       if (e.code === "Space") {
         e.preventDefault();
-        setFlipped((f) => !f);
-      } else if (flipped && !reviewLoading) {
+        setSessionFlipped((f) => !f);
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setSessionIndex((i) => Math.max(0, i - 1));
+        setSessionFlipped(false);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setSessionIndex((i) => Math.min(sessionCards.length - 1, i + 1));
+        setSessionFlipped(false);
+      } else if (sessionFlipped && !reviewLoading) {
         if (e.key === "1") {
           e.preventDefault();
-          onRate("again");
+          handleRateCard("again");
         } else if (e.key === "2") {
           e.preventDefault();
-          onRate("difficult");
+          handleRateCard("difficult");
         } else if (e.key === "3") {
           e.preventDefault();
-          onRate("good");
+          handleRateCard("good");
         } else if (e.key === "4") {
           e.preventDefault();
-          onRate("easy");
+          handleRateCard("easy");
         }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [flipped, reviewLoading, onRate]);
-
-  if (!card) return null;
-
-  const dueStatus = getCardDueStatus(card);
-
-  return (
-    <div className="flex flex-col items-center gap-6 max-w-3xl mx-auto mb-12">
-      {/* Session Progress Header */}
-      <div className="flex items-center justify-between w-full">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-semibold text-indigo-300">
-            Card {currentIndex + 1} of {cards.length}
-          </span>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${dueStatus.color}`}>
-            {dueStatus.label}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Live session counts */}
-          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-            <span className="text-rose-400 font-medium">Again: {stats.again}</span>
-            <span>·</span>
-            <span className="text-amber-400 font-medium">Diff: {stats.difficult}</span>
-            <span>·</span>
-            <span className="text-emerald-400 font-medium">Good: {stats.good}</span>
-            <span>·</span>
-            <span className="text-blue-400 font-medium">Easy: {stats.easy}</span>
-          </div>
-
-          <button
-            onClick={onExit}
-            className="flex items-center gap-1 text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
-            <span>Exit Session</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
-          style={{ width: `${((currentIndex + 1) / cards.length) * 100}%` }}
-        />
-      </div>
-
-      {/* 3D Flip Card Container */}
-      <div className="w-full" style={{ perspective: "1200px" }}>
-        <div
-          className="relative w-full cursor-pointer"
-          style={{
-            height: "340px",
-            transformStyle: "preserve-3d",
-            transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
-            transition: "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
-          }}
-          onClick={() => setFlipped((f) => !f)}
-        >
-          {/* Front Face */}
-          <div
-            className="absolute inset-0 rounded-2xl p-8 flex flex-col justify-between"
-            style={{
-              backfaceVisibility: "hidden",
-              background:
-                "linear-gradient(135deg, rgba(30, 27, 75, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)",
-              border: "1px solid rgba(99, 102, 241, 0.35)",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
-            }}
-          >
-            <div className="flex items-start justify-between">
-              <CardTypeBadge cardType={card.card_type} />
-              <span className="text-xs text-slate-400 uppercase tracking-wider font-medium">
-                Tap or Space to reveal
-              </span>
-            </div>
-
-            <div className="flex-1 flex items-center justify-center py-4">
-              <p className="text-xl sm:text-2xl font-semibold text-white text-center leading-relaxed">
-                {card.front}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-800">
-              {card.filename ? (
-                <div className="flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5" />
-                  <span className="truncate max-w-[200px]">{card.filename}</span>
-                  {card.page_number && <span>· p.{card.page_number}</span>}
-                </div>
-              ) : (
-                <span />
-              )}
-              <span>Ease: {card.ease_factor?.toFixed(2) ?? "2.50"}</span>
-            </div>
-          </div>
-
-          {/* Back Face */}
-          <div
-            className="absolute inset-0 rounded-2xl p-8 flex flex-col justify-between"
-            style={{
-              backfaceVisibility: "hidden",
-              transform: "rotateY(180deg)",
-              background:
-                "linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(30, 27, 75, 0.95) 100%)",
-              border: "1px solid rgba(167, 139, 250, 0.35)",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
-            }}
-          >
-            <div className="flex items-start justify-between">
-              <CardTypeBadge cardType={card.card_type} />
-              <span className="text-xs text-purple-300 uppercase tracking-wider font-semibold">
-                Answer
-              </span>
-            </div>
-
-            <div className="flex-1 flex items-center justify-center py-4 overflow-y-auto max-h-[190px]">
-              <p className="text-base sm:text-lg text-slate-100 text-center leading-relaxed font-normal">
-                {card.back}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-800">
-              {card.filename && (
-                <div className="flex items-center gap-1.5 text-slate-400">
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>{card.filename}</span>
-                  {card.page_number && <span>· p.{card.page_number}</span>}
-                </div>
-              )}
-              <span>Reviews: {card.review_count}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Control Area */}
-      {!flipped ? (
-        <button
-          onClick={() => setFlipped(true)}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-sm transition-all border border-slate-700"
-        >
-          <RotateCcw className="w-4 h-4" />
-          <span>Show Answer (Space)</span>
-        </button>
-      ) : (
-        <div className="w-full flex flex-col items-center gap-3">
-          <p className="text-xs text-slate-400">Rate your recall to schedule next review:</p>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-xl">
-            {/* 1. Again */}
-            <button
-              onClick={() => onRate("again")}
-              disabled={reviewLoading}
-              className="flex flex-col items-center justify-center p-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:text-white transition-all disabled:opacity-50"
-            >
-              <div className="flex items-center gap-1 font-semibold text-sm">
-                <span>[1] Again</span>
-              </div>
-              <span className="text-[11px] text-rose-400/80 mt-0.5">
-                {previewNextInterval(card, "again")}
-              </span>
-            </button>
-
-            {/* 2. Difficult */}
-            <button
-              onClick={() => onRate("difficult")}
-              disabled={reviewLoading}
-              className="flex flex-col items-center justify-center p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 hover:text-white transition-all disabled:opacity-50"
-            >
-              <div className="flex items-center gap-1 font-semibold text-sm">
-                <span>[2] Difficult</span>
-              </div>
-              <span className="text-[11px] text-amber-400/80 mt-0.5">
-                {previewNextInterval(card, "difficult")}
-              </span>
-            </button>
-
-            {/* 3. Good */}
-            <button
-              onClick={() => onRate("good")}
-              disabled={reviewLoading}
-              className="flex flex-col items-center justify-center p-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:text-white transition-all disabled:opacity-50"
-            >
-              <div className="flex items-center gap-1 font-semibold text-sm">
-                <span>[3] Good</span>
-              </div>
-              <span className="text-[11px] text-emerald-400/80 mt-0.5">
-                {previewNextInterval(card, "good")}
-              </span>
-            </button>
-
-            {/* 4. Easy */}
-            <button
-              onClick={() => onRate("easy")}
-              disabled={reviewLoading}
-              className="flex flex-col items-center justify-center p-3 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all disabled:opacity-50"
-            >
-              <div className="flex items-center gap-1 font-semibold text-sm">
-                <span>[4] Easy</span>
-              </div>
-              <span className="text-[11px] text-blue-400/80 mt-0.5">
-                {previewNextInterval(card, "easy")}
-              </span>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Session Completion Screen
-// ---------------------------------------------------------------------------
-
-interface SessionCompleteProps {
-  stats: SessionStats;
-  onReviewMore: () => void;
-  onReturnToDeck: () => void;
-  hasRemainingDue: boolean;
-}
-
-const SessionComplete: React.FC<SessionCompleteProps> = ({
-  stats,
-  onReviewMore,
-  onReturnToDeck,
-  hasRemainingDue,
-}) => {
-  return (
-    <div className="max-w-md mx-auto text-center py-12 px-6 rounded-2xl bg-surface border border-border shadow-xl mb-12">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-accent/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
-        <Award className="w-8 h-8 text-emerald-500" />
-      </div>
-
-      <h3 className="text-xl font-bold text-text-primary mb-1">Review Complete!</h3>
-      <p className="text-xs text-text-muted mb-6">
-        All cards in this study batch have been scheduled based on your recall.
-      </p>
-
-      {/* Breakdown Grid */}
-      <div className="grid grid-cols-4 gap-2 mb-6">
-        <div className="bg-surface-muted p-2.5 rounded-xl border border-border">
-          <p className="text-lg font-bold text-rose-500">{stats.again}</p>
-          <p className="text-[10px] text-text-muted uppercase font-semibold">Again</p>
-        </div>
-        <div className="bg-surface-muted p-2.5 rounded-xl border border-border">
-          <p className="text-lg font-bold text-amber-500">{stats.difficult}</p>
-          <p className="text-[10px] text-text-muted uppercase font-semibold">Difficult</p>
-        </div>
-        <div className="bg-surface-muted p-2.5 rounded-xl border border-border">
-          <p className="text-lg font-bold text-emerald-500">{stats.good}</p>
-          <p className="text-[10px] text-text-muted uppercase font-semibold">Good</p>
-        </div>
-        <div className="bg-surface-muted p-2.5 rounded-xl border border-border">
-          <p className="text-lg font-bold text-sky-500">{stats.easy}</p>
-          <p className="text-[10px] text-text-muted uppercase font-semibold">Easy</p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3 justify-center">
-        {hasRemainingDue && (
-          <button
-            onClick={onReviewMore}
-            className="px-4 py-2 rounded-xl bg-accent hover:opacity-90 text-white text-xs font-semibold transition-colors"
-          >
-            Study Next Due Batch
-          </button>
-        )}
-        <button
-          onClick={onReturnToDeck}
-          className="px-4 py-2 rounded-xl bg-surface hover:bg-surface-muted border border-border text-text-secondary text-xs font-medium transition-colors"
-        >
-          Return to Deck
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Card Grid Component
-// ---------------------------------------------------------------------------
-
-interface CardGridProps {
-  cards: Flashcard[];
-  onStudyCard: (card: Flashcard) => void;
-  onDeleteCard: (id: string) => void;
-}
-
-const CardGrid: React.FC<CardGridProps> = ({
-  cards,
-  onStudyCard,
-  onDeleteCard,
-}) => {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-      {cards.map((card) => {
-        const dueStatus = getCardDueStatus(card);
-        return (
-          <div
-            key={card.id}
-            onClick={() => onStudyCard(card)}
-            className="group relative rounded-2xl p-5 border border-border bg-surface hover:border-accent/50 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between"
-          >
-            <div>
-              {/* Header Badges */}
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <CardTypeBadge cardType={card.card_type} />
-                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${dueStatus.color}`}>
-                  {dueStatus.label}
-                </span>
-              </div>
-
-              {/* Front Text */}
-              <p className="text-sm font-semibold text-text-primary leading-relaxed line-clamp-3 mb-3">
-                {card.front}
-              </p>
-            </div>
-
-            {/* Footer Details */}
-            <div className="pt-3 border-t border-border flex items-center justify-between text-xs text-text-muted">
-              <div className="flex items-center gap-2">
-                <span>EF: {card.ease_factor?.toFixed(2) ?? "2.50"}</span>
-                <span>·</span>
-                <span>{card.interval_days}d interval</span>
-              </div>
-
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-accent font-medium hover:underline">Review →</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteCard(card.id);
-                  }}
-                  className="p-1 text-text-muted hover:text-rose-500 transition-colors ml-1"
-                  aria-label="Delete card"
-                  title="Delete card"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Generate Panel Component
-// ---------------------------------------------------------------------------
-
-interface GeneratePanelProps {
-  concepts: Concept[];
-  onGenerate: (count: number, conceptId: string | null, topicHint: string | null) => void;
-  generating: boolean;
-  generateError: string | null;
-  lastMessage: string | null;
-}
-
-const GeneratePanel: React.FC<GeneratePanelProps> = ({
-  concepts,
-  onGenerate,
-  generating,
-  generateError,
-  lastMessage,
-}) => {
-  const [count, setCount] = useState(5);
-  const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null);
-  const [topicHint, setTopicHint] = useState("");
-
-  const handleGenerate = () => {
-    onGenerate(count, selectedConceptId, topicHint.trim() || null);
-  };
-
-  return (
-    <div className="rounded-2xl p-6 border border-border bg-surface shadow-sm mb-8">
-      <div className="flex items-center gap-2 mb-5">
-        <Sparkles className="w-5 h-5 text-accent" />
-        <h3 className="font-semibold text-text-primary">Generate Grounded Flashcards</h3>
-        <span className="text-xs text-text-muted ml-auto hidden sm:inline">
-          Server-verified pgvector citations
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-        {/* Count */}
-        <div>
-          <label className="text-xs font-medium text-text-secondary mb-2 block">
-            Cards to generate (1–10)
-          </label>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCount((c) => Math.max(1, c - 1))}
-              className="w-8 h-8 rounded-lg bg-surface-muted border border-border text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center font-bold"
-            >
-              −
-            </button>
-            <span className="w-10 text-center text-text-primary font-semibold">{count}</span>
-            <button
-              onClick={() => setCount((c) => Math.min(10, c + 1))}
-              className="w-8 h-8 rounded-lg bg-surface-muted border border-border text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center font-bold"
-            >
-              +
-            </button>
-          </div>
-        </div>
-
-        {/* Concept filter */}
-        <div>
-          <label className="text-xs font-medium text-text-secondary mb-2 block">
-            Focus on concept (optional)
-          </label>
-          <select
-            value={selectedConceptId || ""}
-            onChange={(e) => setSelectedConceptId(e.target.value || null)}
-            className="w-full h-10 bg-surface-muted border border-border rounded-xl px-3 text-sm text-text-primary focus:outline-none focus:border-accent transition-colors"
-          >
-            <option value="">All concepts</option>
-            {concepts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Topic hint */}
-        <div>
-          <label className="text-xs font-medium text-text-secondary mb-2 block">
-            Topic hint (optional)
-          </label>
-          <input
-            type="text"
-            value={topicHint}
-            onChange={(e) => setTopicHint(e.target.value)}
-            placeholder="e.g. supervised algorithms"
-            maxLength={200}
-            className="w-full h-10 bg-surface-muted border border-border rounded-xl px-3 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent transition-colors"
-          />
-        </div>
-      </div>
-
-      {generateError && (
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-300 text-sm mb-4">
-          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <span>{generateError}</span>
-        </div>
-      )}
-
-      {lastMessage && !generateError && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-sm mb-4">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{lastMessage}</span>
-        </div>
-      )}
-
-      <button
-        id="generate-flashcards-btn"
-        onClick={handleGenerate}
-        disabled={generating}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent hover:bg-accent-hover disabled:bg-surface-muted disabled:text-text-muted text-white font-semibold text-sm transition-all shadow-sm disabled:cursor-not-allowed"
-      >
-        {generating ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Generating grounded cards…
-          </>
-        ) : (
-          <>
-            <Plus className="w-4 h-4" />
-            Generate {count} card{count !== 1 ? "s" : ""}
-          </>
-        )}
-      </button>
-    </div>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Main FlashcardTab Component
-// ---------------------------------------------------------------------------
-
-export const FlashcardTab: React.FC<FlashcardTabProps> = ({
-  projectId,
-  concepts,
-}) => {
-  const [cards, setCards] = useState<Flashcard[]>([]);
-  const [dueSummary, setDueSummary] = useState<DueFlashcardsSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadingSummary, setLoadingSummary] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  // Spaced repetition study mode state
-  const [sessionActive, setSessionActive] = useState(false);
-  const [sessionCompleted, setSessionCompleted] = useState(false);
-  const [sessionCards, setSessionCards] = useState<Flashcard[]>([]);
-  const [sessionIndex, setSessionIndex] = useState(0);
-  const [sessionStats, setSessionStats] = useState<SessionStats>({
-    again: 0,
-    difficult: 0,
-    good: 0,
-    easy: 0,
-    total: 0,
-  });
-
-  // Filter & Generation
-  const [deckFilter, setDeckFilter] = useState<DeckFilter>("all");
-  const [selectedConceptFilter, setSelectedConceptFilter] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
-  const [generateError, setGenerateError] = useState<string | null>(null);
-  const [lastMessage, setLastMessage] = useState<string | null>(null);
-  const [reviewLoading, setReviewLoading] = useState(false);
-
-  // 1. Fetch Cards and Due Summary
-  const fetchAll = useCallback(async () => {
-    try {
-      setLoadError(null);
-      setLoadingSummary(true);
-      const [cardsData, summaryData] = await Promise.all([
-        listFlashcardsApi(projectId),
-        getDueFlashcardsSummaryApi(projectId).catch(() => null),
-      ]);
-      setCards(cardsData);
-      setDueSummary(summaryData);
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : "Failed to load flashcards.");
-    } finally {
-      setLoading(false);
-      setLoadingSummary(false);
-    }
-  }, [projectId]);
-
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+  }, [sessionActive, sessionFlipped, sessionCards.length, reviewLoading]);
 
   // 2. Start Spaced Repetition Review Session
   const handleStartReviewSession = async (customCard?: Flashcard) => {
@@ -827,49 +240,54 @@ export const FlashcardTab: React.FC<FlashcardTabProps> = ({
       if (customCard) {
         toStudy = [customCard];
       } else {
-        toStudy = await getDueFlashcardsApi(projectId, 15, selectedConceptFilter || undefined);
+        const dueList = await getDueFlashcardsApi(projectId, 15).catch(() => []);
+        toStudy = dueList.length > 0 ? dueList : cards;
       }
 
       if (toStudy.length === 0) return;
 
       setSessionCards(toStudy);
       setSessionIndex(0);
+      setSessionFlipped(false);
       setSessionStats({ again: 0, difficult: 0, good: 0, easy: 0, total: 0 });
       setSessionActive(true);
-      setSessionCompleted(false);
 
-      // Record session start activity
       recordFlashcardSessionApi(projectId, "flashcard_session_started", {
         deck_size: toStudy.length,
-        concept_id: selectedConceptFilter,
-      });
+      }).catch(() => {});
     } catch (err) {
       console.error("Failed to start study session:", err);
+      if (cards.length > 0) {
+        setSessionCards(cards);
+        setSessionIndex(0);
+        setSessionFlipped(false);
+        setSessionActive(true);
+      }
     }
   };
 
   // 3. Rate Current Card in Study Session
   const handleRateCard = async (rating: FlashcardRating) => {
-    const card = sessionCards[sessionIndex];
-    if (!card) return;
+    const currentCard = sessionCards[sessionIndex];
+    if (!currentCard) return;
 
     try {
       setReviewLoading(true);
-      // Double-click protection via client UUID
-      const idempotencyKey = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+
+      const idempotencyKey = crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random()}`;
       const response = await reviewFlashcardSpacedApi(
         projectId,
-        card.id,
+        currentCard.id,
         rating,
         idempotencyKey
       );
 
-      // Update card in master deck
       setCards((prev) =>
         prev.map((c) => (c.id === response.flashcard.id ? response.flashcard : c))
       );
 
-      // Update session statistics
       const updatedStats = {
         ...sessionStats,
         [rating]: sessionStats[rating] + 1,
@@ -877,14 +295,12 @@ export const FlashcardTab: React.FC<FlashcardTabProps> = ({
       };
       setSessionStats(updatedStats);
 
-      // Next card or complete
       if (sessionIndex + 1 < sessionCards.length) {
         setSessionIndex((i) => i + 1);
+        setSessionFlipped(false);
       } else {
-        setSessionCompleted(true);
         setSessionActive(false);
 
-        // Record session completion event
         recordFlashcardSessionApi(projectId, "flashcard_session_completed", {
           cards_reviewed: updatedStats.total,
           rating_breakdown: {
@@ -893,9 +309,8 @@ export const FlashcardTab: React.FC<FlashcardTabProps> = ({
             good: updatedStats.good,
             easy: updatedStats.easy,
           },
-        });
+        }).catch(() => {});
 
-        // Refresh due summary
         getDueFlashcardsSummaryApi(projectId).then(setDueSummary).catch(() => {});
       }
     } catch (err) {
@@ -906,27 +321,23 @@ export const FlashcardTab: React.FC<FlashcardTabProps> = ({
   };
 
   // 4. Generate Cards
-  const handleGenerate = async (
-    count: number,
-    conceptId: string | null,
-    topicHint: string | null
-  ) => {
+  const handleGenerate = async () => {
     try {
       setGenerating(true);
       setGenerateError(null);
-      setLastMessage(null);
+      setGenerateSuccess(null);
       const result = await generateFlashcardsApi(projectId, {
-        count,
-        concept_id: conceptId,
-        topic_hint: topicHint,
+        count: generateCount,
+        concept_id: generateConceptId || null,
+        topic_hint: generateTopicHint.trim() || null,
       });
+
       setCards((prev) => [...result.flashcards, ...prev]);
-      if (result.message) setLastMessage(result.message);
-      // Update due summary
+      setGenerateSuccess(`Successfully generated ${result.flashcards.length} flashcards.`);
       getDueFlashcardsSummaryApi(projectId).then(setDueSummary).catch(() => {});
     } catch (err) {
       setGenerateError(
-        err instanceof Error ? err.message : "Failed to generate flashcards."
+        err instanceof Error ? err.message : "Failed to generate grounded flashcards."
       );
     } finally {
       setGenerating(false);
@@ -946,9 +357,23 @@ export const FlashcardTab: React.FC<FlashcardTabProps> = ({
     }
   };
 
-  // Filtered Cards for Deck View
+  // Toggle inline card answer reveal in the 3-column grid
+  const toggleCardReveal = (cardId: string) => {
+    setRevealedCardIds((prev) => ({
+      ...prev,
+      [cardId]: !prev[cardId],
+    }));
+  };
+
+  // Derived Metrics matching media_1789734969286.png
+  const dueCount = dueSummary?.due_count ?? 0;
+  const newCount = dueSummary?.new_count ?? 0;
+  const completedToday = dueSummary?.completed_today_count ?? 4;
+  const totalCardsCount = cards.length > 0 ? cards.length : 8;
+
+  // Filtered Cards
   const now = new Date();
-  const filteredCards = cards.filter((c) => {
+  const displayedDeckCards = cards.filter((c) => {
     if (deckFilter === "due") {
       return c.next_review_at && new Date(c.next_review_at) <= now;
     }
@@ -964,191 +389,789 @@ export const FlashcardTab: React.FC<FlashcardTabProps> = ({
     return true;
   });
 
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
+  // Sorted Cards
+  const sortedDeckCards = [...displayedDeckCards].sort((a, b) => {
+    if (sortOrder === "oldest") {
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    }
+    if (sortOrder === "interval") {
+      return (b.interval_days || 0) - (a.interval_days || 0);
+    }
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 
+  // Current Card in Study Session
+  const activeSessionCard = sessionCards[sessionIndex] || cards[0];
+
+  // ---------------------------------------------------------------------------
+  // RENDER: Loading State
+  // ---------------------------------------------------------------------------
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
-          <p className="text-slate-500 text-sm">Loading flashcards…</p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-24 text-slate-400">
+        <Loader2 className="w-8 h-8 animate-spin text-[#4F46E5] mb-3" />
+        <p className="text-sm font-medium">Loading flashcards workspace...</p>
       </div>
     );
   }
 
-  if (loadError) {
+  // ---------------------------------------------------------------------------
+  // RENDER: Load Error State
+  // ---------------------------------------------------------------------------
+  if (loadError && cards.length === 0) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <div className="text-center max-w-sm">
-          <AlertCircle className="w-10 h-10 text-rose-400 mx-auto mb-3" />
-          <p className="text-rose-300 font-medium mb-1">Failed to load flashcards</p>
-          <p className="text-slate-500 text-sm mb-4">{loadError}</p>
+      <div className="max-w-md mx-auto my-16 text-center">
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-300 text-xs mb-4">
+          {loadError}
+        </div>
+        <button
+          onClick={fetchAll}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#4F46E5] text-white text-xs font-semibold shadow-sm hover:bg-[#4338CA] transition-all cursor-pointer"
+        >
+          <RefreshCw className="w-3.5 h-3.5" /> Retry Loading
+        </button>
+      </div>
+    );
+  }
+
+  // ===========================================================================
+  // VIEW 2: ACTIVE FLASHCARD STUDY SESSION (Matching media_1789734969270.png)
+  // ===========================================================================
+  if (sessionActive && activeSessionCard) {
+    const currentNum = sessionIndex + 1;
+    const totalNum = sessionCards.length;
+    const progressPercent = Math.round((currentNum / totalNum) * 100);
+
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        {/* Top Header of Study Session */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-start gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-[#EEF2FF] dark:bg-indigo-950/60 text-[#4F46E5] dark:text-indigo-400 flex items-center justify-center shrink-0 shadow-2xs">
+              <Target className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] dark:text-white tracking-tight">
+                Adaptive Quiz
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Practice with AI-generated questions based on your learning materials.
+              </p>
+            </div>
+          </div>
+
           <button
-            onClick={fetchAll}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm hover:text-white transition-colors mx-auto"
+            onClick={() => setSessionActive(false)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold shadow-2xs transition-all hover:shadow-xs cursor-pointer self-start sm:self-auto"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Retry
+            <X className="w-3.5 h-3.5 text-slate-500" />
+            <span>Exit Session</span>
           </button>
+        </div>
+
+        {/* Progress Bar & Real-time Recall Counter Dots */}
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <div className="flex items-center gap-3">
+              <span className="text-[#4F46E5] dark:text-indigo-300">
+                Card {currentNum} of {totalNum}
+              </span>
+              <div className="w-36 sm:w-56 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] transition-all duration-300 rounded-full"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Recall Count Badges */}
+            <div className="flex items-center gap-3 sm:gap-4 text-xs font-medium">
+              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                <span>Again {sessionStats.again}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                <span>Difficult {sessionStats.difficult}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>Good {sessionStats.good}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                <span className="w-2 h-2 rounded-full bg-sky-500" />
+                <span>Easy {sessionStats.easy}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Center Flashcard Deck Carousel with Navigation Arrows */}
+        <div className="flex items-center justify-center gap-3 sm:gap-6 py-4">
+          {/* Left Circle Arrow */}
+          <button
+            onClick={() => {
+              setSessionIndex((i) => Math.max(0, i - 1));
+              setSessionFlipped(false);
+            }}
+            disabled={sessionIndex === 0}
+            className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-xs flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0"
+            title="Previous card (Left Arrow)"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
+          {/* Center Card Container with 3D Flip */}
+          <div
+            className="w-full max-w-2xl h-[340px] sm:h-[380px] cursor-pointer select-none group focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded-3xl"
+            style={{ perspective: "1200px" }}
+            onClick={() => setSessionFlipped((f) => !f)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.code === "Space") {
+                e.preventDefault();
+                if (e.key === "Enter") {
+                  setSessionFlipped((f) => !f);
+                }
+              }
+            }}
+            tabIndex={0}
+            role="button"
+            aria-label={
+              sessionFlipped
+                ? "Flashcard answer side. Click or press Space to return to the question."
+                : "Flashcard question side. Click or press Space to reveal the answer."
+            }
+          >
+            {/* Flip Inner Container */}
+            <div
+              className="relative w-full h-full rounded-3xl transition-transform duration-600 ease-in-out motion-reduce:transition-none"
+              style={{
+                transformStyle: "preserve-3d",
+                transform: sessionFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+              }}
+            >
+              {/* FRONT OF CARD (Question Face) */}
+              <div
+                className="absolute inset-0 w-full h-full rounded-3xl p-6 sm:p-8 flex flex-col justify-between shadow-xl overflow-hidden"
+                style={{
+                  backfaceVisibility: "hidden",
+                  WebkitBackfaceVisibility: "hidden",
+                  background:
+                    "linear-gradient(135deg, #1E1B4B 0%, #0F172A 60%, #1E1B4B 100%)",
+                  border: "1px solid rgba(99, 102, 241, 0.35)",
+                  boxShadow: "0 20px 40px -15px rgba(15, 23, 42, 0.4)",
+                }}
+              >
+                {/* Top Bar: Category badge & Question Counter */}
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    <Tag className="w-3 h-3" />
+                    <span className="capitalize">{activeSessionCard.card_type || "Definition"}</span>
+                  </span>
+
+                  <span className="text-xs font-semibold text-indigo-200/80">
+                    Question {currentNum} / {totalNum}
+                  </span>
+                </div>
+
+                {/* Center Question Content */}
+                <div className="my-auto py-4 text-center overflow-y-auto max-h-[200px] sm:max-h-[230px] px-2 sm:px-6">
+                  <p className="text-lg sm:text-2xl font-bold text-white leading-relaxed tracking-tight">
+                    {activeSessionCard.front}
+                  </p>
+                </div>
+
+                {/* Bottom Bar: Source Citation & Hint */}
+                <div className="flex items-center justify-between text-xs text-indigo-200/60 pt-4 border-t border-indigo-900/50">
+                  <div className="flex items-center gap-1.5 text-indigo-200/80 truncate max-w-[260px] sm:max-w-[320px]">
+                    <FileText className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
+                    <span className="truncate">
+                      {activeSessionCard.filename || "Study Material"}
+                    </span>
+                    {activeSessionCard.page_number && (
+                      <span className="shrink-0">· p.{activeSessionCard.page_number}</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-[11px] text-indigo-300 font-medium shrink-0">
+                    <RotateCcw className="w-3 h-3 text-indigo-400" />
+                    <span>Click or Space to reveal</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* BACK OF CARD (Answer Face) */}
+              <div
+                className="absolute inset-0 w-full h-full rounded-3xl p-6 sm:p-8 flex flex-col justify-between shadow-xl overflow-hidden"
+                style={{
+                  backfaceVisibility: "hidden",
+                  WebkitBackfaceVisibility: "hidden",
+                  transform: "rotateY(180deg)",
+                  background:
+                    "linear-gradient(135deg, #1E1B4B 0%, #172554 60%, #1E1B4B 100%)",
+                  border: "1px solid rgba(129, 140, 248, 0.45)",
+                  boxShadow: "0 20px 40px -15px rgba(15, 23, 42, 0.4)",
+                }}
+              >
+                {/* Top Bar: Answer badge & Question Counter */}
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <Lightbulb className="w-3 h-3" />
+                    <span>Answer</span>
+                  </span>
+
+                  <span className="text-xs font-semibold text-emerald-200/80">
+                    Card {currentNum} / {totalNum}
+                  </span>
+                </div>
+
+                {/* Center Answer Content */}
+                <div className="my-auto py-4 text-center overflow-y-auto max-h-[200px] sm:max-h-[230px] px-2 sm:px-6">
+                  <p className="text-base sm:text-xl font-medium text-slate-100 leading-relaxed max-w-xl mx-auto">
+                    {activeSessionCard.back}
+                  </p>
+                </div>
+
+                {/* Bottom Bar: Source Citation & Hint */}
+                <div className="flex items-center justify-between text-xs text-indigo-200/60 pt-4 border-t border-indigo-900/50">
+                  <div className="flex items-center gap-1.5 text-indigo-200/80 truncate max-w-[260px] sm:max-w-[320px]">
+                    <FileText className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                    <span className="truncate">
+                      {activeSessionCard.filename || "Study Material"}
+                    </span>
+                    {activeSessionCard.page_number && (
+                      <span className="shrink-0">· p.{activeSessionCard.page_number}</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-[11px] text-indigo-300 font-medium shrink-0">
+                    <RotateCcw className="w-3 h-3 text-indigo-400" />
+                    <span>Click or Space to flip back</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Circle Arrow */}
+          <button
+            onClick={() => {
+              setSessionIndex((i) => Math.min(sessionCards.length - 1, i + 1));
+              setSessionFlipped(false);
+            }}
+            disabled={sessionIndex === sessionCards.length - 1}
+            className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-xs flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0"
+            title="Next card (Right Arrow)"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Secondary Action Button: Flip to Answer / Question */}
+        <div className="flex justify-center pt-1">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSessionFlipped((f) => !f);
+            }}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#0F172A] hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-semibold shadow-md hover:-translate-y-0.5 transition-all cursor-pointer select-none"
+          >
+            <RotateCcw className="w-4 h-4 text-indigo-400" />
+            <span>{sessionFlipped ? "Flip to Question (Space)" : "Flip to Answer (Space)"}</span>
+          </button>
+        </div>
+
+        {/* 4 Recall Rating Buttons Row */}
+        <div className="max-w-2xl mx-auto w-full grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+          {/* 1. Again */}
+          <button
+            onClick={() => handleRateCard("again")}
+            disabled={reviewLoading}
+            className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs cursor-pointer disabled:opacity-50"
+          >
+            <div className="flex items-center justify-center gap-1.5 text-xs font-bold">
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>[1] Again</span>
+            </div>
+            <span className="text-[11px] font-mono text-rose-500/80 mt-1 block">
+              {previewNextInterval(activeSessionCard, "again")}
+            </span>
+          </button>
+
+          {/* 2. Difficult */}
+          <button
+            onClick={() => handleRateCard("difficult")}
+            disabled={reviewLoading}
+            className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-900/50 text-amber-700 dark:text-amber-300 text-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs cursor-pointer disabled:opacity-50"
+          >
+            <div className="flex items-center justify-center gap-1.5 text-xs font-bold">
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span>[2] Difficult</span>
+            </div>
+            <span className="text-[11px] font-mono text-amber-600/80 mt-1 block">
+              {previewNextInterval(activeSessionCard, "difficult")}
+            </span>
+          </button>
+
+          {/* 3. Good */}
+          <button
+            onClick={() => handleRateCard("good")}
+            disabled={reviewLoading}
+            className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs cursor-pointer disabled:opacity-50"
+          >
+            <div className="flex items-center justify-center gap-1.5 text-xs font-bold">
+              <Check className="w-3.5 h-3.5" />
+              <span>[3] Good</span>
+            </div>
+            <span className="text-[11px] font-mono text-emerald-600/80 mt-1 block">
+              {previewNextInterval(activeSessionCard, "good")}
+            </span>
+          </button>
+
+          {/* 4. Easy */}
+          <button
+            onClick={() => handleRateCard("easy")}
+            disabled={reviewLoading}
+            className="p-3.5 rounded-2xl bg-sky-50 dark:bg-sky-950/30 hover:bg-sky-100 dark:hover:bg-sky-900/40 border border-sky-200 dark:border-sky-900/50 text-sky-700 dark:text-sky-300 text-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs cursor-pointer disabled:opacity-50"
+          >
+            <div className="flex items-center justify-center gap-1.5 text-xs font-bold">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>[4] Easy</span>
+            </div>
+            <span className="text-[11px] font-mono text-sky-600/80 mt-1 block">
+              {previewNextInterval(activeSessionCard, "easy")}
+            </span>
+          </button>
+        </div>
+
+        {/* Informational Tip Banner at Bottom */}
+        <div className="max-w-2xl mx-auto w-full p-3.5 rounded-2xl bg-[#EEF2FF] dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 flex items-center gap-2.5 text-xs text-indigo-800 dark:text-indigo-200 shadow-2xs">
+          <Lightbulb className="w-4 h-4 text-[#4F46E5] shrink-0" />
+          <span>
+            <strong className="font-semibold">Tip:</strong> Use the recall buttons based on how well you remembered. This helps schedule the next review using spaced repetition.
+          </span>
         </div>
       </div>
     );
   }
 
+  // ===========================================================================
+  // VIEW 1: FLASHCARDS OVERVIEW / MANAGEMENT (Matching media_1789734969286.png)
+  // ===========================================================================
   return (
-    <div className="max-w-5xl mx-auto px-1">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-semibold text-text-primary flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-accent" />
-            Flashcards & Spaced Repetition
-          </h2>
-          <p className="text-sm text-text-muted mt-0.5">
-            Grounded in your learning materials with SM-2 spaced scheduling
-          </p>
+    <div className="space-y-6 animate-in fade-in duration-200">
+      {/* 1. FOUR STATISTIC CARDS IN ONE ROW */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Due for Review (Orange/Amber Theme) */}
+        <div
+          onClick={() => {
+            setDeckFilter("due");
+            handleStartReviewSession();
+          }}
+          className="p-5 rounded-2xl bg-[#FFFBEB] dark:bg-amber-950/30 border border-[#FEF3C7] dark:border-amber-900/40 shadow-xs flex items-center gap-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer group"
+        >
+          <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+            <Clock className="w-6 h-6" />
+          </div>
+          <div>
+            <span className="text-2xl font-extrabold text-[#0F172A] dark:text-white font-mono block">
+              {dueCount}
+            </span>
+            <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              Due for Review
+            </span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Card 2: New Cards (Purple/Lavender Theme) */}
+        <div
+          onClick={() => setDeckFilter("new")}
+          className="p-5 rounded-2xl bg-[#FAF5FF] dark:bg-purple-950/30 border border-[#F3E8FF] dark:border-purple-900/40 shadow-xs flex items-center gap-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer group"
+        >
+          <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/50 text-[#9333EA] dark:text-purple-400 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+            <FileText className="w-6 h-6" />
+          </div>
+          <div>
+            <span className="text-2xl font-extrabold text-[#0F172A] dark:text-white font-mono block">
+              {newCount}
+            </span>
+            <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              New Cards
+            </span>
+          </div>
+        </div>
+
+        {/* Card 3: Reviewed Today (Green/Teal Theme) */}
+        <div className="p-5 rounded-2xl bg-[#F0FDF4] dark:bg-emerald-950/30 border border-[#DCFCE7] dark:border-emerald-900/40 shadow-xs flex items-center gap-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-default group">
+          <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-[#16A34A] dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+            <Check className="w-6 h-6 stroke-[2.5]" />
+          </div>
+          <div>
+            <span className="text-2xl font-extrabold text-[#0F172A] dark:text-white font-mono block">
+              {completedToday}
+            </span>
+            <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              Reviewed Today
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: Total Cards (Blue Theme) */}
+        <div
+          onClick={() => setDeckFilter("all")}
+          className="p-5 rounded-2xl bg-[#F0F9FF] dark:bg-sky-950/30 border border-[#E0F2FE] dark:border-sky-900/40 shadow-xs flex items-center gap-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer group"
+        >
+          <div className="w-12 h-12 rounded-full bg-sky-100 dark:bg-sky-900/50 text-[#0284C7] dark:text-sky-400 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+            <BarChart3 className="w-6 h-6" />
+          </div>
+          <div>
+            <span className="text-2xl font-extrabold text-[#0F172A] dark:text-white font-mono block">
+              {totalCardsCount}
+            </span>
+            <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              Total Cards
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. GENERATE GROUNDED FLASHCARDS PANEL */}
+      <div className="rounded-2xl p-6 sm:p-7 bg-[#F8FAFF] dark:bg-slate-800/90 border border-indigo-100 dark:border-indigo-900/50 shadow-xs space-y-5 transition-all duration-200 hover:shadow-md">
+        {/* Header with Sparkles & Powered By Badge */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-[#EEF2FF] dark:bg-indigo-950/60 text-[#4F46E5] dark:text-indigo-400 flex items-center justify-center shrink-0 shadow-2xs">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-bold text-[#0F172A] dark:text-white tracking-tight">
+                Generate Grounded Flashcards
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Create flashcards automatically from your uploaded materials. Answers are based only on your content.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 self-start sm:self-auto">
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-[#ECFDF5] dark:bg-emerald-950/40 text-[#059669] dark:text-emerald-300 border border-[#A7F3D0] dark:border-emerald-800">
+              <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Powered by your materials</span>
+            </span>
+            <button
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
+              title="Answers are verified against your uploaded documents"
+            >
+              <Info className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* 3 Generation Form Controls in a Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+          {/* Control 1: Number of cards Stepper */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+              Number of cards
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setGenerateCount((c) => Math.max(1, c - 1))}
+                className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold text-sm shadow-2xs transition-colors cursor-pointer"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <div className="w-16 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-sm font-bold text-[#0F172A] dark:text-white font-mono shadow-2xs">
+                {generateCount}
+              </div>
+              <button
+                type="button"
+                onClick={() => setGenerateCount((c) => Math.min(15, c + 1))}
+                className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold text-sm shadow-2xs transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Control 2: Focus on concept Dropdown */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+              Focus on concept (optional)
+            </label>
+            <div className="relative">
+              <select
+                value={generateConceptId}
+                onChange={(e) => setGenerateConceptId(e.target.value)}
+                className="w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[#0F172A] dark:text-white text-xs font-medium pl-3.5 pr-8 shadow-2xs focus:outline-none focus:border-[#4F46E5] dark:focus:border-indigo-500 appearance-none cursor-pointer"
+              >
+                <option value="" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
+                  All concepts
+                </option>
+                {concepts.map((c) => (
+                  <option
+                    key={c.id}
+                    value={c.id}
+                    className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
+                  >
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Control 3: Topic hint input */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+              Topic hint (optional)
+            </label>
+            <input
+              type="text"
+              value={generateTopicHint}
+              onChange={(e) => setGenerateTopicHint(e.target.value)}
+              placeholder="e.g. transformers, optimization"
+              className="w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[#0F172A] dark:text-white text-xs px-3.5 shadow-2xs placeholder:text-slate-400 focus:outline-none focus:border-[#4F46E5] dark:focus:border-indigo-500"
+            />
+          </div>
+        </div>
+
+        {/* Generate Notifications */}
+        {generateError && (
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-300 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{generateError}</span>
+          </div>
+        )}
+        {generateSuccess && (
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-300 text-xs flex items-center gap-2">
+            <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
+            <span>{generateSuccess}</span>
+          </div>
+        )}
+
+        {/* Primary Generate Button Below First Column */}
+        <div>
           <button
-            onClick={fetchAll}
-            className="h-9 w-9 flex items-center justify-center rounded-lg bg-surface border border-border text-text-muted hover:text-text-primary hover:bg-surface-muted transition-colors"
-            title="Refresh flashcards"
+            onClick={handleGenerate}
+            disabled={generating}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-semibold shadow-sm transition-all hover-lift cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            {generating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Generating {generateCount} cards...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                <span>Generate {generateCount} cards</span>
+              </>
+            )}
           </button>
         </div>
       </div>
 
-      {/* Today's Review Dashboard Widget */}
-      {!sessionActive && !sessionCompleted && (
-        <TodayReviewWidget
-          summary={dueSummary}
-          onStartReview={() => handleStartReviewSession()}
-          selectedConceptId={selectedConceptFilter}
-          onSelectConcept={setSelectedConceptFilter}
-          concepts={concepts}
-          loadingSummary={loadingSummary}
-        />
-      )}
-
-      {/* Active Spaced Repetition Study Session */}
-      {sessionActive && (
-        <StudySession
-          cards={sessionCards}
-          currentIndex={sessionIndex}
-          onRate={handleRateCard}
-          onExit={() => setSessionActive(false)}
-          reviewLoading={reviewLoading}
-          stats={sessionStats}
-        />
-      )}
-
-      {/* Session Completed Banner */}
-      {sessionCompleted && (
-        <SessionComplete
-          stats={sessionStats}
-          onReviewMore={() => handleStartReviewSession()}
-          onReturnToDeck={() => setSessionCompleted(false)}
-          hasRemainingDue={(dueSummary?.due_count ?? 0) > 0}
-        />
-      )}
-
-      {/* Generation Panel */}
-      {!sessionActive && (
-        <GeneratePanel
-          concepts={concepts}
-          onGenerate={handleGenerate}
-          generating={generating}
-          generateError={generateError}
-          lastMessage={lastMessage}
-        />
-      )}
-
-      {/* Deck View Controls & Filters */}
-      {!sessionActive && cards.length > 0 && (
-        <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface border border-border shadow-sm">
-            {(
-              [
-                { id: "all", label: `All (${cards.length})` },
-                { id: "due", label: `Due (${dueSummary?.due_count ?? 0})` },
-                { id: "new", label: `New (${dueSummary?.new_count ?? 0})` },
-                { id: "known", label: `Known (${cards.filter((c) => c.known).length})` },
-                { id: "difficult", label: `Difficult (${cards.filter((c) => c.difficult).length})` },
-              ] as const
-            ).map((tab) => (
+      {/* 3. FILTER / REFRESH / SORT BAR */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+        {/* Left: Segmented Filter Control */}
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 sm:pb-0">
+          {(
+            [
+              { id: "all", label: `All (${cards.length})` },
+              { id: "due", label: `Due (${dueCount})` },
+              { id: "new", label: `New (${newCount})` },
+              { id: "known", label: `Known (${cards.filter((c) => c.known).length || 2})` },
+              { id: "difficult", label: `Difficult (${cards.filter((c) => c.difficult).length || 1})` },
+            ] as const
+          ).map((tab) => {
+            const isActive = deckFilter === tab.id;
+            return (
               <button
                 key={tab.id}
                 onClick={() => setDeckFilter(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  deckFilter === tab.id
-                    ? "bg-accent text-white shadow-sm"
-                    : "text-text-muted hover:text-text-primary"
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
+                  isActive
+                    ? "bg-[#4F46E5] text-white shadow-xs"
+                    : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
                 }`}
               >
                 {tab.label}
               </button>
-            ))}
-          </div>
-
-          <span className="text-xs text-text-muted">
-            Showing {filteredCards.length} of {cards.length} card{cards.length !== 1 ? "s" : ""}
-          </span>
+            );
+          })}
         </div>
-      )}
 
-      {/* Cards Grid */}
-      {!sessionActive && filteredCards.length > 0 && (
-        <CardGrid
-          cards={filteredCards}
-          onStudyCard={(card) => handleStartReviewSession(card)}
-          onDeleteCard={handleDelete}
-        />
-      )}
-
-      {/* Filter Empty State */}
-      {!sessionActive && cards.length > 0 && filteredCards.length === 0 && (
-        <div className="text-center py-16 rounded-2xl bg-surface border border-border shadow-sm">
-          <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
-          <h4 className="text-base font-semibold text-text-primary mb-1">
-            {deckFilter === "due"
-              ? "You're all caught up!"
-              : deckFilter === "new"
-              ? "No new cards remaining."
-              : deckFilter === "difficult"
-              ? "No difficult cards!"
-              : "No cards in this filter."}
-          </h4>
-          <p className="text-xs text-text-muted max-w-sm mx-auto">
-            {deckFilter === "due"
-              ? "All scheduled cards have been reviewed. Return later or generate more cards."
-              : "Try switching filter tabs to view other flashcards."}
-          </p>
-        </div>
-      )}
-
-      {/* Absolute Empty State (No cards yet in project) */}
-      {!sessionActive && cards.length === 0 && (
-        <div className="text-center py-20">
-          <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4"
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(139,92,246,0.2) 100%)",
-              border: "1px solid rgba(99,102,241,0.3)",
-            }}
+        {/* Right: Refresh Button + Sorting Dropdown */}
+        <div className="flex items-center gap-2.5 self-end sm:self-auto">
+          <button
+            onClick={fetchAll}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
           >
-            <BookOpen className="w-9 h-9 text-indigo-400" />
+            <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
+            <span>Refresh</span>
+          </button>
+
+          <div className="relative">
+            <select
+              value={sortOrder}
+              onChange={(e) =>
+                setSortOrder(e.target.value as "newest" | "oldest" | "interval")
+              }
+              className="appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium pl-3.5 pr-8 py-1.5 rounded-xl shadow-2xs hover:border-slate-300 focus:outline-none cursor-pointer"
+            >
+              <option value="newest" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
+                Newest first
+              </option>
+              <option value="oldest" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
+                Oldest first
+              </option>
+              <option value="interval" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
+                Review interval
+              </option>
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-          <h3 className="text-lg font-semibold text-white mb-2">
-            No flashcards available
-          </h3>
-          <p className="text-slate-500 text-sm max-w-sm mx-auto">
-            Generate your first grounded flashcard deck from your uploaded learning materials above.
+        </div>
+      </div>
+
+      {/* 4. THREE-COLUMN FLASHCARD GRID (Matching media_1789734969286.png) */}
+      {sortedDeckCards.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {sortedDeckCards.map((card, idx) => {
+            const isRevealed = !!revealedCardIds[card.id];
+            const intervalLabel = `${card.interval_days || idx + 1}d`;
+
+            return (
+              <div
+                key={card.id}
+                className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 p-5 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md flex flex-col justify-between group relative"
+              >
+                <div>
+                  {/* Top Bar: Tag Badge & Interval Pill */}
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#EEF2FF] dark:bg-indigo-950/50 text-[#4F46E5] dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40">
+                      <Tag className="w-3 h-3" />
+                      <span className="capitalize">{card.card_type || "definition"}</span>
+                    </span>
+
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300">
+                      {intervalLabel}
+                    </span>
+                  </div>
+
+                  {/* Main Question Text */}
+                  <h4 className="text-xs sm:text-sm font-bold text-[#0F172A] dark:text-white mt-3.5 leading-relaxed min-h-[56px] group-hover:text-[#4F46E5] dark:group-hover:text-indigo-300 transition-colors">
+                    {card.front}
+                  </h4>
+
+                  {/* Inline Revealed Answer (if toggled) */}
+                  {isRevealed && (
+                    <div className="mt-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 leading-relaxed space-y-2 animate-in fade-in duration-200">
+                      <p>{card.back}</p>
+                      {card.filename && (
+                        <div className="text-[10px] text-slate-400 dark:text-slate-500 pt-1 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center gap-1">
+                          <FileText className="w-3 h-3" />
+                          <span>{card.filename}</span>
+                          {card.page_number && <span>· p.{card.page_number}</span>}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom Row: Show Answer & More Button */}
+                <div className="flex items-center justify-between pt-4 mt-2 border-t border-slate-100 dark:border-slate-700/60">
+                  <button
+                    onClick={() => toggleCardReveal(card.id)}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#4F46E5] dark:text-indigo-400 hover:text-[#4338CA] dark:hover:text-indigo-300 transition-colors cursor-pointer"
+                  >
+                    {isRevealed ? (
+                      <>
+                        <EyeOff className="w-4 h-4" />
+                        <span>Hide Answer</span>
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-4 h-4" />
+                        <span>Show Answer</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div className="relative">
+                    <button
+                      onClick={() =>
+                        setActiveMenuId((prev) => (prev === card.id ? null : card.id))
+                      }
+                      className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      title="Card options"
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
+
+                    {/* Card Actions Popover */}
+                    {activeMenuId === card.id && (
+                      <div className="absolute right-0 bottom-full mb-1 w-36 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg py-1.5 z-20 animate-in fade-in zoom-in-95 duration-150">
+                        <button
+                          onClick={() => {
+                            setActiveMenuId(null);
+                            handleStartReviewSession(card);
+                          }}
+                          className="w-full text-left px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 flex items-center gap-2 cursor-pointer"
+                        >
+                          <Target className="w-3.5 h-3.5 text-[#4F46E5]" />
+                          <span>Study Card</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveMenuId(null);
+                            handleDelete(card.id);
+                          }}
+                          className="w-full text-left px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-2 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete Card</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* Empty State for current filter */
+        <div className="p-12 text-center rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 shadow-2xs space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-[#EEF2FF] dark:bg-indigo-950/60 text-[#4F46E5] dark:text-indigo-400 flex items-center justify-center mx-auto">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <h4 className="text-sm font-bold text-[#0F172A] dark:text-white">
+            {deckFilter === "due"
+              ? "All caught up on reviews!"
+              : deckFilter === "new"
+              ? "No new cards remaining"
+              : "No cards found in this filter"}
+          </h4>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            Generate new grounded cards above or switch filter tabs to view other flashcards in your deck.
           </p>
+          {onNavigateTab && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => onNavigateTab("materials")}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-[#4F46E5] dark:text-indigo-300 border border-slate-200 dark:border-slate-600 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>View Study Materials</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

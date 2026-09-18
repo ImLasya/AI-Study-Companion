@@ -7,6 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+import app.models  # noqa: F401
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
@@ -46,27 +47,61 @@ def anyio_backend() -> str:
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def prepare_test_database():
-    """Create all schema tables in PostgreSQL test database before running tests."""
-    async with test_engine.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+def prepare_test_database():
+    """Create all schema tables in PostgreSQL test database before running tests.
+
+    This fixture is intentionally SYNCHRONOUS even though the engine is async.
+    Reason: with ``asyncio_mode = "auto"`` and function-scoped test event loops,
+    an ``async`` session-scoped fixture has non-deterministic lifecycle — its
+    teardown (``drop_all``) can fire prematurely between test files because
+    pytest-asyncio may cycle the event loop at module boundaries.  Using
+    ``asyncio.run()`` in a plain sync fixture gives the schema setup/teardown its
+    own completely isolated event loop that is independent of pytest-asyncio's
+    loop management, guaranteeing exactly-once setup and exactly-once teardown.
+    """
+    import asyncio
+
+    async def _create_schema() -> None:
+        async with test_engine.begin() as conn:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+
+    async def _drop_schema() -> None:
+        async with test_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+        await test_engine.dispose()
+
+    asyncio.run(_create_schema())
     yield
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await test_engine.dispose()
+    asyncio.run(_drop_schema())
 
 
 @pytest.fixture
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    """Provides an isolated database session per test."""
+    """Provides an isolated database session per test.
+
+    Always rolls back any aborted transaction before running cleanup so that a
+    test which leaves the DB session in a failed-transaction state (e.g. due to
+    an HTTPException being raised mid-request) does not cause
+    ``InFailedSQLTransactionError`` during teardown and cascade-poison all
+    subsequent tests.
+    """
     async with TestingSessionLocal() as session:
         yield session
-        # Clean up data between tests
-        for table in reversed(Base.metadata.sorted_tables):
-            await session.execute(table.delete())
-        await session.commit()
+        # If the test left the connection in an aborted transaction, roll it
+        # back first so the cleanup DELETE statements can execute cleanly.
+        try:
+            await session.rollback()
+        except Exception:
+            pass  # Already clean — ignore
+        # Truncate all tables so the next test starts with an empty database.
+        try:
+            for table in reversed(Base.metadata.sorted_tables):
+                await session.execute(table.delete())
+            await session.commit()
+        except Exception:
+            await session.rollback()
 
 
 @pytest.fixture

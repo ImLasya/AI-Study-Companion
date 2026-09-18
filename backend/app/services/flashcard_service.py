@@ -9,8 +9,9 @@ Every operation filters on both user_id and project_id.
 Cross-tenant and cross-project access is structurally impossible.
 """
 
-import uuid
 import hashlib
+import logging
+import uuid
 from datetime import UTC, datetime
 from typing import Any
 
@@ -28,10 +29,9 @@ from app.ai.llm import LLMGenerationError
 from app.ai.observability import log_ai_usage
 from app.core.cache import cache_service
 from app.core.config import settings
-from app.models.chunk import MaterialChunk
 from app.models.concept import Concept
 from app.models.event import ActivityEvent
-from app.models.flashcard import Flashcard, FlashcardReview
+from app.models.flashcard import Flashcard
 from app.repositories.concept_repository import ConceptRepository
 from app.repositories.flashcard_repository import FlashcardRepository
 from app.repositories.material_repository import MaterialRepository
@@ -44,18 +44,12 @@ from app.schemas.flashcard import (
     FlashcardResponse,
     FlashcardReviewRequest,
     FlashcardReviewResponse,
-    FlashcardSessionEventRequest,
 )
 from app.services.retrieval_service import RetrievalService
 from app.services.spaced_repetition_service import (
     DEFAULT_EASE_FACTOR,
-    INITIAL_INTERVAL_DAYS,
-    ScheduleResult,
-    SpacedRating,
     SpacedRepetitionService,
 )
-
-import logging
 
 logger = logging.getLogger("ai_study_companion.services.flashcard")
 
@@ -359,8 +353,9 @@ class FlashcardService:
         # Batch-verify which material_ids actually exist in the materials table
         verified_material_ids: set[uuid.UUID] = set()
         if candidate_material_ids:
-            from app.models.material import Material as MaterialModel
             from sqlalchemy import select as sa_select
+
+            from app.models.material import Material as MaterialModel
             mat_stmt = sa_select(MaterialModel.id).where(
                 MaterialModel.id.in_(list(candidate_material_ids))
             )

@@ -17,11 +17,18 @@ class AdminOverviewResponse(BaseModel):
     total_users: int = 0
     total_spaces: int = 0
     total_projects: int = 0
+    total_materials: int = 0
+    total_quiz_attempts: int = 0
+    total_tutor_sessions: int = 0
+    total_flashcards: int = 0
+    average_quiz_score: float = 0.0
     active_users_daily: int = 0
     active_users_weekly: int = 0
     total_ai_spend_usd: float = 0.0
     total_ai_calls: int = 0
     job_health_summary: dict[str, int] = Field(default_factory=dict)
+    concept_mastery_distribution: dict[str, int] = Field(default_factory=dict)
+    activity_distribution: dict[str, int] = Field(default_factory=dict)
 
 
 class AdminUserSummary(BaseModel):

@@ -26,7 +26,6 @@ from app.repositories.concept_repository import ConceptRepository
 from app.repositories.mastery_repository import MasteryRepository
 from app.repositories.material_repository import MaterialRepository
 from app.schemas.mastery import RecommendationGenerationOutput
-
 from app.services.concept_validator import is_valid_academic_concept
 
 VALID_RECOMMENDATION_TYPES = {

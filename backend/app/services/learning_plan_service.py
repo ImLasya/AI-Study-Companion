@@ -555,9 +555,9 @@ class LearningPlanService:
     ) -> LearningPlanResponse:
         """Construct full LearningPlanResponse with progress metrics and next recommended concept."""
         # 1. Fetch live masteries for all items in plan
-        concept_ids = [item.concept_id for item in plan.items]
         masteries = await self.mastery_repo.list_project_masteries(user_id=user_id, project_id=project_id)
         mastery_by_concept = {m.concept_id: m for m in masteries}
+
 
         # 2. Fetch active recommendations to unify with next concept guidance
         active_recs = await self.mastery_repo.get_active_recommendations(user_id=user_id, project_id=project_id)

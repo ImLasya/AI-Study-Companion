@@ -22,5 +22,8 @@ class SpaceResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     projects_count: int = 0
+    concepts_count: int = 0
+    assessed_concepts_count: int = 0
+    average_mastery: float | None = None
 
     model_config = {"from_attributes": True}

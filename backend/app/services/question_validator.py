@@ -7,7 +7,7 @@ Enforces:
 """
 
 import re
-from typing import Sequence
+from collections.abc import Sequence
 
 # Regex patterns that indicate document-navigation / document-structure questions
 BANNED_QUESTION_PATTERNS = [
@@ -72,9 +72,9 @@ def is_toc_or_metadata_chunk(text: str) -> bool:
     if not lines:
         return True
 
-    first_few_lines = [l.lower() for l in lines[:5]]
+    first_few_lines = [line_text.lower() for line_text in lines[:5]]
     for marker in ("contents", "table of contents", "brief contents", "index", "bibliography", "list of figures", "list of tables"):
-        if any(marker == l or l.startswith(f"{marker}\n") or l.startswith(f"{marker} ") for l in first_few_lines):
+        if any(marker == line_text or line_text.startswith(f"{marker}\n") or line_text.startswith(f"{marker} ") for line_text in first_few_lines):
             return True
 
     # 3. Ratio of section-listing lines (e.g., '1.1 Introduction ... 8', '3.4 Marginal Probability')

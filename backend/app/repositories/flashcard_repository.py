@@ -15,7 +15,6 @@ from app.models.flashcard import Flashcard, FlashcardReview
 from app.services.spaced_repetition_service import (
     DEFAULT_EASE_FACTOR,
     INITIAL_INTERVAL_DAYS,
-    ScheduleResult,
     SpacedRating,
     SpacedRepetitionService,
 )

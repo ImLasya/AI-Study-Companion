@@ -7,18 +7,21 @@ import { useAuth } from "@/lib/auth-context";
 export const StatusPage: React.FC = () => {
   const { user } = useAuth();
 
+  if (user) {
+    return <SystemStatus />;
+  }
+
   return (
-    <div className="max-w-5xl mx-auto py-6 px-4 sm:px-6">
-      <div className="mb-6">
+    <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6">
+      <div className="mb-4">
         <Link
-          to={user ? "/dashboard" : "/"}
-          className="inline-flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+          to="/"
+          className="inline-flex items-center gap-2 text-xs text-indigo-500 hover:text-indigo-400 font-medium transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to {user ? "Dashboard" : "Home"}</span>
+          <span>Back to Home</span>
         </Link>
       </div>
-
       <SystemStatus />
     </div>
   );

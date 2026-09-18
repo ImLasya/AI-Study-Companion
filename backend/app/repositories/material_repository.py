@@ -207,6 +207,26 @@ class MaterialRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_chunks_by_ids(
+        self, project_id: uuid.UUID, chunk_ids: list[uuid.UUID]
+    ) -> list[MaterialChunk]:
+        """Fetch chunks by their UUIDs within a project.
+
+        ISOLATION BOUNDARY: WHERE project_id = :project_id AND id IN (:chunk_ids)
+        """
+        if not chunk_ids:
+            return []
+        stmt = (
+            select(MaterialChunk)
+            .where(
+                MaterialChunk.project_id == project_id,
+                MaterialChunk.id.in_(chunk_ids),
+            )
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+
     async def search_chunks_by_vector(
         self,
         project_id: uuid.UUID,

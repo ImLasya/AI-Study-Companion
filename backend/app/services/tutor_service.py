@@ -14,8 +14,6 @@ from fastapi import HTTPException, Request, status
 from langsmith import traceable
 from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = logging.getLogger("ai_study_companion.services.tutor")
-
 from app.ai.embeddings import embed_text
 from app.ai.gemini_provider import get_llm_provider
 from app.ai.llm import LLMGenerationError
@@ -37,9 +35,12 @@ from app.schemas.tutor import (
 from app.services.retrieval_service import RetrievalService, RetrievedChunk
 from app.services.tutor_context_service import TutorContextService
 
+logger = logging.getLogger("ai_study_companion.services.tutor")
+
 # ==============================================================================
 # LangSmith Safe Serialization Helpers
 # ==============================================================================
+
 
 
 def _safe_tutor_inputs(inputs: dict[str, Any]) -> dict[str, Any]:

@@ -36,24 +36,21 @@ Covers all 32 requirements:
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import create_access_token, hash_password
-from app.db.session import get_db
-from app.main import app
 from app.models.chunk import MaterialChunk
 from app.models.concept import Concept
 from app.models.event import ActivityEvent
 from app.models.flashcard import Flashcard
-from app.models.learning_plan import LearningPlan, LearningPlanItem
+from app.models.learning_plan import LearningPlan
 from app.models.mastery import ConceptMastery, Recommendation
 from app.models.material import Material
 from app.models.project import Project
@@ -61,7 +58,6 @@ from app.models.quiz import Quiz, QuizQuestion
 from app.models.space import Space
 from app.models.user import User
 from app.services.learning_plan_service import LearningPlanService
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -997,15 +993,18 @@ async def test_30_cache_invalidation_and_redis_fallback(db_session: AsyncSession
 
 
 def test_31_migration_chain():
-    """31. Alembic migrations form a single linear chain ending at 0012_create_learning_plans."""
+    """31. Alembic migrations form a single linear chain ending at 0013_add_material_file_data."""
     alembic_cfg = Config("alembic.ini")
     script = ScriptDirectory.from_config(alembic_cfg)
     heads = script.get_heads()
     assert len(heads) == 1
-    assert heads[0] == "0012_create_learning_plans"
+    assert heads[0] == "0013_add_material_file_data"
 
-    rev = script.get_revision("0012_create_learning_plans")
-    assert rev.down_revision == "0011_add_spaced_repetition"
+    rev_13 = script.get_revision("0013_add_material_file_data")
+    assert rev_13.down_revision == "0012_create_learning_plans"
+
+    rev_12 = script.get_revision("0012_create_learning_plans")
+    assert rev_12.down_revision == "0011_add_spaced_repetition"
 
 
 @pytest.mark.asyncio

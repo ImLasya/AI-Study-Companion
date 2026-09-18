@@ -108,6 +108,9 @@ class GlobalStudyActivity(BaseModel):
     active_study_days: int = 0
     review_streak_days: int = 0
     consistency_score: float = 0.0
+    total_materials_count: int = 0
+    total_tutor_messages: int = 0
+    activity_distribution: dict[str, int] = Field(default_factory=dict)
 
 
 class GlobalAnalyticsResponse(BaseModel):

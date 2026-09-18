@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { LogOut, Shield, Sparkles, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { API_DOCS_URL } from "@/lib/api";
 
 import { EduMindLogo } from "@/components/EduMindLogo";
 
@@ -96,7 +97,7 @@ export const Header: React.FC = () => {
           )}
 
           <a
-            href="http://localhost:8000/docs"
+            href={API_DOCS_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-gray-400 hover:text-gray-200 transition-colors hidden md:flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-800 hover:border-gray-700 bg-gray-900/50"

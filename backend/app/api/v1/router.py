@@ -6,14 +6,14 @@ from app.api.v1.endpoints import (
     auth,
     flashcards,
     health,
+    insights,
+    learning_plans,
     mastery,
     materials,
     projects,
     quizzes,
     spaces,
     tutor,
-    insights,
-    learning_plans,
 )
 
 api_router = APIRouter()

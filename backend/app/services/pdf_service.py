@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import Any
 
 import pymupdf as fitz
-from langsmith import traceable
+
+from app.ai.tracing import safe_traceable as traceable
 
 logger = logging.getLogger("ai_study_companion.services.pdf")
 
@@ -218,10 +219,10 @@ class PDFProcessingService:
         page_count: int = pdf_meta["page_count"]
 
         # 2. Extract Text (Traced Node)
-        extracted = _trace_extract_text(doc)
-        pages_raw: list[tuple[int, str]] = extracted["pages_raw"]
+        _trace_extract_text(doc)
 
         all_chunks: list[ExtractedChunk] = []
+
         scanned_pages: list[int] = []
         global_chunk_index = 0
         raw_total_chars = 0

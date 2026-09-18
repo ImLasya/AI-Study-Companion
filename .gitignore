@@ -65,3 +65,5 @@ backend/storage/
 # Local QA Scripts & Screenshots (may contain tokens/credentials)
 frontend/take_screenshots.cjs
 frontend/qa_screenshots/
+scratch/
+*.patch

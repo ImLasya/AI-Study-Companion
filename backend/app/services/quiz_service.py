@@ -58,7 +58,6 @@ from app.services.question_validator import (
 from app.services.retrieval_service import RetrievalService
 
 
-
 def normalize_question_text(text: str) -> str:
     """Normalize question text for deduplication: lowercase, strip punctuation, collapse whitespace."""
     if not text:
@@ -257,8 +256,9 @@ class QuizService:
         materials = await self.material_repo.list_by_project(user_id, project_id)
         ready_materials = [m for m in materials if m.status == "ready"]
 
-        all_chunks = []
+        all_chunks: list[dict[str, Any]] = []
         for m in ready_materials:
+
             chunks = await self.material_repo.get_chunks_by_material(m.id)
             for c in chunks:
                 all_chunks.append(
@@ -278,11 +278,11 @@ class QuizService:
             )
 
         # Partition into substantive chunks (skipping promotional / front-matter / TOC if possible)
-        substantive_chunks = []
-        for c in all_chunks:
-            if is_toc_or_metadata_chunk(c["content"]):
+        substantive_chunks: list[dict[str, Any]] = []
+        for chk in all_chunks:
+            if is_toc_or_metadata_chunk(str(chk["content"])):
                 continue
-            text_lower = c["content"].lower()
+            text_lower = str(chk["content"]).lower()
             if any(
                 marker in text_lower
                 for marker in [
@@ -293,11 +293,11 @@ class QuizService:
                 ]
             ):
                 continue
-            substantive_chunks.append(c)
-
+            substantive_chunks.append(chk)
 
         if not substantive_chunks:
-            substantive_chunks = all_chunks
+            substantive_chunks = list(all_chunks)
+
 
         # Scalable batch extraction across the document (up to 5 batches of 22 chunks each)
         BATCH_SIZE = 22
@@ -497,7 +497,8 @@ class QuizService:
                 for cid in c_obj.source_chunk_ids:
                     if cid in all_chunks_dict and cid not in selected_chunk_ids:
                         c_data = all_chunks_dict[cid]
-                        if not is_toc_or_metadata_chunk(c_data["content"]) and len(c_data["content"].strip()) >= 100:
+                        c_text = str(c_data.get("content", ""))
+                        if not is_toc_or_metadata_chunk(c_text) and len(c_text.strip()) >= 100:
                             selected_chunk_ids.add(cid)
                             evidence_chunks.append(c_data)
 
@@ -510,9 +511,11 @@ class QuizService:
                 if len(evidence_chunks) >= 12:
                     break
                 if cid not in selected_chunk_ids:
-                    if not is_toc_or_metadata_chunk(c_data["content"]) and len(c_data["content"].strip()) >= 150:
+                    c_text = str(c_data.get("content", ""))
+                    if not is_toc_or_metadata_chunk(c_text) and len(c_text.strip()) >= 150:
                         selected_chunk_ids.add(cid)
                         evidence_chunks.append(c_data)
+
 
         if not evidence_chunks:
             raise HTTPException(
@@ -521,11 +524,28 @@ class QuizService:
             )
 
         # 5. Question Generation via Gemini with Anti-Repetition Guidance
-        # Allocate: majority MCQ, at least 1 open-ended if count >= 3
-        open_ended_count = 1 if count >= 3 else 0
-        mcq_count = count - open_ended_count
-        # Request buffer MCQs in case some candidates are duplicates or fail quality checks
-        mcq_request_count = mcq_count + (2 if mcq_count >= 2 else 1)
+        # Determine target counts based on requested question_format ("mixed", "open_ended", "mcq")
+        format_type = getattr(payload, "question_format", "mixed") or "mixed"
+        if format_type == "open_ended":
+            target_oe_count = count
+            target_mcq_count = 0
+        elif format_type == "mcq":
+            target_oe_count = 0
+            target_mcq_count = count
+        else:  # "mixed"
+            if count >= 8:
+                target_oe_count = 3
+            elif count >= 5:
+                target_oe_count = 2
+            elif count >= 2:
+                target_oe_count = 1
+            else:
+                target_oe_count = 0
+            target_mcq_count = count - target_oe_count
+
+        # Request buffer questions in case candidates fail quality checks or are duplicates
+        mcq_request_count = target_mcq_count + (2 if target_mcq_count > 0 else 0)
+        open_ended_request_count = target_oe_count + (1 if target_oe_count > 0 else 0)
 
         concept_payloads = [
             {"name": s.concept_name, "description": s.rationale} for s in plan.selected_concepts
@@ -535,7 +555,7 @@ class QuizService:
             evidence_chunks=evidence_chunks,
             target_difficulties=plan.recommended_difficulties,
             mcq_count=mcq_request_count,
-            open_ended_count=open_ended_count,
+            open_ended_count=open_ended_request_count,
             recent_questions=recent_q_texts[:20],
         )
 
@@ -583,12 +603,13 @@ class QuizService:
                 detail="AI question generation failed. Please try again in a moment.",
             ) from err
 
-        # 6. Validate & Deduplicate generated questions against recent history
+        # 6. Validate & Deduplicate generated questions into separate typed pools
         concept_lookup = {c.name.lower(): c.id for c in valid_concepts}
         default_concept_id = valid_concepts[0].id
         valid_chunk_ids_set = set(all_chunks_dict.keys())
 
-        accepted_questions: list[dict] = []
+        accepted_mcqs: list[dict] = []
+        accepted_open_ended: list[dict] = []
         accepted_texts: list[str] = []
 
         # Process MCQs
@@ -627,7 +648,7 @@ class QuizService:
 
             c_id = concept_lookup.get(mcq.concept_name.strip().lower(), default_concept_id)
 
-            accepted_questions.append(
+            accepted_mcqs.append(
                 {
                     "concept_id": c_id,
                     "question_type": "mcq",
@@ -665,7 +686,7 @@ class QuizService:
 
             c_id = concept_lookup.get(oeq.concept_name.strip().lower(), default_concept_id)
 
-            accepted_questions.append(
+            accepted_open_ended.append(
                 {
                     "concept_id": c_id,
                     "question_type": "open_ended",
@@ -680,10 +701,12 @@ class QuizService:
             )
             accepted_texts.append(q_text)
 
-        # 7. Safe Reinforcement & Replenishment:
-        # If generated questions fell short due to duplicate or quality rejection,
-        # first check valid historical project questions prioritizing reinforcement & unseen concepts.
-        if len(accepted_questions) < count:
+        # 7. Safe Reinforcement & Targeted Replenishment:
+        # Check if either MCQ or Open-Ended quota is under target
+        mcq_deficit = max(0, target_mcq_count - len(accepted_mcqs))
+        oe_deficit = max(0, target_oe_count - len(accepted_open_ended))
+
+        if mcq_deficit > 0 or oe_deficit > 0:
             all_project_questions = await self.quiz_repo.get_all_project_questions(
                 user_id=user_id, project_id=project_id
             )
@@ -695,20 +718,15 @@ class QuizService:
                 score.concept_id for score in plan.selected_concepts if score.unseen_signal > 0
             }
 
-            # Filter candidate questions not currently in accepted_texts
             candidate_pool = [
                 q
                 for q in all_project_questions
                 if not is_duplicate_question(q.question_text, accepted_texts)
             ]
-
-            # Prefer candidates not in immediate recent quiz history
             immediate_recent_ids = {q.id for q in recent_questions[:count]}
             non_recent_candidates = [q for q in candidate_pool if q.id not in immediate_recent_ids]
-
             pool_to_use = non_recent_candidates if non_recent_candidates else candidate_pool
 
-            # Sort: reinforcement concepts first, unseen concepts second, oldest creation date third
             def fallback_priority(q: QuizQuestion) -> tuple[int, Any]:
                 rank = 2
                 if q.concept_id in error_concept_ids:
@@ -720,17 +738,14 @@ class QuizService:
             pool_to_use.sort(key=fallback_priority)
 
             for fallback_q in pool_to_use:
-                if len(accepted_questions) >= count:
-                    break
-                # Strictly validate that historical question is substantive, not TOC navigation
-                is_valid, reason = validate_quiz_question_quality(fallback_q.question_text, fallback_q.options)
-                if not is_valid:
-                    logger.info(f"Quiz fallback: rejected historical question '{fallback_q.question_text}' (Reason: {reason})")
-                    continue
-                accepted_questions.append(
-                    {
+                q_type = fallback_q.question_type
+                if q_type == "mcq" and len(accepted_mcqs) < target_mcq_count:
+                    is_valid, _ = validate_quiz_question_quality(fallback_q.question_text, fallback_q.options)
+                    if not is_valid:
+                        continue
+                    accepted_mcqs.append({
                         "concept_id": fallback_q.concept_id or default_concept_id,
-                        "question_type": fallback_q.question_type,
+                        "question_type": "mcq",
                         "question_text": fallback_q.question_text,
                         "options": fallback_q.options,
                         "correct_answer": fallback_q.correct_answer,
@@ -738,20 +753,40 @@ class QuizService:
                         "rubric": fallback_q.rubric,
                         "difficulty": fallback_q.difficulty,
                         "source_chunk_ids": fallback_q.source_chunk_ids,
-                    }
-                )
-                accepted_texts.append(fallback_q.question_text)
+                    })
+                    accepted_texts.append(fallback_q.question_text)
+                elif q_type == "open_ended" and len(accepted_open_ended) < target_oe_count:
+                    is_valid, _ = validate_quiz_question_quality(fallback_q.question_text, options=None)
+                    if not is_valid:
+                        continue
+                    accepted_open_ended.append({
+                        "concept_id": fallback_q.concept_id or default_concept_id,
+                        "question_type": "open_ended",
+                        "question_text": fallback_q.question_text,
+                        "options": [],
+                        "correct_answer": fallback_q.correct_answer,
+                        "explanation": fallback_q.explanation,
+                        "rubric": fallback_q.rubric,
+                        "difficulty": fallback_q.difficulty,
+                        "source_chunk_ids": fallback_q.source_chunk_ids,
+                    })
+                    accepted_texts.append(fallback_q.question_text)
 
-        # If still short of count after historical pool, trigger a focused secondary generation pass
-        if len(accepted_questions) < count:
-            needed_mcqs = count - len(accepted_questions)
-            logger.info(f"Quiz generation: performing secondary replenishment pass for {needed_mcqs} questions.")
+        # Recompute deficits after historical pool
+        mcq_deficit = max(0, target_mcq_count - len(accepted_mcqs))
+        oe_deficit = max(0, target_oe_count - len(accepted_open_ended))
+
+        # Secondary replenishment pass if still missing target questions
+        if mcq_deficit > 0 or oe_deficit > 0:
+            logger.info(
+                f"Quiz generation: replenishment needed (MCQ deficit: {mcq_deficit}, Open-Ended deficit: {oe_deficit})"
+            )
             retry_prompt = build_quiz_generation_prompt(
                 target_concepts=concept_payloads,
                 evidence_chunks=evidence_chunks,
                 target_difficulties=plan.recommended_difficulties,
-                mcq_count=needed_mcqs + 1,
-                open_ended_count=0,
+                mcq_count=mcq_deficit + (1 if mcq_deficit > 0 else 0),
+                open_ended_count=oe_deficit + (1 if oe_deficit > 0 else 0),
                 recent_questions=recent_q_texts + accepted_texts,
             )
             try:
@@ -765,7 +800,7 @@ class QuizService:
                     metadata={"project_id": str(project_id)},
                 )
                 for mcq in retry_output.mcq_questions:
-                    if len(accepted_questions) >= count:
+                    if len(accepted_mcqs) >= target_mcq_count:
                         break
                     q_text = mcq.question.strip()
                     if not q_text or len(mcq.options) != 4:
@@ -781,7 +816,7 @@ class QuizService:
                     if not v_ev and evidence_chunks:
                         v_ev = [str(evidence_chunks[0]["chunk_id"])]
                     c_id = concept_lookup.get(mcq.concept_name.strip().lower(), default_concept_id)
-                    accepted_questions.append({
+                    accepted_mcqs.append({
                         "concept_id": c_id,
                         "question_type": "mcq",
                         "question_text": q_text,
@@ -793,12 +828,52 @@ class QuizService:
                         "source_chunk_ids": v_ev,
                     })
                     accepted_texts.append(q_text)
+
+                for oeq in retry_output.open_ended_questions:
+                    if len(accepted_open_ended) >= target_oe_count:
+                        break
+                    q_text = oeq.question.strip()
+                    if not q_text:
+                        continue
+                    is_valid, _ = validate_quiz_question_quality(q_text, options=None, concept_name=oeq.concept_name)
+                    if not is_valid or is_duplicate_question(q_text, recent_q_texts + accepted_texts):
+                        continue
+                    v_ev = [cid for cid in oeq.evidence_chunk_ids if cid in valid_chunk_ids_set]
+                    if not v_ev and evidence_chunks:
+                        v_ev = [str(evidence_chunks[0]["chunk_id"])]
+                    c_id = concept_lookup.get(oeq.concept_name.strip().lower(), default_concept_id)
+                    accepted_open_ended.append({
+                        "concept_id": c_id,
+                        "question_type": "open_ended",
+                        "question_text": q_text,
+                        "options": [],
+                        "correct_answer": oeq.expected_answer.strip(),
+                        "explanation": oeq.explanation.strip(),
+                        "rubric": oeq.rubric.strip(),
+                        "difficulty": oeq.difficulty,
+                        "source_chunk_ids": v_ev,
+                    })
+                    accepted_texts.append(q_text)
             except Exception as retry_err:
                 logger.warning(f"Secondary replenishment generation pass failed: {retry_err}")
 
+        # Assemble final questions strictly preserving open-ended and MCQ quotas
+        chosen_mcqs = accepted_mcqs[:target_mcq_count]
+        chosen_oe = accepted_open_ended[:target_oe_count]
 
-        # Absolute safety check: if still empty
-        if not accepted_questions:
+        # If one pool was short, backfill from the other pool's surplus up to count
+        total_chosen = len(chosen_mcqs) + len(chosen_oe)
+        if total_chosen < count:
+            remaining_needed = count - total_chosen
+            if len(accepted_mcqs) > len(chosen_mcqs):
+                extra_mcqs = accepted_mcqs[len(chosen_mcqs) : len(chosen_mcqs) + remaining_needed]
+                chosen_mcqs.extend(extra_mcqs)
+            elif len(accepted_open_ended) > len(chosen_oe):
+                extra_oe = accepted_open_ended[len(chosen_oe) : len(chosen_oe) + remaining_needed]
+                chosen_oe.extend(extra_oe)
+
+        assembled = chosen_mcqs + chosen_oe
+        if not assembled:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Unable to assemble valid questions from AI output. Please retry.",
@@ -806,9 +881,10 @@ class QuizService:
 
         # Assign consecutive 1-indexed question order
         final_questions_data = []
-        for idx, q_data in enumerate(accepted_questions[:count], start=1):
+        for idx, q_data in enumerate(assembled[:count], start=1):
             q_data["question_order"] = idx
             final_questions_data.append(q_data)
+
 
         # 8. Persist Quiz & Questions
         quiz = await self.quiz_repo.create_quiz(
@@ -1010,12 +1086,28 @@ class QuizService:
             # Load evidence chunks if available
             evidence_chunks = []
             if question.source_chunk_ids:
+                try:
+                    uuid_chunk_ids = []
+                    for cid in question.source_chunk_ids:
+                        try:
+                            uuid_chunk_ids.append(uuid.UUID(str(cid)))
+                        except (ValueError, TypeError):
+                            pass
+                    if uuid_chunk_ids:
+                        chunks = await self.material_repo.get_chunks_by_ids(
+                            project_id=attempt.project_id, chunk_ids=uuid_chunk_ids
+                        )
+                        evidence_chunks = [{"content": c.content} for c in chunks]
+                except Exception as ex:
+                    logger.warning(f"Error fetching grounded chunks for evaluation: {ex}")
+            if not evidence_chunks:
                 all_chunks = await self.material_repo.search_chunks_by_vector(
                     project_id=attempt.project_id,
                     query_embedding=[0.0] * 384,
                     limit=5,
                 )
                 evidence_chunks = [{"content": c[0].content} for c in all_chunks]
+
 
             eval_prompt = build_open_ended_evaluation_prompt(
                 question=question.question_text,

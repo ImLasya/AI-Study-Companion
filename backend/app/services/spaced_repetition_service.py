@@ -12,7 +12,7 @@ All timestamps are strictly timezone-aware UTC.
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 
 # ---------------------------------------------------------------------------
 # Centralized Scheduler Constants
@@ -23,8 +23,9 @@ MAX_EASE_FACTOR: float = 3.5
 INITIAL_INTERVAL_DAYS: int = 0
 
 
-class SpacedRating(str, Enum):
+class SpacedRating(StrEnum):
     AGAIN = "again"
+
     DIFFICULT = "difficult"
     GOOD = "good"
     EASY = "easy"

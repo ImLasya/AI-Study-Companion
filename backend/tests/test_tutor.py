@@ -991,8 +991,9 @@ async def test_tutor_stream_provider_failure(client: AsyncClient, db_session: As
         assert "event: done" not in raw_stream
 
         # Verify no assistant message was persisted
-        from app.models.conversation import TutorMessage
         from sqlalchemy import select
+
+        from app.models.conversation import TutorMessage
         res = await db_session.execute(
             select(TutorMessage).where(
                 TutorMessage.project_id == project_uuid,
@@ -1014,11 +1015,12 @@ async def test_tutor_stream_client_disconnect(db_session: AsyncSession):
 
     try:
         from unittest.mock import AsyncMock
-        from app.services.tutor_service import TutorService
-        from app.schemas.tutor import TutorRequest
-        from app.models.user import User
-        from app.models.space import Space
+
         from app.models.project import Project
+        from app.models.space import Space
+        from app.models.user import User
+        from app.schemas.tutor import TutorRequest
+        from app.services.tutor_service import TutorService
 
         # Setup test entities
         user = User(email=f"disconn_{uuid.uuid4().hex[:6]}@example.com", hashed_password="pw")
@@ -1050,8 +1052,9 @@ async def test_tutor_stream_client_disconnect(db_session: AsyncSession):
         assert not any("event: done" in e for e in events)
 
         # Confirm no assistant message was persisted
-        from app.models.conversation import TutorMessage
         from sqlalchemy import select
+
+        from app.models.conversation import TutorMessage
         res = await db_session.execute(
             select(TutorMessage).where(
                 TutorMessage.project_id == project.id,

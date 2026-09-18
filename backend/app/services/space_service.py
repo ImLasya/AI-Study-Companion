@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.space import Space
 from app.repositories.event_repository import EventRepository
-from app.repositories.space_repository import SpaceRepository
+from app.repositories.space_repository import SpaceRepository, SpaceStats
 from app.schemas.space import SpaceCreate, SpaceUpdate
 
 
@@ -15,7 +15,7 @@ class SpaceService:
         self.space_repo = SpaceRepository(db)
         self.event_repo = EventRepository(db)
 
-    async def list_spaces(self, user_id: uuid.UUID) -> list[tuple[Space, int]]:
+    async def list_spaces(self, user_id: uuid.UUID) -> list[SpaceStats]:
         return await self.space_repo.list_by_user(user_id)
 
     async def get_space(self, user_id: uuid.UUID, space_id: uuid.UUID) -> Space:
@@ -26,6 +26,15 @@ class SpaceService:
                 detail="Space not found",
             )
         return space
+
+    async def get_space_with_stats(self, user_id: uuid.UUID, space_id: uuid.UUID) -> SpaceStats:
+        stats = await self.space_repo.get_with_stats(user_id=user_id, space_id=space_id)
+        if not stats:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Space not found",
+            )
+        return stats
 
     async def create_space(self, user_id: uuid.UUID, data: SpaceCreate) -> Space:
         space = await self.space_repo.create(

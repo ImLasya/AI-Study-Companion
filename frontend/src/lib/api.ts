@@ -37,8 +37,15 @@ import {
   User,
 } from "@/types";
 
-const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:8000/api/v1";
+export const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string) ||
+  (import.meta.env.DEV ? "http://localhost:8000/api/v1" : "/api/v1");
+
+export const API_DOCS_URL =
+  (import.meta.env.VITE_API_DOCS_URL as string) ||
+  (API_BASE_URL.startsWith("http")
+    ? API_BASE_URL.replace(/\/api\/v1\/?$/, "/docs")
+    : "/docs");
 
 export async function fetchWithTimeout(
   url: string,
@@ -508,7 +515,8 @@ export async function createQuizApi(
   projectId: string,
   title: string = "Adaptive Quiz",
   questionCount: number = 5,
-  preferredDifficulty: string = "adaptive"
+  preferredDifficulty: string = "adaptive",
+  questionFormat: "mixed" | "mcq" | "open_ended" = "mixed"
 ): Promise<Quiz> {
   const res = await fetchWithTimeout(
     `${API_BASE_URL}/projects/${projectId}/quizzes`,
@@ -518,6 +526,7 @@ export async function createQuizApi(
         title,
         question_count: questionCount,
         preferred_difficulty: preferredDifficulty,
+        question_format: questionFormat,
       }),
     },
     90000 // 90s timeout for question generation

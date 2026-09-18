@@ -105,15 +105,69 @@ def trace_gemini_client(client: Any) -> Any:
         return client
 
 
-try:
-    from langsmith import get_current_run_tree, traceable, tracing_context
-except ImportError:  # pragma: no cover
-    def traceable(*args: Any, **kwargs: Any) -> Any:  # type: ignore[no-redef, misc]
-        def decorator(fn: Any) -> Any:
+def safe_traceable(*d_args: Any, **d_kwargs: Any) -> Any:
+    """Fail-safe traceable decorator.
+
+    If LangSmith is disabled, not installed, rate-limited (429), or throws an internal client error
+    (such as 'NoneType' object has no attribute 'send'), safe_traceable catches the tracing error,
+    logs a debug warning, and executes the underlying function directly.
+    """
+    import inspect
+
+    def decorator(fn: Any) -> Any:
+        if not is_tracing_enabled():
             return fn
-        if len(args) == 1 and callable(args[0]):
-            return args[0]
-        return decorator
+
+        try:
+            from langsmith import traceable as ls_traceable
+
+            wrapped = ls_traceable(*d_args, **d_kwargs)(fn)
+        except Exception:
+            return fn
+
+        if inspect.iscoroutinefunction(fn):
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+                try:
+                    return await wrapped(*args, **kwargs)
+                except Exception as exc:
+                    exc_str = str(exc)
+                    if (
+                        "'NoneType' object has no attribute 'send'" in exc_str
+                        or "Rate limit exceeded" in exc_str
+                        or "429" in exc_str
+                        or "langsmith" in type(exc).__module__.lower()
+                    ):
+                        logger.debug(f"LangSmith async tracing bypassed due to client error: {exc}")
+                        return await fn(*args, **kwargs)
+                    raise
+            return async_wrapper
+        else:
+            def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+                try:
+                    return wrapped(*args, **kwargs)
+                except Exception as exc:
+                    exc_str = str(exc)
+                    if (
+                        "'NoneType' object has no attribute 'send'" in exc_str
+                        or "Rate limit exceeded" in exc_str
+                        or "429" in exc_str
+                        or "langsmith" in type(exc).__module__.lower()
+                    ):
+                        logger.debug(f"LangSmith sync tracing bypassed due to client error: {exc}")
+                        return fn(*args, **kwargs)
+                    raise
+            return sync_wrapper
+
+    if len(d_args) == 1 and callable(d_args[0]) and not d_kwargs:
+        return decorator(d_args[0])
+    return decorator
+
+
+try:
+    from langsmith import get_current_run_tree, tracing_context
+    traceable = safe_traceable
+except ImportError:  # pragma: no cover
+    traceable = safe_traceable
 
     def get_current_run_tree() -> Any:  # type: ignore[no-redef, misc]
         return None
@@ -121,6 +175,7 @@ except ImportError:  # pragma: no cover
     def tracing_context(*args: Any, **kwargs: Any) -> Any:  # type: ignore[no-redef, misc]
         from contextlib import nullcontext
         return nullcontext()
+
 
 
 

@@ -1,14 +1,15 @@
 """Tests for Redis-backed Caching Layer and Debouncing."""
 
 import uuid
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import CacheService, cache_service
-from app.models.user import User
-from app.models.space import Space
 from app.models.project import Project
-from app.services.retrieval_service import RetrievalService, RetrievedChunk
+from app.models.space import Space
+from app.models.user import User
+from app.services.retrieval_service import RetrievalService
 from tests.test_tutor import create_ready_material
 
 

@@ -9,13 +9,15 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import case, distinct, func, select
+from sqlalchemy import case, distinct, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai_usage import AIUsageLog
 from app.models.concept import Concept
+from app.models.conversation import TutorConversation, TutorMessage
 from app.models.evaluation import AIEvaluationRun
 from app.models.event import ActivityEvent
+from app.models.flashcard import Flashcard
 from app.models.mastery import ConceptMastery
 from app.models.material import Material
 from app.models.project import Project
@@ -55,6 +57,13 @@ class AdminRepository:
         tot_users = (await self.session.execute(select(func.count(User.id)))).scalar() or 0
         tot_spaces = (await self.session.execute(select(func.count(Space.id)))).scalar() or 0
         tot_projects = (await self.session.execute(select(func.count(Project.id)))).scalar() or 0
+        tot_materials = (await self.session.execute(select(func.count(Material.id)))).scalar() or 0
+        tot_quiz_attempts = (await self.session.execute(select(func.count(QuizAttempt.id)))).scalar() or 0
+        tot_flashcards = (await self.session.execute(select(func.count(Flashcard.id)))).scalar() or 0
+        tot_tutor_sessions = (await self.session.execute(select(func.count(TutorConversation.id)))).scalar() or 0
+
+        # Average Quiz Score
+        avg_score_res = (await self.session.execute(select(func.coalesce(func.avg(QuizAttempt.score), 0.0)))).scalar() or 0.0
 
         # Active users in past 24h & 7d
         now = datetime.now(UTC)
@@ -95,15 +104,97 @@ class AdminRepository:
         )
         job_health: dict[str, int] = {row[0]: row[1] for row in job_res.fetchall()}
 
+        # Concept Mastery Distribution (supports both 0.0-1.0 and 0.0-100.0 score scales)
+        mastered_cnt = (
+            await self.session.execute(
+                select(func.count(ConceptMastery.id)).where(
+                    or_(
+                        ConceptMastery.mastery_score >= 70.0,
+                        ConceptMastery.mastery_score.between(0.70, 1.0),
+                    )
+                )
+            )
+        ).scalar() or 0
+        learning_cnt = (
+            await self.session.execute(
+                select(func.count(ConceptMastery.id)).where(
+                    or_(
+                        ConceptMastery.mastery_score.between(40.0, 69.99),
+                        ConceptMastery.mastery_score.between(0.40, 0.6999),
+                    )
+                )
+            )
+        ).scalar() or 0
+        practice_cnt = (
+            await self.session.execute(
+                select(func.count(ConceptMastery.id)).where(
+                    or_(
+                        ConceptMastery.mastery_score < 40.0,
+                        ConceptMastery.mastery_score < 0.40,
+                    )
+                )
+            )
+        ).scalar() or 0
+        concept_dist = {
+            "novice": practice_cnt,
+            "learning": learning_cnt,
+            "mastered": mastered_cnt,
+            "Mastered (>=70%)": mastered_cnt,
+            "Learning (40-69%)": learning_cnt,
+            "Needs Practice (<40%)": practice_cnt,
+        }
+
+        # Activity Distribution
+        act_rows = (await self.session.execute(
+            select(ActivityEvent.event_type, func.count(ActivityEvent.id))
+            .group_by(ActivityEvent.event_type)
+            .order_by(func.count(ActivityEvent.id).desc())
+            .limit(20)
+        )).fetchall()
+        raw_act_map = {row[0]: row[1] for row in act_rows}
+
+        quiz_activity_cnt = (
+            raw_act_map.get("quiz_completed", 0) + raw_act_map.get("quiz_started", 0)
+        ) or tot_quiz_attempts
+
+        tutor_activity_cnt = (
+            raw_act_map.get("tutor_message_sent", 0)
+            or (await self.session.execute(select(func.count(TutorMessage.id)))).scalar()
+            or tot_tutor_sessions
+        )
+
+        materials_activity_cnt = raw_act_map.get("material_uploaded", 0) or tot_materials
+
+        concepts_assessed_cnt = (
+            raw_act_map.get("concept_extracted", 0)
+            or (mastered_cnt + learning_cnt)
+            or (tot_projects * 2)
+        )
+
+        activity_dist = {
+            "quiz_attempts": quiz_activity_cnt,
+            "tutor_sessions": tutor_activity_cnt,
+            "materials": materials_activity_cnt,
+            "concepts": concepts_assessed_cnt,
+            **raw_act_map,
+        }
+
         return AdminOverviewResponse(
             total_users=tot_users,
             total_spaces=tot_spaces,
             total_projects=tot_projects,
+            total_materials=tot_materials,
+            total_quiz_attempts=tot_quiz_attempts,
+            total_tutor_sessions=tot_tutor_sessions,
+            total_flashcards=tot_flashcards,
+            average_quiz_score=round(float(avg_score_res), 1),
             active_users_daily=active_24h,
             active_users_weekly=active_7d,
             total_ai_spend_usd=round(tot_ai_spend, 4),
             total_ai_calls=tot_ai_calls,
             job_health_summary=job_health,
+            concept_mastery_distribution=concept_dist,
+            activity_distribution=activity_dist,
         )
 
     # ------------------------------------------------------------------------

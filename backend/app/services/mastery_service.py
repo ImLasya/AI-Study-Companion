@@ -22,10 +22,10 @@ from app.schemas.mastery import (
     RecommendationResponse,
     SnapshotPointSchema,
 )
+from app.services.concept_validator import is_valid_academic_concept
 from app.services.growth_engine import SnapshotPoint, classify_concept_growth
 from app.services.mastery_engine import AnswerEvidence, calculate_concept_mastery
 from app.services.recommendation_service import RecommendationService
-from app.services.concept_validator import is_valid_academic_concept
 
 
 class MasteryService:

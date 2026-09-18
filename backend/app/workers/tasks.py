@@ -4,16 +4,14 @@ import asyncio
 import logging
 import uuid
 from collections.abc import Callable, Coroutine
+from datetime import UTC, datetime
 from typing import Any, TypeVar
 
-from langsmith import traceable
-from langsmith.run_helpers import tracing_context
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-from datetime import UTC, datetime
 
 from app.ai.embeddings import embed_chunk_texts
 from app.ai.tracing import is_tracing_enabled
+from app.ai.tracing import safe_traceable as traceable
 from app.core.cache import cache_service
 from app.core.config import settings
 from app.repositories.material_repository import MaterialRepository
@@ -22,6 +20,37 @@ from app.services.storage_service import storage_service
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger("ai_study_companion.workers.tasks")
+
+
+def _log_stage(
+    material_id: uuid.UUID,
+    stage: str,
+    started_at: datetime,
+    completed_at: datetime,
+    status: str,
+    pages: int | None = None,
+    chunks: int | None = None,
+    embeddings: int | None = None,
+    error: str | None = None,
+) -> None:
+    duration_sec = (completed_at - started_at).total_seconds()
+    log_msg = (
+        f"\n{'='*60}\n"
+        f"Material ID: {material_id}\n"
+        f"Stage: {stage}\n"
+        f"Started: {started_at.isoformat()}\n"
+        f"Completed: {completed_at.isoformat()}\n"
+        f"Duration: {duration_sec:.2f}s\n"
+        f"Pages: {pages if pages is not None else 'N/A'}\n"
+        f"Chunks: {chunks if chunks is not None else 'N/A'}\n"
+        f"Embeddings: {embeddings if embeddings is not None else 'N/A'}\n"
+        f"Status: {status}\n"
+        + (f"Error: {error}\n" if error else "")
+        + f"{'='*60}"
+    )
+    logger.info(log_msg)
+    print(log_msg, flush=True)
+
 
 # Dedicated async engine for Celery worker processes
 _worker_engine = None
@@ -142,31 +171,85 @@ async def _execute_ingestion(material_id: uuid.UUID, session: AsyncSession) -> d
     # Mark as processing
     await repo.update_status(material_id, status="processing", failure_reason=None)
 
-    try:
-        # 1. Resolve stored PDF file path and Load Material (Traced Node)
-        abs_pdf_path = storage_service.get_absolute_path(material.storage_path)
-        _ = _trace_load_material(material, abs_pdf_path)
+    overall_start = datetime.now(UTC)
+    stage_name = "PDF_LOAD_AND_HYDRATE"
+    stage_start = datetime.now(UTC)
 
-        # 2. Extract text and generate page-aware deterministic chunks (Traced Nodes: Read PDF, Extract Text, Process Pages, Clean Text, Chunk Document)
+    try:
+        # 1. Resolve stored PDF file path and Load Material
+        abs_pdf_path = storage_service.get_absolute_path(material.storage_path)
+
+        # Hydrate from database file_data if local file is missing on this container
+        if not abs_pdf_path.exists() and material.file_data:
+            logger.info(
+                f"Hydrating PDF from PostgreSQL file_data for material {material_id} into local cache {abs_pdf_path}"
+            )
+            abs_pdf_path.parent.mkdir(parents=True, exist_ok=True)
+            abs_pdf_path.write_bytes(material.file_data)
+        elif not abs_pdf_path.exists() and not material.file_data:
+            raise FileNotFoundError(
+                f"Material file not found on disk at {abs_pdf_path} and no file_data present in database."
+            )
+
+        try:
+            _ = _trace_load_material(material, abs_pdf_path)
+        except Exception as t_err:
+            logger.debug(f"Trace load material warning: {t_err}")
+
+        stage_end = datetime.now(UTC)
+        _log_stage(
+            material_id=material_id,
+            stage=stage_name,
+            started_at=stage_start,
+            completed_at=stage_end,
+            status="SUCCESS",
+        )
+
+        # 2. Extract text and generate page-aware deterministic chunks
+        stage_name = "PDF_EXTRACTION"
+        stage_start = datetime.now(UTC)
         extraction_result = pdf_service.extract_and_chunk(abs_pdf_path)
 
         if not extraction_result.chunks:
             raise ValueError(
                 "No extractable text found in PDF. The document may be scanned or empty."
             )
+        stage_end = datetime.now(UTC)
+        _log_stage(
+            material_id=material_id,
+            stage=stage_name,
+            started_at=stage_start,
+            completed_at=stage_end,
+            status="SUCCESS",
+            pages=extraction_result.page_count,
+            chunks=len(extraction_result.chunks),
+        )
 
-        # 3. Generate 384-dimensional vector embeddings (Traced Node: Generate Chunk Embeddings)
+        # 3. Generate 384-dimensional vector embeddings
+        stage_name = "EMBEDDING_GENERATION"
+        stage_start = datetime.now(UTC)
         chunk_contents = [c.content for c in extraction_result.chunks]
         embeddings = embed_chunk_texts(chunk_contents)
 
-        # Validate dimensions
         for emb in embeddings:
             if len(emb) != settings.EMBEDDING_DIMENSION:
                 raise ValueError(
                     f"Embedding dimension mismatch: expected {settings.EMBEDDING_DIMENSION}, got {len(emb)}"
                 )
+        stage_end = datetime.now(UTC)
+        _log_stage(
+            material_id=material_id,
+            stage=stage_name,
+            started_at=stage_start,
+            completed_at=stage_end,
+            status="SUCCESS",
+            chunks=len(chunk_contents),
+            embeddings=len(embeddings),
+        )
 
-        # 4. Prepare chunk records with page number and sequential index
+        # 4. Prepare and store chunk records with page number and sequential index
+        stage_name = "CHUNK_STORAGE"
+        stage_start = datetime.now(UTC)
         chunks_data = [
             {
                 "content": c.content,
@@ -178,11 +261,20 @@ async def _execute_ingestion(material_id: uuid.UUID, session: AsyncSession) -> d
             }
             for c, emb in zip(extraction_result.chunks, embeddings, strict=True)
         ]
-
-        # 5. Idempotently replace chunks (Traced Node: Store Chunks)
         await repo.replace_chunks(material_id, material.project_id, chunks_data)
+        stage_end = datetime.now(UTC)
+        _log_stage(
+            material_id=material_id,
+            stage=stage_name,
+            started_at=stage_start,
+            completed_at=stage_end,
+            status="SUCCESS",
+            chunks=len(chunks_data),
+        )
 
-        # 6. Incremental concept extraction (Traced Node: Extract Concepts -> Gemini, Parse Structured Output)
+        # 5. Incremental concept extraction
+        stage_name = "CONCEPT_EXTRACTION"
+        stage_start = datetime.now(UTC)
         new_concepts_count = 0
         try:
             from app.services.quiz_service import QuizService
@@ -194,27 +286,58 @@ async def _execute_ingestion(material_id: uuid.UUID, session: AsyncSession) -> d
                 project_id=material.project_id,
             )
             new_concepts_count = len(added_concepts)
-            logger.info(
-                f"Incremental concept extraction added {new_concepts_count} new concepts for material {material_id}."
+            stage_end = datetime.now(UTC)
+            _log_stage(
+                material_id=material_id,
+                stage=stage_name,
+                started_at=stage_start,
+                completed_at=stage_end,
+                status="SUCCESS",
+                chunks=len(chunks_data),
             )
         except Exception as c_err:
+            stage_end = datetime.now(UTC)
+            _log_stage(
+                material_id=material_id,
+                stage=stage_name,
+                started_at=stage_start,
+                completed_at=stage_end,
+                status="WARNING",
+                error=str(c_err),
+            )
             logger.warning(
                 f"Incremental concept extraction warning for material {material_id}: {c_err}. "
                 "Material remains 'ready'. Concept extraction is retryable.",
                 exc_info=True,
             )
 
-        # 7. Update page count and mark material as ready (Traced Node: Mark Material Ready)
-        _ = await _trace_mark_material_ready(
-            repo=repo,
-            material_id=material_id,
-            page_count=extraction_result.page_count,
-            chunk_count=len(chunks_data),
-        )
+        # 6. Update page count and mark material as ready
+        stage_name = "READY"
+        try:
+            _ = await _trace_mark_material_ready(
+                repo=repo,
+                material_id=material_id,
+                page_count=extraction_result.page_count,
+                chunk_count=len(chunks_data),
+            )
+        except Exception:
+            await repo.update_status(
+                material_id,
+                status="ready",
+                failure_reason=None,
+                page_count=extraction_result.page_count,
+                completed_at=datetime.now(UTC),
+            )
 
-        logger.info(
-            f"Successfully processed material {material_id}: "
-            f"{extraction_result.page_count} pages, {len(chunks_data)} chunks created."
+        _log_stage(
+            material_id=material_id,
+            stage="READY",
+            started_at=overall_start,
+            completed_at=datetime.now(UTC),
+            status="SUCCESS",
+            pages=extraction_result.page_count,
+            chunks=len(chunks_data),
+            embeddings=len(embeddings),
         )
 
         return {
@@ -227,8 +350,15 @@ async def _execute_ingestion(material_id: uuid.UUID, session: AsyncSession) -> d
 
     except Exception as e:
         error_message = str(e)
-        logger.error(f"Failed processing material {material_id}: {error_message}", exc_info=True)
-        # Mark material as failed with the reason
+        logger.error(f"Failed processing material {material_id} at stage {stage_name}: {error_message}", exc_info=True)
+        _log_stage(
+            material_id=material_id,
+            stage=stage_name,
+            started_at=stage_start,
+            completed_at=datetime.now(UTC),
+            status="FAILED",
+            error=error_message,
+        )
         await repo.update_status(
             material_id,
             status="failed",
@@ -249,22 +379,27 @@ def _run_async_in_worker(
     from contextlib import nullcontext
 
     def _execute() -> T:
-        ctx: Any
-        try:
-            ctx = (
-                tracing_context(
+        ctx: Any = nullcontext()
+        if parent_trace and is_tracing_enabled():
+            try:
+                from langsmith.run_helpers import tracing_context
+                ctx = tracing_context(
                     parent=parent_trace,
                     project_name=settings.langsmith_project,
-                    enabled=is_tracing_enabled(),
+                    enabled=True,
                 )
-                if parent_trace
-                else nullcontext()
-            )
-        except Exception:
-            ctx = nullcontext()
+            except Exception as t_err:
+                logger.debug(f"Worker tracing context warning: {t_err}")
+                ctx = nullcontext()
 
-        with ctx:
-            return asyncio.run(coro_factory())
+        try:
+            with ctx:
+                return asyncio.run(coro_factory())
+        except AttributeError as a_err:
+            if "'NoneType' object has no attribute 'send'" in str(a_err):
+                logger.warning(f"LangSmith client 'send' error bypassed: {a_err}. Running coroutine directly.")
+                return asyncio.run(coro_factory())
+            raise
 
     try:
         asyncio.get_running_loop()
@@ -280,6 +415,7 @@ def process_material(self, material_id_str: str, parent_trace: dict | None = Non
     """Celery task entrypoint for material ingestion.
 
     Retries transient errors with exponential backoff, rejects permanent errors immediately.
+    Guarantees that retry exhaustion marks the material as failed in the database.
     """
     material_id = uuid.UUID(material_id_str)
     try:
@@ -288,17 +424,32 @@ def process_material(self, material_id_str: str, parent_trace: dict | None = Non
             parent_trace=parent_trace,
         )
     except ValueError as val_err:
-        # Permanent errors (e.g. corrupt PDF, empty PDF) should not be retried
-        logger.warning(f"Non-retryable processing failure for material {material_id}: {val_err}")
-        return {"status": "failed", "error": str(val_err)}
+        val_msg = str(val_err)
+        logger.warning(f"Non-retryable processing failure for material {material_id}: {val_msg}")
+        try:
+            session_factory = get_worker_sessionmaker()
+
+            async def _record_val_failure() -> None:
+                async with session_factory() as s:
+                    r = MaterialRepository(s)
+                    await r.update_status(
+                        material_id,
+                        status="failed",
+                        failure_reason=val_msg,
+                    )
+
+            _run_async_in_worker(_record_val_failure)
+        except Exception as e:
+            logger.error(f"Failed to record permanent failure for material {material_id}: {e}")
+        return {"status": "failed", "error": val_msg}
     except Exception as exc:
-        # Transient errors retried with exponential backoff
         retries = getattr(self.request, "retries", 0)
         max_retries = getattr(self, "max_retries", 3)
+        exc_msg = str(exc)
         if retries < max_retries:
             countdown = min(60, (2 ** retries) * 5)
             logger.info(
-                f"Retrying material {material_id} processing (attempt {retries + 1}/{max_retries}, backoff {countdown}s): {exc}"
+                f"Retrying material {material_id} processing (attempt {retries + 1}/{max_retries}, backoff {countdown}s): {exc_msg}"
             )
             try:
                 session_factory = get_worker_sessionmaker()
@@ -310,14 +461,34 @@ def process_material(self, material_id_str: str, parent_trace: dict | None = Non
                             material_id,
                             status="processing",
                             retry_count=retries + 1,
-                            failure_reason=str(exc),
+                            failure_reason=exc_msg,
                         )
 
                 _run_async_in_worker(_record_retry)
             except Exception:
                 pass
             raise self.retry(exc=exc, countdown=countdown)
-        return {"status": "failed", "error": str(exc)}
+        else:
+            logger.error(
+                f"Processing failed for material {material_id} after exhausting {max_retries} retries: {exc_msg}"
+            )
+            try:
+                session_factory = get_worker_sessionmaker()
+
+                async def _record_exhaustion_failure() -> None:
+                    async with session_factory() as s:
+                        r = MaterialRepository(s)
+                        await r.update_status(
+                            material_id,
+                            status="failed",
+                            retry_count=retries,
+                            failure_reason=f"Processing failed after {retries} retries: {exc_msg}",
+                        )
+
+                _run_async_in_worker(_record_exhaustion_failure)
+            except Exception as e:
+                logger.error(f"Failed to record retry exhaustion failure for material {material_id}: {e}")
+            return {"status": "failed", "error": exc_msg}
 
 
 async def _process_quiz_completed_async(

@@ -60,7 +60,7 @@ def build_flashcard_user_prompt(
     sections.append("</retrieved_evidence>")
 
     # 2. Generation Parameters
-    sections.append(f"\n<generation_request>")
+    sections.append("\n<generation_request>")
     sections.append(f"Generate exactly {count} flashcard(s) grounded in the above evidence.")
 
     if concept_name:

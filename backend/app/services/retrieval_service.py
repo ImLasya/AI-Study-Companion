@@ -4,6 +4,7 @@ Embeds learner questions, executes pgvector cosine similarity search,
 enforces strict tenant/project boundaries, and filters evidence by threshold.
 """
 
+import logging
 import re
 import uuid
 from dataclasses import dataclass
@@ -11,8 +12,6 @@ from typing import Any
 
 from langsmith import traceable
 from sqlalchemy.ext.asyncio import AsyncSession
-
-import logging
 
 from app.ai.embeddings import embed_text
 from app.core.cache import CacheService, cache_service

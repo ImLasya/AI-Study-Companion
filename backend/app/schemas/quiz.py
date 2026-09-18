@@ -133,6 +133,11 @@ class QuizCreateRequest(BaseModel):
     preferred_difficulty: Literal["easy", "medium", "hard", "adaptive"] | None = Field(
         default="adaptive"
     )
+    question_format: Literal["mixed", "mcq", "open_ended"] = Field(
+        default="mixed",
+        description="Format of quiz questions: 'mixed' (MCQs + Open-Ended), 'mcq' (Multiple Choice only), or 'open_ended' (Open-Ended only)",
+    )
+
 
 
 class QuizAnswerSubmitRequest(BaseModel):

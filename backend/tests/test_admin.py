@@ -64,10 +64,11 @@ async def test_admin_auth_non_admin_forbidden(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_admin_endpoints_success(client: AsyncClient, db_session: AsyncSession):
     # 1. Signup admin user
+    admin_email = f"admin_{uuid.uuid4().hex[:8]}@example.com"
     signup_resp = await client.post(
         "/api/v1/auth/signup",
         json={
-            "email": "admin@example.com",
+            "email": admin_email,
             "password": "adminpassword123",
             "full_name": "Sys Admin",
         },
@@ -82,7 +83,7 @@ async def test_admin_endpoints_success(client: AsyncClient, db_session: AsyncSes
     # Re-login so fresh claims/state apply
     login_resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@example.com", "password": "adminpassword123"},
+        json={"email": admin_email, "password": "adminpassword123"},
     )
     assert login_resp.status_code == 200
 
@@ -142,15 +143,15 @@ async def test_admin_endpoints_success(client: AsyncClient, db_session: AsyncSes
     assert "ready" in ov_data["job_health_summary"]
 
     # 4. Test GET /admin/users
-    u_resp = await client.get("/api/v1/admin/users?page=1&page_size=10")
+    u_resp = await client.get("/api/v1/admin/users?page=1&page_size=50")
     assert u_resp.status_code == 200
     u_data = u_resp.json()
     assert u_data["total"] >= 1
-    first_user = u_data["items"][0]
-    assert "password" not in first_user
-    assert "hashed_password" not in first_user
-    assert first_user["email"] == "admin@example.com"
-    assert first_user["role"] == "admin"
+    assert all("password" not in u and "hashed_password" not in u for u in u_data["items"])
+    matching_user = next((u for u in u_data["items"] if u["id"] == str(admin_id)), None)
+    assert matching_user is not None
+    assert matching_user["email"] == admin_email
+    assert matching_user["role"] == "admin"
 
     # 5. Test GET /admin/users/{id}
     detail_resp = await client.get(f"/api/v1/admin/users/{admin_id}")
@@ -202,10 +203,11 @@ async def test_admin_evaluation_run_and_global_analytics(
     - GET /admin/jobs returns status_counts dict.
     """
     # --- Setup: create and promote admin user ---
+    admin_email = f"phase6_e2e_admin_{uuid.uuid4().hex[:8]}@example.com"
     admin_signup = await client.post(
         "/api/v1/auth/signup",
         json={
-            "email": "phase6_e2e_admin@example.com",
+            "email": admin_email,
             "password": "E2EAdminPass123!",
             "full_name": "E2E Admin",
         },
@@ -219,25 +221,23 @@ async def test_admin_evaluation_run_and_global_analytics(
 
     login_resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "phase6_e2e_admin@example.com", "password": "E2EAdminPass123!"},
+        json={"email": admin_email, "password": "E2EAdminPass123!"},
     )
     assert login_resp.status_code == 200
 
     # --- Normal user: should get 200 on /analytics/global but 403 on all /admin/* ---
+    norm_email = f"phase6_e2e_normal_{uuid.uuid4().hex[:8]}@example.com"
     norm_signup = await client.post(
         "/api/v1/auth/signup",
-        json={"email": "phase6_e2e_normal@example.com", "password": "NormPass123!"},
+        json={"email": norm_email, "password": "NormPass123!"},
     )
     assert norm_signup.status_code == 201
 
     norm_login = await client.post(
         "/api/v1/auth/login",
-        json={"email": "phase6_e2e_normal@example.com", "password": "NormPass123!"},
+        json={"email": norm_email, "password": "NormPass123!"},
     )
     assert norm_login.status_code == 200
-    # Temporarily swap cookies to normal user
-    for k, v in norm_login.cookies.items():
-        client.cookies.set(k, v)
 
     global_resp = await client.get("/api/v1/analytics/global")
     assert global_resp.status_code == 200, "Normal user must reach /analytics/global"
@@ -248,10 +248,13 @@ async def test_admin_evaluation_run_and_global_analytics(
     forbidden_resp = await client.get("/api/v1/admin/overview")
     assert forbidden_resp.status_code == 403, "Normal user must be 403 on /admin/overview"
 
-    # Restore admin cookies
-    client.cookies.clear()
-    for k, v in login_resp.cookies.items():
-        client.cookies.set(k, v)
+    # Restore admin login — the POST sets the httpOnly access_token cookie on the
+    # client automatically via Set-Cookie; no manual header manipulation needed.
+    admin_relogin = await client.post(
+        "/api/v1/auth/login",
+        json={"email": admin_email, "password": "E2EAdminPass123!"},
+    )
+    assert admin_relogin.status_code == 200
 
     # --- Admin: evaluation runner ---
     run_resp = await client.post("/api/v1/admin/evaluations/run")

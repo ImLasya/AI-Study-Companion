@@ -107,13 +107,14 @@ class MaterialService:
             content=file_bytes,
         )
 
-        # 5. Create database record in 'queued' status
+        # 5. Create database record in 'queued' status with persisted file_data for multi-container access
         material = Material(
             id=material_id,
             project_id=project_id,
             user_id=user_id,
             filename=sanitized_name,
             storage_path=storage_path,
+            file_data=file_bytes,
             status="queued",
             failure_reason=None,
             page_count=None,

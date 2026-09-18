@@ -16,33 +16,30 @@ Tests cover:
 
 import uuid
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
+import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-import pytest
 from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
-from app.db.session import get_db
 from app.main import app
 from app.models.concept import Concept
 from app.models.flashcard import Flashcard, FlashcardReview
 from app.models.project import Project
 from app.models.space import Space
 from app.models.user import User
-from app.schemas.flashcard import FlashcardReviewRequest, FlashcardSessionEventRequest
+from app.schemas.flashcard import FlashcardReviewRequest
 from app.services.flashcard_service import FlashcardService
 from app.services.spaced_repetition_service import (
     DEFAULT_EASE_FACTOR,
     INITIAL_INTERVAL_DAYS,
     MAX_EASE_FACTOR,
     MIN_EASE_FACTOR,
-    ScheduleResult,
-    SpacedRating,
     SpacedRepetitionService,
 )
 

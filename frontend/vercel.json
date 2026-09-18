@@ -1,5 +1,21 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/v1/:path*",
+      "destination": "https://edumind-backend-production.up.railway.app/api/v1/:path*"
+    },
+    {
+      "source": "/docs",
+      "destination": "https://edumind-backend-production.up.railway.app/docs"
+    },
+    {
+      "source": "/openapi.json",
+      "destination": "https://edumind-backend-production.up.railway.app/openapi.json"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

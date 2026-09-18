@@ -6,7 +6,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # ---------------------------------------------------------------------------
 # LLM Structured Output (internal — never returned directly to client)
 # ---------------------------------------------------------------------------
