@@ -67,3 +67,4 @@ frontend/take_screenshots.cjs
 frontend/qa_screenshots/
 scratch/
 *.patch
+frontend/.env.production
