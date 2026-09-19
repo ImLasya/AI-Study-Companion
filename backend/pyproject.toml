@@ -25,7 +25,7 @@ dependencies = [
     "google-genai>=2.0.0",
     "langsmith>=0.1.0",
     "loguru",
-    "fastembed",
+    "fastembed"
 ]
 
 [project.optional-dependencies]
