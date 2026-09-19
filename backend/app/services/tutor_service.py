@@ -18,7 +18,7 @@ from app.ai.embeddings import embed_text
 from app.ai.gemini_provider import get_llm_provider
 from app.ai.llm import LLMGenerationError
 from app.ai.observability import log_ai_usage
-from app.ai.prompts import TUTOR_SYSTEM_INSTRUCTION, build_tutor_user_prompt
+from app.ai.prompts import TUTOR_STREAM_SYSTEM_INSTRUCTION, TUTOR_SYSTEM_INSTRUCTION, build_tutor_user_prompt
 from app.core.config import settings
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.material_repository import MaterialRepository
@@ -709,7 +709,7 @@ class TutorService:
 
         try:
             stream_gen = provider.generate_stream(
-                system_instruction=TUTOR_SYSTEM_INSTRUCTION,
+                system_instruction=TUTOR_STREAM_SYSTEM_INSTRUCTION,
                 user_prompt=user_prompt,
                 temperature=0.2,
                 feature="tutor_stream",

@@ -45,6 +45,12 @@ const cleanTutorContent = (content: string): string => {
   if (!content) return "";
 
   return content
+    // Strip any raw JSON response blob Gemini may emit in stream mode
+    // (e.g. {"insufficient_evidence":false,"grounded":true,"citation_chunk_ids":["",""],...})
+    .replace(
+      /\{[\s\S]*?"citation_chunk_ids"[\s\S]*?\}/g,
+      ""
+    )
     // Remove complete citation_chunk_ids blocks
     .replace(
       /<citation_chunk_ids>[\s\S]*?<\/citation_chunk_ids>/gi,
