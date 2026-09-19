@@ -5,6 +5,7 @@ growth trajectory analysis, and recommendation workflows.
 """
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from loguru import logger
 from sqlalchemy import select
@@ -210,7 +211,7 @@ class MasteryService:
     # 3. Growth Analysis API
     # ------------------------------------------------------------------------
     async def get_project_growth(
-        self, user_id: uuid.UUID, project_id: uuid.UUID
+        self, user_id: uuid.UUID, project_id: uuid.UUID, range_days: int | None = None
     ) -> GrowthSummaryResponse:
         """Analyze concept trajectories and return trend groups and time-series points."""
         project = await self.project_repo.get_by_id(user_id=user_id, project_id=project_id)
@@ -230,6 +231,9 @@ class MasteryService:
         mastery_map = {m.concept_id: m for m in persisted_masteries}
 
         snapshots = await self.mastery_repo.list_project_snapshots(user_id, project_id)
+        if range_days is not None:
+            range_start = datetime.now(UTC) - timedelta(days=range_days - 1)
+            snapshots = [snapshot for snapshot in snapshots if snapshot.recorded_at >= range_start]
         snapshots_by_concept: dict[uuid.UUID, list[SnapshotPoint]] = {}
         for s in snapshots:
             snapshots_by_concept.setdefault(s.concept_id, []).append(

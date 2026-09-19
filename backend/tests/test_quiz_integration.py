@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.gemini_provider import MockLLMProvider, set_llm_provider
 from app.models.concept import Concept
 from app.models.event import ActivityEvent
+from app.models.mastery import ConceptMastery, MasterySnapshot
 from app.models.project import Project
 from app.models.space import Space
 from app.models.user import User
@@ -129,6 +130,26 @@ async def test_quiz_e2e_integration(db_session: AsyncSession):
     assert result.score_percentage > 0
     assert result.correct_answers == 2
     assert len(result.concept_performance) > 0
+
+    # Completion must persist mastery and history synchronously. This is the
+    # data source read by the Growth and Concept Mastery endpoints.
+    mastery_res = await db_session.execute(
+        select(ConceptMastery).where(
+            ConceptMastery.user_id == user.id,
+            ConceptMastery.project_id == project.id,
+        )
+    )
+    masteries = mastery_res.scalars().all()
+    assert masteries
+    assert all(m.evidence_count > 0 and m.mastery_score is not None for m in masteries)
+
+    snapshot_res = await db_session.execute(
+        select(MasterySnapshot).where(
+            MasterySnapshot.user_id == user.id,
+            MasterySnapshot.project_id == project.id,
+        )
+    )
+    assert snapshot_res.scalars().all()
 
     # 9. Cross-User Tenant Isolation
     other_user_id = uuid.uuid4()

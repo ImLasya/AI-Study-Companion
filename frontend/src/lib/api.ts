@@ -628,8 +628,12 @@ export async function getProjectMasteryApi(projectId: string): Promise<MasteryLi
   return await res.json();
 }
 
-export async function getProjectGrowthApi(projectId: string): Promise<GrowthSummary> {
-  const res = await fetchWithTimeout(`${API_BASE_URL}/projects/${projectId}/growth`);
+export async function getProjectGrowthApi(
+  projectId: string,
+  rangeDays?: number
+): Promise<GrowthSummary> {
+  const query = rangeDays ? `?range_days=${rangeDays}` : "";
+  const res = await fetchWithTimeout(`${API_BASE_URL}/projects/${projectId}/growth${query}`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to fetch growth summary.");
@@ -1066,4 +1070,3 @@ export async function getConceptMilestoneDetailApi(
   }
   return await res.json();
 }
-

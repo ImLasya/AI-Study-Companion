@@ -133,7 +133,7 @@ async def test_uploaded_pdf_persists_in_materials_file_data(db_session: AsyncSes
             return pdf_bytes
 
     service = MaterialService(db_session)
-    with patch("app.services.material_service.process_material.delay"):
+    with patch("app.services.material_service.run_background"):
         material = await service.upload_material(user.id, project.id, DummyUploadFile())
 
     assert material.file_data == pdf_bytes

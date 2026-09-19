@@ -112,7 +112,7 @@ async def test_upload_material_success(
 
     pdf_content = create_sample_pdf_bytes("Deep Learning Basics", pages=2)
 
-    with patch("app.workers.tasks.process_material.delay") as mock_delay:
+    with patch("app.services.material_service.run_background") as mock_bg:
         response = await client.post(
             f"/api/v1/projects/{proj_a.id}/materials",
             files={"file": ("deep_learning.pdf", pdf_content, "application/pdf")},
@@ -124,7 +124,7 @@ async def test_upload_material_success(
     assert data["filename"] == "deep_learning.pdf"
     assert data["project_id"] == str(proj_a.id)
     assert data["failure_reason"] is None
-    assert mock_delay.called
+    assert mock_bg.called
 
 
 # -----------------------------------------------------------------------------

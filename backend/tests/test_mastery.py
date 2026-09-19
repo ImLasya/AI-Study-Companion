@@ -308,6 +308,37 @@ async def test_process_quiz_completion_idempotency(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
+async def test_growth_range_includes_todays_snapshot(db_session: AsyncSession):
+    """The inclusive date filter keeps a quiz completed today in Last 7 days."""
+    ctx = await setup_test_context(db_session)
+    set_llm_provider(MockLLMProvider())
+    service = MasteryService(db_session)
+    await service.process_quiz_completion(
+        user_id=ctx["user"].id,
+        project_id=ctx["project"].id,
+        attempt_id=ctx["attempt"].id,
+    )
+
+    repo = MasteryRepository(db_session)
+    snapshots = await repo.list_snapshots_by_concept(ctx["user"].id, ctx["concept"].id)
+    snapshots[0].recorded_at = datetime.now(UTC) - timedelta(days=8)
+    await repo.record_snapshot(
+        user_id=ctx["user"].id,
+        project_id=ctx["project"].id,
+        concept_id=ctx["concept"].id,
+        mastery_score=100.0,
+    )
+    await db_session.commit()
+
+    growth = await service.get_project_growth(
+        user_id=ctx["user"].id, project_id=ctx["project"].id, range_days=7
+    )
+    item = (growth.improving + growth.stable + growth.needs_attention)[0]
+    assert len(item.history) == 1
+    assert item.history[0].score == 100.0
+
+
+@pytest.mark.asyncio
 async def test_recommendation_deduplication(db_session: AsyncSession):
     """Verify that generating recommendations reuses active recommendations rather than duplicating."""
     ctx = await setup_test_context(db_session)

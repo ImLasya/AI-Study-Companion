@@ -1307,7 +1307,36 @@ class QuizService:
             },
         )
 
-        # Trigger event-driven mastery recomputation and recommendations (Celery / inline fallback)
+        # Trigger event-driven mastery recomputation and recommendations
+        # ALWAYS run inline first to guarantee mastery is updated (critical for Render free tier
+        # where Celery broker is unreachable — .delay() silently swallows tasks without executing them).
+        # Celery dispatch is attempted afterwards as an optional async optimization for workers.
+        try:
+            from app.services.mastery_service import MasteryService
+
+            mastery_service = MasteryService(self.session)
+            await mastery_service.process_quiz_completion(
+                user_id=user_id,
+                project_id=completed_attempt.project_id,
+                attempt_id=completed_attempt.id,
+            )
+            logger.info(
+                f"Inline mastery processing completed for attempt {completed_attempt.id}"
+            )
+        except Exception as m_err:
+            # A completed attempt is only a successful completion from the learner's
+            # perspective once its persisted mastery has been updated.  Do not return
+            # a successful quiz result and silently leave Growth stale.
+            await self.session.rollback()
+            logger.exception(
+                "Mastery processing failed for completed attempt %s", completed_attempt.id
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Quiz was completed, but its growth data could not be updated. Please retry.",
+            ) from m_err
+
+        # Optionally also enqueue to Celery worker if broker is reachable (no-op if unavailable)
         try:
             from app.workers.tasks import process_quiz_completed
 
@@ -1317,18 +1346,7 @@ class QuizService:
                 str(completed_attempt.id),
             )
         except Exception:
-            # Fallback to direct synchronous execution when worker broker is unavailable (e.g. testing)
-            try:
-                from app.services.mastery_service import MasteryService
-
-                mastery_service = MasteryService(self.session)
-                await mastery_service.process_quiz_completion(
-                    user_id=user_id,
-                    project_id=completed_attempt.project_id,
-                    attempt_id=completed_attempt.id,
-                )
-            except Exception as m_err:
-                logger.warning(f"Inline mastery processing warning: {m_err}", exc_info=True)
+            pass  # Celery unavailable — inline mastery above already handled it
 
         return QuizResultResponse(
             attempt_id=completed_attempt.id,

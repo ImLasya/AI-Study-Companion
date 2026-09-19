@@ -66,6 +66,7 @@ import type {
   MasteryListResponse,
   Project,
   Recommendation,
+  SnapshotPoint,
 } from "@/types";
 import { LearningRoadmap } from "./LearningRoadmap";
 
@@ -175,13 +176,15 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
     setSearchParams(newParams, { replace: true });
   };
 
+  const rangeDays = Number.parseInt(timeRange, 10);
+
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
       const [mRes, gRes, rRes, _globRes, _actRes, pRes] = await Promise.all([
         getProjectMasteryApi(projectId).catch(() => null),
-        getProjectGrowthApi(projectId).catch(() => null),
+        getProjectGrowthApi(projectId, rangeDays).catch(() => null),
         getProjectRecommendationsApi(projectId).catch(() => []),
         getGlobalAnalyticsApi().catch(() => null),
         getRecentActivityApi({ projectId, limit: 40 }).catch(() => []),
@@ -218,7 +221,7 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
     setLearningPlan(null);
     setLoading(true);
     setError(null);
-  }, [projectId]);
+  }, [projectId, rangeDays]);
 
   useEffect(() => {
     loadData();
@@ -345,35 +348,46 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
     return [];
   }, [learningPlan]);
 
-  // Dynamic last 7 dates for Learning Progress Chart
+  // Build local calendar-day buckets so a snapshot recorded today is always
+  // included in the selected inclusive range, regardless of UTC offset.
   const chartDates = useMemo(() => {
-    const dates = [];
+    const dates: Date[] = [];
     const now = new Date();
-    for (let i = 6; i >= 0; i--) {
+    now.setHours(0, 0, 0, 0);
+    for (let i = rangeDays - 1; i >= 0; i--) {
       const d = new Date(now);
-      d.setDate(now.getDate() - i);
-      dates.push(d.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
+      d.setDate(d.getDate() - i);
+      dates.push(d);
     }
     return dates;
-  }, []);
+  }, [rangeDays]);
 
-  // 7 Points progression leading to avgMastery
+  // Each point is derived from persisted mastery snapshots, never inferred from
+  // the current average. For a day, use each concept's latest snapshot on or
+  // before that day and average the concepts with evidence.
   const chartPoints = useMemo(() => {
-    if (avgMastery === null || avgMastery === 0) {
-      return [0, 0, 0, 0, 0, 0, 0];
-    }
-    const end = avgMastery;
-    // Generate realistic upward trajectory curve matching screenshot
-    return [
-      Math.max(0, Math.round(end * 0.45)),
-      Math.max(0, Math.round(end * 0.55)),
-      Math.max(0, Math.round(end * 0.65)),
-      Math.max(0, Math.round(end * 0.75)),
-      Math.max(0, Math.round(end * 0.85)),
-      Math.max(0, Math.round(end * 0.92)),
-      end,
-    ];
-  }, [avgMastery]);
+    const histories = new Map<string, SnapshotPoint[]>();
+    [
+      ...(growthData?.improving ?? []),
+      ...(growthData?.stable ?? []),
+      ...(growthData?.needs_attention ?? []),
+      ...(growthData?.unassessed ?? []),
+    ].forEach((concept) => histories.set(concept.concept_id, concept.history));
+
+    return chartDates.map((day) => {
+      const dayEnd = new Date(day);
+      dayEnd.setHours(23, 59, 59, 999);
+      const scores = Array.from(histories.values()).flatMap((history) => {
+        const latest = history
+          .filter((point) => new Date(point.recorded_at) <= dayEnd)
+          .at(-1);
+        return latest ? [latest.score] : [];
+      });
+      return scores.length
+        ? Math.round(scores.reduce((total, score) => total + score, 0) / scores.length)
+        : 0;
+    });
+  }, [chartDates, growthData]);
 
   // Circular progress ring calculation (r = 32, circumference ~ 201)
   const ringRadius = 32;
@@ -738,13 +752,13 @@ export const GrowthTab: React.FC<GrowthTabProps> = ({
                   {(() => {
                     const startX = 40;
                     const totalWidth = 500;
-                    const stepX = totalWidth / 6;
+                    const stepX = chartPoints.length > 1 ? totalWidth / (chartPoints.length - 1) : 0;
 
                     const coords = chartPoints.map((val, idx) => ({
                       x: startX + idx * stepX,
                       y: 20 + ((100 - val) / 100) * 130,
                       val,
-                      date: chartDates[idx],
+                      date: chartDates[idx].toLocaleDateString("en-US", { month: "short", day: "numeric" }),
                     }));
 
                     // Generate SVG polyline path

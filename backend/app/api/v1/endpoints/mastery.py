@@ -6,7 +6,7 @@ user identity from JWT tokens/cookies. Cross-user access returns 404 Not Found.
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -67,13 +67,16 @@ async def get_project_mastery(
 )
 async def get_project_growth(
     project_id: uuid.UUID,
+    range_days: int | None = Query(default=None, ge=1, le=365),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> GrowthSummaryResponse:
     """Classify concepts into improving, stable, needs_attention, or unassessed with timeline points."""
     await _verify_project_ownership(project_id, current_user.id, db)
     service = MasteryService(db)
-    return await service.get_project_growth(user_id=current_user.id, project_id=project_id)
+    return await service.get_project_growth(
+        user_id=current_user.id, project_id=project_id, range_days=range_days
+    )
 
 
 # ---------------------------------------------------------------------------
