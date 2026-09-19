@@ -14,10 +14,12 @@
     "lucide-react": "^0.453.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^6.27.0",
     "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
+    "@tailwindcss/typography": "^0.5.20",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

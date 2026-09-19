@@ -121,9 +121,10 @@ class Settings(BaseSettings):
     # 7. Phase 3: AI Tutor & Grounded RAG
     GEMINI_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-flash-lite-latest"
-    # Empirical prototype starting point (cosine distance <= 0.65 is accepted as relevant evidence).
-    # Note: 0.65 is an empirical prototype threshold for all-MiniLM-L6-v2, not a guaranteed relevance cutoff.
-    TUTOR_SIMILARITY_THRESHOLD: float = 0.65
+    # Empirical threshold for all-MiniLM-L6-v2 cosine distance.
+    # Raised to 0.75 after live testing: natural language questions against document chunks
+    # consistently produce distances in the 0.67-0.88 range, so 0.65 rejected valid evidence.
+    TUTOR_SIMILARITY_THRESHOLD: float = 0.75
     TUTOR_TOP_K: int = 10
     TUTOR_MAX_QUESTION_LENGTH: int = 2000
     TUTOR_HISTORY_LIMIT: int = 6  # Bounded recent message context window

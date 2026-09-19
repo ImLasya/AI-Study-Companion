@@ -9,6 +9,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import {
   AlertTriangle,
   Bot,
@@ -493,10 +494,11 @@ export const TutorTab: React.FC<TutorTabProps> = ({
                         </div>
                       ) : (
                         <div className="space-y-2.5">
-                          {/* <div className="whitespace-pre-wrap break-words">{turn.content}</div> */}
-                          <div className="whitespace-pre-wrap break-words">
-                            {cleanTutorContent(turn.content)}
-                          </div>  
+                          <div className="prose prose-sm dark:prose-invert max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                            <ReactMarkdown>
+                              {cleanTutorContent(turn.content)}
+                            </ReactMarkdown>
+                          </div>
                           {isPending && (
                             <span className="inline-block w-1.5 h-3 ml-1 bg-[#4F46E5] animate-pulse" />
                           )}

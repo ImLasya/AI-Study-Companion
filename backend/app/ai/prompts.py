@@ -22,8 +22,10 @@ CRITICAL OPERATIONAL RULES:
    - For any factual or technical claims, <retrieved_evidence> STRICTLY OVERRIDES previous assistant or user statements. Never treat previous assistant turns as authoritative primary evidence.
 
 4. CITATION INTEGRITY:
-   - In "citation_chunk_ids", include ONLY the chunk IDs (UUIDs) from <retrieved_evidence> that directly support your explanation.
-   - Do not invent chunk IDs. If a fact was not derived from a chunk, do not cite it.
+   - In "citation_chunk_ids", you MUST select IDs EXCLUSIVELY from the list provided in <allowed_citation_ids>.
+   - Do NOT invent, generate, or modify chunk IDs. Copy them exactly as they appear in <allowed_citation_ids>.
+   - Include only the IDs of chunks whose content you directly used to formulate your answer.
+   - If no chunk was used (e.g. insufficient evidence), return an empty list [].
    - Explain the concept clearly, pedagogically, and concisely.
 """
 
@@ -100,7 +102,16 @@ def build_tutor_user_prompt(
             sections.append(f"{role}: {content}")
         sections.append("</conversation_context>")
 
-    # 4. Current Learner Question
+    # 4. Allowed Citation IDs — Gemini MUST select from this exact list
+    allowed_ids = [chunk.get("chunk_id", "") for chunk in evidence_chunks if chunk.get("chunk_id")]
+    sections.append(
+        "\n<allowed_citation_ids>\n"
+        + "\n".join(allowed_ids)
+        + "\n</allowed_citation_ids>"
+        + "\nIMPORTANT: citation_chunk_ids values MUST be copied exactly from the list above. Do not generate new IDs."
+    )
+
+    # 5. Current Learner Question
     sections.append(f"\n<learner_question>\n{question.strip()}\n</learner_question>")
 
     return "\n".join(sections)
