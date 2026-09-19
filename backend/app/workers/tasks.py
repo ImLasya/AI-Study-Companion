@@ -136,12 +136,45 @@ async def _process_material_async(
     session: AsyncSession | None = None,
 ) -> dict:
     """Async execution flow for extracting, chunking, embedding, and storing PDF materials."""
-    if session is not None:
-        return await _execute_ingestion(material_id, session)
+    try:
+        if session is not None:
+            return await _execute_ingestion(material_id, session)
 
-    session_factory = get_worker_sessionmaker()
-    async with session_factory() as worker_session:
-        return await _execute_ingestion(material_id, worker_session)
+        session_factory = get_worker_sessionmaker()
+        async with session_factory() as worker_session:
+            return await _execute_ingestion(material_id, worker_session)
+    except Exception as exc:
+        logger.error(
+            f"Failsafe caught unhandled exception in background processing for material {material_id}: {exc}",
+            exc_info=True,
+        )
+        try:
+            if session is not None and session.is_active:
+                repo = MaterialRepository(session)
+                mat = await repo.get_by_id_internal(material_id)
+                if mat and mat.status != "ready":
+                    await repo.update_status(
+                        material_id,
+                        status="failed",
+                        failure_reason=str(exc),
+                    )
+            else:
+                session_factory = get_worker_sessionmaker()
+                async with session_factory() as fallback_session:
+                    repo = MaterialRepository(fallback_session)
+                    mat = await repo.get_by_id_internal(material_id)
+                    if mat and mat.status != "ready":
+                        await repo.update_status(
+                            material_id,
+                            status="failed",
+                            failure_reason=str(exc),
+                        )
+        except Exception as update_err:
+            logger.error(
+                f"Failsafe failed to update material {material_id} status: {update_err}",
+                exc_info=True,
+            )
+        raise
 
 
 @traceable(
