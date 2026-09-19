@@ -50,7 +50,7 @@ export const API_DOCS_URL =
 export async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
-  timeoutMs: number = 8000
+  timeoutMs: number = 30000
 ): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
